@@ -80,6 +80,10 @@ export interface CommentDto {
   authorName: string;
   content: string;
   createdAt: string;
+  /** True when the author is an Admin account (public name shows as "Admin"). */
+  isAdminAuthor?: boolean;
+  /** Admin-only verified seal next to the name. */
+  hasAdminVerifiedBadge?: boolean;
 }
 
 export interface CreateCommentDto {

@@ -25,6 +25,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { FacebookVideoPlayer } from './FacebookVideoPlayer';
+import { CommentAuthorLabel } from '@/components/ui/AdminVerifiedBadge';
 
 export interface LightboxEventData {
   id: string;
@@ -344,22 +345,37 @@ export function EventMediaLightbox({
                 {comments.map((c) => {
                   const canDelete = isAdmin || (user && user.id === c.authorId);
                   const isDel = deletingId === c.id;
+                  const isAdminAuthor = Boolean(c.isAdminAuthor || c.hasAdminVerifiedBadge);
+                  const displayName = isAdminAuthor ? 'Admin' : c.authorName;
 
                   return (
                     <div
                       key={c.id}
-                      className="p-3 bg-slate-50/70 hover:bg-slate-50 transition rounded-2xl border border-slate-100 space-y-1.5"
+                      className={`p-3 transition rounded-2xl border space-y-1.5 ${
+                        isAdminAuthor
+                          ? 'bg-[rgba(31,107,122,0.07)] border-[rgba(31,107,122,0.22)]'
+                          : 'bg-slate-50/70 hover:bg-slate-50 border-slate-100'
+                      }`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-red-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                            {getAvatarLetter(c.authorName)}
+                          <div
+                            className={`w-7 h-7 rounded-full text-white font-bold text-xs flex items-center justify-center shrink-0 ${
+                              isAdminAuthor
+                                ? 'bg-gradient-to-tr from-[#1F6B7A] to-[#C4A35A]'
+                                : 'bg-red-600'
+                            }`}
+                          >
+                            {getAvatarLetter(displayName)}
                           </div>
                           <div>
-                            <span className="font-bold text-xs text-slate-900 block leading-tight">
-                              {c.authorName}
-                            </span>
-                            <span className="text-[10px] text-slate-400">
+                            <CommentAuthorLabel
+                              name={c.authorName}
+                              isAdminAuthor={c.isAdminAuthor}
+                              hasAdminVerifiedBadge={c.hasAdminVerifiedBadge}
+                              className="text-xs"
+                            />
+                            <span className="text-[10px] text-slate-400 block">
                               {formatRelativeArabicTime(c.createdAt)}
                             </span>
                           </div>

@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Sparkles,
 } from 'lucide-react';
+import { CommentAuthorLabel, AdminVerifiedBadge } from '@/components/ui/AdminVerifiedBadge';
 
 interface EventCommentsSectionProps {
   eventId: string;
@@ -128,8 +129,16 @@ export function EventCommentsSection({ eventId, initialCount = 0 }: EventComment
         {isAuthenticated ? (
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="flex items-center justify-between text-xs text-slate-500">
-              <span className="font-semibold text-slate-700">
-                التعليق باسم: <span className="text-red-600">{user?.name || 'مستخدم'}</span>
+              <span className="font-semibold text-slate-700 inline-flex items-center gap-1.5 flex-wrap">
+                التعليق باسم:{' '}
+                {isAdmin ? (
+                  <>
+                    <span className="text-[#1F6B7A] font-black">Admin</span>
+                    <AdminVerifiedBadge />
+                  </>
+                ) : (
+                  <span className="text-red-600">{user?.name || 'مستخدم'}</span>
+                )}
               </span>
               <span className={`text-[11px] ${content.length > 900 ? 'text-amber-600 font-bold' : 'text-slate-400'}`}>
                 {content.length} / 1000 حرف
@@ -228,22 +237,37 @@ export function EventCommentsSection({ eventId, initialCount = 0 }: EventComment
             {comments.map((comment) => {
               const canDelete = isAdmin || (user && user.id === comment.authorId);
               const isDeleting = deletingCommentId === comment.id;
+              const isAdminAuthor = Boolean(comment.isAdminAuthor || comment.hasAdminVerifiedBadge);
+              const displayName = isAdminAuthor ? 'Admin' : comment.authorName;
 
               return (
                 <div
                   key={comment.id}
-                  className="p-4 sm:p-5 bg-slate-50/40 hover:bg-slate-50/80 transition-colors rounded-2xl border border-slate-100 space-y-2.5"
+                  className={`p-4 sm:p-5 transition-colors rounded-2xl border space-y-2.5 ${
+                    isAdminAuthor
+                      ? 'bg-[rgba(31,107,122,0.06)] hover:bg-[rgba(31,107,122,0.09)] border-[rgba(31,107,122,0.2)]'
+                      : 'bg-slate-50/40 hover:bg-slate-50/80 border-slate-100'
+                  }`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-red-600 to-rose-500 text-white font-black text-xs flex items-center justify-center shadow-xs">
-                        {getAvatarLetter(comment.authorName)}
+                      <div
+                        className={`w-9 h-9 rounded-full text-white font-black text-xs flex items-center justify-center shadow-xs ${
+                          isAdminAuthor
+                            ? 'bg-gradient-to-tr from-[#1F6B7A] to-[#C4A35A]'
+                            : 'bg-gradient-to-tr from-red-600 to-rose-500'
+                        }`}
+                      >
+                        {getAvatarLetter(displayName)}
                       </div>
 
                       <div>
-                        <div className="font-bold text-xs sm:text-sm text-slate-900">
-                          {comment.authorName}
-                        </div>
+                        <CommentAuthorLabel
+                          name={comment.authorName}
+                          isAdminAuthor={comment.isAdminAuthor}
+                          hasAdminVerifiedBadge={comment.hasAdminVerifiedBadge}
+                          className="text-xs sm:text-sm"
+                        />
                         <div className="text-[11px] text-slate-400">
                           {formatRelativeArabicTime(comment.createdAt)}
                         </div>
