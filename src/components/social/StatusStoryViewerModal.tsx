@@ -47,6 +47,8 @@ export function StatusStoryViewerModal({
 
   const [imageError, setImageError] = useState(false);
 
+  const viewedStatusIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     setCurrentIndex(initialIndex);
     setProgress(0);
@@ -55,14 +57,15 @@ export function StatusStoryViewerModal({
 
   const currentStatus = statuses[currentIndex];
 
-  // Auto-record view on status change
+  // Auto-record view on status change (deduplicated per session)
   useEffect(() => {
-    if (isOpen && currentStatus) {
+    if (isOpen && currentStatus && !viewedStatusIdsRef.current.has(currentStatus.id)) {
+      viewedStatusIdsRef.current.add(currentStatus.id);
       socialAdminApi.viewStatus(currentStatus.id).catch(() => {});
       setProgress(0);
       setImageError(false);
     }
-  }, [isOpen, currentIndex, currentStatus]);
+  }, [isOpen, currentStatus]);
 
   // Reset progress when index changes
   useEffect(() => {

@@ -169,6 +169,8 @@ export interface ConversationDto {
   lastMessageAt?: string | null;
   lastMessageSenderId?: string | null;
   lastMessageSenderName?: string | null;
+  /** Delivery ticks for last outbound message (Sent/Delivered/Read). Null when last msg is incoming. */
+  lastMessageDeliveryStatus?: MessageDeliveryStatus | string | number | null;
   unreadCount: number;
   isMuted: boolean;
   isPinned: boolean;

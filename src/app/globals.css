@@ -2778,3 +2778,215 @@ button.admin-btn-primary {
   background: #0b141a;
   color: #e9edef;
 }
+
+/* -- Reel Studio Preview Modal -- */
+.reel-studio {
+  animation: reelStudioIn 0.28s ease-out;
+}
+@keyframes reelStudioIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.reel-studio-backdrop {
+  background:
+    radial-gradient(ellipse 70% 55% at 20% 40%, rgba(31, 107, 122, 0.28), transparent 60%),
+    radial-gradient(ellipse 50% 45% at 85% 20%, rgba(196, 163, 90, 0.18), transparent 55%),
+    rgba(4, 8, 14, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.reel-studio-shell {
+  border-radius: 1.85rem;
+  background:
+    linear-gradient(145deg, rgba(22, 36, 52, 0.97) 0%, rgba(12, 18, 28, 0.98) 55%, rgba(8, 12, 20, 1) 100%);
+  border: 1px solid rgba(196, 163, 90, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 0 80px rgba(31, 107, 122, 0.22),
+    0 40px 80px -28px rgba(0, 0, 0, 0.85);
+  animation: reelStudioShell 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes reelStudioShell {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.reel-studio-stage {
+  background:
+    radial-gradient(circle at 50% 30%, rgba(31, 107, 122, 0.2), transparent 55%),
+    #05080e;
+}
+.reel-studio-stage-frame {
+  background: #000;
+  box-shadow:
+    0 0 0 1px rgba(196, 163, 90, 0.35),
+    0 0 0 6px rgba(8, 14, 22, 0.9),
+    0 24px 48px rgba(0, 0, 0, 0.55);
+}
+.reel-studio-stage-glow {
+  position: absolute;
+  inset: auto 12% -8% 12%;
+  height: 40%;
+  background: radial-gradient(ellipse at center, rgba(196, 163, 90, 0.22), transparent 70%);
+  filter: blur(28px);
+  z-index: 0;
+}
+.reel-studio-panel {
+  background:
+    linear-gradient(180deg, rgba(18, 30, 44, 0.55) 0%, rgba(10, 16, 26, 0.2) 100%);
+  border-inline-start: 1px solid rgba(255, 255, 255, 0.06);
+}
+.reel-studio-panel-top {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+}
+.reel-studio-close {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  margin-inline-start: 0.75rem;
+}
+.reel-studio-close:hover {
+  background: rgba(244, 63, 94, 0.25);
+  border-color: rgba(244, 63, 94, 0.45);
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.2);
+}
+.reel-studio-caption-body {
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(196, 163, 90, 0.18);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+.reel-studio-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+.reel-studio-chip--cyan {
+  background: rgba(8, 47, 73, 0.45);
+  color: #7dd3fc;
+  border-color: rgba(34, 211, 238, 0.28);
+}
+.reel-studio-chip--gold {
+  background: rgba(69, 48, 18, 0.4);
+  color: #e6d19a;
+  border-color: rgba(196, 163, 90, 0.35);
+}
+.reel-studio-chip--teal {
+  background: rgba(15, 55, 52, 0.45);
+  color: #5eead4;
+  border-color: rgba(45, 212, 191, 0.28);
+}
+.reel-studio-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+@media (max-width: 640px) {
+  .reel-studio-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.reel-studio-stat {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  padding: 0.85rem 0.45rem 0.75rem;
+  text-align: center;
+  background: linear-gradient(165deg, rgba(26, 40, 56, 0.95), rgba(14, 22, 34, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.reel-studio-stat:hover {
+  transform: translateY(-2px);
+}
+.reel-studio-stat-icon {
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0 auto 0.35rem;
+  border-radius: 0.65rem;
+  display: grid;
+  place-items: center;
+}
+.reel-studio-stat-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #8b9cb0;
+  letter-spacing: 0.02em;
+}
+.reel-studio-stat-value {
+  margin-top: 0.15rem;
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.reel-studio-stat--cyan {
+  border-color: rgba(34, 211, 238, 0.28);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.1);
+}
+.reel-studio-stat--cyan .reel-studio-stat-icon {
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.12);
+}
+.reel-studio-stat--rose {
+  border-color: rgba(251, 113, 133, 0.28);
+  box-shadow: 0 0 18px rgba(251, 113, 133, 0.1);
+}
+.reel-studio-stat--rose .reel-studio-stat-icon {
+  color: #fb7185;
+  background: rgba(251, 113, 133, 0.12);
+}
+.reel-studio-stat--amber {
+  border-color: rgba(251, 191, 36, 0.28);
+  box-shadow: 0 0 18px rgba(251, 191, 36, 0.1);
+}
+.reel-studio-stat--amber .reel-studio-stat-icon {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+}
+.reel-studio-stat--emerald {
+  border-color: rgba(52, 211, 153, 0.28);
+  box-shadow: 0 0 18px rgba(52, 211, 153, 0.1);
+}
+.reel-studio-stat--emerald .reel-studio-stat-icon {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+}
+.reel-studio-stat--rose-hot {
+  border-color: rgba(244, 63, 94, 0.4);
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.16);
+}
+.reel-studio-stat--rose-hot .reel-studio-stat-icon {
+  color: #fb7185;
+  background: rgba(244, 63, 94, 0.16);
+}
+.reel-studio-stat--rose-hot .reel-studio-stat-value {
+  color: #fda4af;
+}
+.reel-studio-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.25), transparent);
+}
+.reel-studio-reports-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #e6d19a;
+  text-decoration: none;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(196, 163, 90, 0.25);
+  background: rgba(196, 163, 90, 0.08);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.reel-studio-reports-link:hover {
+  background: rgba(196, 163, 90, 0.16);
+  border-color: rgba(196, 163, 90, 0.45);
+}

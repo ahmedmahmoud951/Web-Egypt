@@ -501,31 +501,77 @@ export default function AdminChatPage() {
       );
     },
 
-    onMessageDelivered: (_conversationId: string, messageId: string) => {
+    onMessageDelivered: (conversationId: string, messageId: string) => {
       setMessages((prev) => {
-        const target = prev.find((m) => m.id?.toLowerCase() === messageId?.toLowerCase());
+        const target = messageId ? prev.find((m) => m.id?.toLowerCase() === messageId?.toLowerCase()) : null;
         const targetTime = target?.createdAt ? new Date(target.createdAt).getTime() : null;
         return prev.map((m) => {
           if (isMessageRead(m.deliveryStatus)) return m;
-          if (m.id?.toLowerCase() === messageId?.toLowerCase() || (targetTime && m.createdAt && new Date(m.createdAt).getTime() <= targetTime)) {
+          const isOutbound = !m.senderId || (currentUserId && m.senderId.toLowerCase() === currentUserId.toLowerCase());
+          if (!isOutbound) return m;
+
+          if (
+            m.id?.toLowerCase() === messageId?.toLowerCase() ||
+            (targetTime && m.createdAt && new Date(m.createdAt).getTime() <= targetTime) ||
+            !targetTime
+          ) {
             return { ...m, deliveryStatus: MessageDeliveryStatus.Delivered };
           }
           return m;
         });
       });
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id?.toLowerCase() !== conversationId?.toLowerCase()) return c;
+          if (isMessageRead(c.lastMessageDeliveryStatus)) return c;
+          const lastId = c.lastMessageId?.toLowerCase();
+          if (lastId && lastId === messageId?.toLowerCase()) {
+            return { ...c, lastMessageDeliveryStatus: MessageDeliveryStatus.Delivered };
+          }
+          // If we don't have lastMessageId, still bump when last msg is ours
+          if (
+            c.lastMessageSenderId &&
+            currentUserId &&
+            c.lastMessageSenderId.toLowerCase() === currentUserId.toLowerCase()
+          ) {
+            return { ...c, lastMessageDeliveryStatus: MessageDeliveryStatus.Delivered };
+          }
+          return c;
+        })
+      );
     },
 
-    onMessageRead: (_conversationId: string, messageId: string) => {
+    onMessageRead: (conversationId: string, messageId: string) => {
       setMessages((prev) => {
-        const target = prev.find((m) => m.id?.toLowerCase() === messageId?.toLowerCase());
+        const target = messageId ? prev.find((m) => m.id?.toLowerCase() === messageId?.toLowerCase()) : null;
         const targetTime = target?.createdAt ? new Date(target.createdAt).getTime() : null;
         return prev.map((m) => {
-          if (m.id?.toLowerCase() === messageId?.toLowerCase() || (targetTime && m.createdAt && new Date(m.createdAt).getTime() <= targetTime)) {
+          const isOutbound = !m.senderId || (currentUserId && m.senderId.toLowerCase() === currentUserId.toLowerCase());
+          if (!isOutbound) return m;
+
+          if (
+            m.id?.toLowerCase() === messageId?.toLowerCase() ||
+            (targetTime && m.createdAt && new Date(m.createdAt).getTime() <= targetTime) ||
+            !targetTime
+          ) {
             return { ...m, deliveryStatus: MessageDeliveryStatus.Read };
           }
           return m;
         });
       });
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id?.toLowerCase() !== conversationId?.toLowerCase()) return c;
+          if (
+            c.lastMessageSenderId &&
+            currentUserId &&
+            c.lastMessageSenderId.toLowerCase() === currentUserId.toLowerCase()
+          ) {
+            return { ...c, lastMessageDeliveryStatus: MessageDeliveryStatus.Read };
+          }
+          return c;
+        })
+      );
     },
 
     onReactionAdded: (_conversationId: string, reaction: MessageReactionDto) => {
@@ -788,6 +834,25 @@ export default function AdminChatPage() {
       .then((msgs) => {
         const list = Array.isArray(msgs) ? msgs : [];
         setMessages(list);
+        // Sync list ticks from latest outbound message status
+        const lastOutbound = [...list]
+          .reverse()
+          .find((m) => m.senderId && m.senderId.toLowerCase() === currentUserId.toLowerCase());
+        if (lastOutbound) {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id?.toLowerCase() === activeConversationId.toLowerCase()
+                ? {
+                    ...c,
+                    lastMessageId: lastOutbound.id,
+                    lastMessageSenderId: lastOutbound.senderId,
+                    lastMessageDeliveryStatus:
+                      lastOutbound.deliveryStatus ?? MessageDeliveryStatus.Sent,
+                  }
+                : c
+            )
+          );
+        }
         // Participant inbox: acknowledge delivery + read so peer ticks update.
         const lastIncoming = [...list]
           .reverse()
@@ -1116,6 +1181,22 @@ export default function AdminChatPage() {
           ? list.map((m) => (m.id?.toLowerCase() === withStatus.id?.toLowerCase() ? withStatus : m))
           : [...list, withStatus];
       });
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id?.toLowerCase() === activeConversationId.toLowerCase()
+            ? {
+                ...c,
+                lastMessage: textToSend,
+                lastMessageType: MessageType.Text,
+                lastMessageAt: withStatus.createdAt,
+                lastMessageId: withStatus.id,
+                lastMessageSenderId: currentUserId || withStatus.senderId,
+                lastMessageDeliveryStatus: MessageDeliveryStatus.Sent,
+                unreadCount: 0,
+              }
+            : c
+        )
+      );
     } catch (err: any) {
       console.error('Send message failed', err);
       alert(err.response?.data?.message || 'تعذر إرسال الرسالة. تأكد من عدم وجود حظر.');
@@ -1728,6 +1809,10 @@ export default function AdminChatPage() {
                           ? formatChatListTime(conv.lastMessage.createdAt)
                           : '';
                       const lastMsgSnippet = getConversationLastPreview(conv);
+                      const lastFromMe =
+                        !!currentUserId &&
+                        !!conv.lastMessageSenderId &&
+                        conv.lastMessageSenderId.toLowerCase() === currentUserId.toLowerCase();
 
                       return (
                         <div
@@ -1760,16 +1845,29 @@ export default function AdminChatPage() {
                                 {lastTime}
                               </span>
                             </div>
-                            <div className="flex items-center justify-between mt-1">
-                              <p className="text-xs text-slate-400 truncate max-w-[170px]">
+                            <div className="flex items-center justify-between mt-1 gap-2">
+                              <p className="text-xs text-slate-400 truncate max-w-[170px] flex items-center gap-1 min-w-0">
                                 {typingUsers[conv.id] ? (
                                   <span className="text-emerald-400 italic">يكتب الآن...</span>
                                 ) : (
-                                  lastMsgSnippet
+                                  <>
+                                    {lastFromMe && (
+                                      <span className="shrink-0 inline-flex items-center" title="حالة الرسالة">
+                                        {isMessageRead(conv.lastMessageDeliveryStatus) ? (
+                                          <CheckCheck className="w-3.5 h-3.5 text-sky-400" />
+                                        ) : isMessageDelivered(conv.lastMessageDeliveryStatus) ? (
+                                          <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
+                                        ) : (
+                                          <Check className="w-3.5 h-3.5 text-slate-400" />
+                                        )}
+                                      </span>
+                                    )}
+                                    <span className="truncate">{lastMsgSnippet}</span>
+                                  </>
                                 )}
                               </p>
                               {conv.unreadCount > 0 && (
-                                <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-[10px] font-bold text-slate-950">
+                                <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-[10px] font-bold text-slate-950 shrink-0">
                                   {conv.unreadCount}
                                 </span>
                               )}
@@ -1953,7 +2051,11 @@ export default function AdminChatPage() {
                   {/* Messages Area */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
                     {displayMessages.map((msg) => {
-                      const isMe = msg.senderId === currentUserId;
+                      const isMe =
+                        !!msg.senderId &&
+                        !!currentUserId &&
+                        msg.senderId.toLowerCase() === currentUserId.toLowerCase();
+                      const tickStatus = msg.deliveryStatus ?? (isMe ? MessageDeliveryStatus.Sent : undefined);
                       const isCall = isTypeCall(msg.type);
 
                       if (isCall) {
@@ -2056,15 +2158,15 @@ export default function AdminChatPage() {
                               </span>
                               {isMe && (
                                 <>
-                                  {isMessageRead(msg.deliveryStatus) ? (
+                                  {isMessageRead(tickStatus) ? (
                                     <span title="تمت القراءة (Seen)" className="inline-flex items-center">
                                       <CheckCheck className="w-3.5 h-3.5 text-sky-400" />
                                     </span>
-                                  ) : isMessageDelivered(msg.deliveryStatus) ? (
+                                  ) : isMessageDelivered(tickStatus) ? (
                                     <span title="تم التسليم" className="inline-flex items-center">
                                       <CheckCheck className="w-3.5 h-3.5 text-slate-300" />
                                     </span>
-                                  ) : isMessageSent(msg.deliveryStatus) ? (
+                                  ) : isMessageSent(tickStatus) || isMe ? (
                                     <span title="تم الإرسال" className="inline-flex items-center">
                                       <Check className="w-3.5 h-3.5 text-slate-300" />
                                     </span>

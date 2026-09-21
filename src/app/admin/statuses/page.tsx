@@ -430,15 +430,14 @@ function AdminStatusesContent() {
                         showName
                       />
                       <span
-                        className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                          group.hasActive
+                        className={`text-[10px] font-black px-2 py-0.5 rounded-full ${group.hasActive
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                             : st.status === 'Hidden'
                               ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                               : st.status === 'Deleted'
                                 ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                                 : 'bg-white/10 text-[#A8B8C8] border border-white/10'
-                        }`}
+                          }`}
                       >
                         {group.hasActive
                           ? 'نشطة'

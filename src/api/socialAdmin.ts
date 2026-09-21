@@ -13,6 +13,9 @@ import {
 import { normalizeReelDto, normalizeStatusDto } from '@/lib/socialNormalize';
 import { resolveMediaUrl } from '@/lib/media';
 
+const viewedStatusesSet = new Set<string>();
+const inflightViewsMap = new Map<string, Promise<void>>();
+
 export const socialAdminApi = {
   getReels: async (params?: AdminReelFilter, signal?: AbortSignal): Promise<PagedResponse<ReelDto>> => {
     const res = await apiClient.get<ApiResponse<PagedResponse<ReelDto>>>('/admin/reels', {
@@ -115,7 +118,24 @@ export const socialAdminApi = {
   },
 
   viewStatus: async (id: string): Promise<void> => {
-    await apiClient.post(`/statuses/${id}/view`);
+    if (!id || viewedStatusesSet.has(id)) return;
+    const existing = inflightViewsMap.get(id);
+    if (existing) return existing;
+
+    const promise = apiClient
+      .post(`/statuses/${id}/view`)
+      .then(() => {
+        viewedStatusesSet.add(id);
+      })
+      .catch(() => {
+        viewedStatusesSet.add(id);
+      })
+      .finally(() => {
+        inflightViewsMap.delete(id);
+      });
+
+    inflightViewsMap.set(id, promise);
+    await promise;
   },
 
   getReports: async (
