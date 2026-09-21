@@ -2070,3 +2070,8 @@ button.admin-btn-primary {
   color: #fff;
   background: linear-gradient(145deg, #1f6b7a, #7c3aed);
 }
+
+.wa-monitor {
+  background: #0b141a;
+  color: #e9edef;
+}

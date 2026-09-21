@@ -22,10 +22,12 @@ import {
   BadgeCheck,
   Film,
   Sparkles,
+  MessageCircle,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'لوحة القيادة', shortLabel: 'لوحة', icon: LayoutDashboard, exact: true },
+  { href: '/admin/chat', label: 'مراقبة المحادثات', shortLabel: 'محادثات', icon: MessageCircle },
   { href: '/admin/verification', label: 'توثيق الحسابات', shortLabel: 'توثيق', icon: BadgeCheck },
   { href: '/admin/events', label: 'المنشورات', shortLabel: 'منشورات', icon: Newspaper },
   { href: '/admin/reels', label: 'إدارة الريلز', shortLabel: 'ريلز', icon: Film },
