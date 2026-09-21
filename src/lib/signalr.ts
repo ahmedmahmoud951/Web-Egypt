@@ -9,6 +9,18 @@ import {
   EventHiddenMessage,
   EventRestoredMessage,
   LocationApprovedMessage,
+  ReelPublishedMessage,
+  ReelHiddenMessage,
+  ReelRestoredMessage,
+  ReelDeletedMessage,
+  ReelReactionUpdatedMessage,
+  ReelCommentAddedMessage,
+  StatusPublishedMessage,
+  StatusDeletedMessage,
+  StatusHiddenMessage,
+  StatusRestoredMessage,
+  NewReelReportMessage,
+  NewStatusReportMessage,
 } from '@/types/realtime';
 
 export type SignalRConnectionStatus =
@@ -254,6 +266,57 @@ class SignalRService {
     return this.registerHandler('VerificationEvent', callback);
   }
 
+  // Social - Reels Events
+  public onReelPublished(callback: (msg: ReelPublishedMessage) => void): () => void {
+    return this.registerHandler('ReelPublished', callback);
+  }
+
+  public onReelHidden(callback: (msg: ReelHiddenMessage) => void): () => void {
+    return this.registerHandler('ReelHidden', callback);
+  }
+
+  public onReelRestored(callback: (msg: ReelRestoredMessage) => void): () => void {
+    return this.registerHandler('ReelRestored', callback);
+  }
+
+  public onReelDeleted(callback: (msg: ReelDeletedMessage) => void): () => void {
+    return this.registerHandler('ReelDeleted', callback);
+  }
+
+  public onReelReactionUpdated(callback: (msg: ReelReactionUpdatedMessage) => void): () => void {
+    return this.registerHandler('ReelReactionUpdated', callback);
+  }
+
+  public onReelCommentAdded(callback: (msg: ReelCommentAddedMessage) => void): () => void {
+    return this.registerHandler('ReelCommentAdded', callback);
+  }
+
+  // Social - Status Events
+  public onStatusPublished(callback: (msg: StatusPublishedMessage) => void): () => void {
+    return this.registerHandler('StatusPublished', callback);
+  }
+
+  public onStatusDeleted(callback: (msg: StatusDeletedMessage) => void): () => void {
+    return this.registerHandler('StatusDeleted', callback);
+  }
+
+  public onStatusHidden(callback: (msg: StatusHiddenMessage) => void): () => void {
+    return this.registerHandler('StatusHidden', callback);
+  }
+
+  public onStatusRestored(callback: (msg: StatusRestoredMessage) => void): () => void {
+    return this.registerHandler('StatusRestored', callback);
+  }
+
+  // Social - Admin Events
+  public onNewReelReport(callback: (msg: NewReelReportMessage) => void): () => void {
+    return this.registerHandler('NewReelReport', callback);
+  }
+
+  public onNewStatusReport(callback: (msg: NewStatusReportMessage) => void): () => void {
+    return this.registerHandler('NewStatusReport', callback);
+  }
+
   public async joinLocationGroup(locationId: number): Promise<void> {
     if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
       await this.connection.invoke('JoinLocationGroup', locationId);
@@ -263,6 +326,18 @@ class SignalRService {
   public async joinEventGroup(eventId: string): Promise<void> {
     if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
       await this.connection.invoke('JoinEventGroup', eventId);
+    }
+  }
+
+  public async joinReelGroup(reelId: string): Promise<void> {
+    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke('JoinReelGroup', reelId);
+    }
+  }
+
+  public async leaveReelGroup(reelId: string): Promise<void> {
+    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke('LeaveReelGroup', reelId);
     }
   }
 }

@@ -1254,7 +1254,7 @@ button.admin-btn-primary {
   50% { transform: scale(1.04); box-shadow: 0 0 0 5px rgba(196, 163, 90, 0.18), 0 14px 24px -10px rgba(154, 122, 46, 0.75); }
 }
 
-/* —— Facebook-style admin user profile —— */
+/* ï¿½ï¿½ Facebook-style admin user profile ï¿½ï¿½ */
 .profile-fb {
   max-width: 68rem;
   margin-inline: auto;
@@ -1748,7 +1748,7 @@ button.admin-btn-primary {
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* —— Social admin stage (Reels / Statuses) —— */
+/* ï¿½ï¿½ Social admin stage (Reels / Statuses) ï¿½ï¿½ */
 .social-stage {
   max-width: 80rem;
   margin-inline: auto;

@@ -149,6 +149,69 @@ export function useSignalRSubscriptions() {
       ], 'VerificationEvent', 100);
     });
 
+    // Social - Reels Subscriptions
+    const unsubReelPublished = signalRService.onReelPublished((msg) => {
+      devLog.info('realtime', 'ReelPublished', msg);
+      softInvalidate(queryClient, [['admin', 'reels'], ['reels'], ['admin', 'dashboard']], 'ReelPublished');
+    });
+
+    const unsubReelHidden = signalRService.onReelHidden((msg) => {
+      devLog.info('realtime', 'ReelHidden', msg);
+      softInvalidate(queryClient, [['admin', 'reels'], ['reels'], ['admin', 'dashboard']], 'ReelHidden');
+    });
+
+    const unsubReelRestored = signalRService.onReelRestored((msg) => {
+      devLog.info('realtime', 'ReelRestored', msg);
+      softInvalidate(queryClient, [['admin', 'reels'], ['reels'], ['admin', 'dashboard']], 'ReelRestored');
+    });
+
+    const unsubReelDeleted = signalRService.onReelDeleted((msg) => {
+      devLog.info('realtime', 'ReelDeleted', msg);
+      softInvalidate(queryClient, [['admin', 'reels'], ['reels'], ['admin', 'dashboard']], 'ReelDeleted');
+    });
+
+    const unsubReelReaction = signalRService.onReelReactionUpdated((msg) => {
+      devLog.info('realtime', 'ReelReactionUpdated', msg);
+      softInvalidate(queryClient, [['admin', 'reels'], ['reels']], 'ReelReactionUpdated', 600);
+    });
+
+    const unsubReelComment = signalRService.onReelCommentAdded((msg) => {
+      devLog.info('realtime', 'ReelCommentAdded', msg);
+      softInvalidate(queryClient, [['admin', 'reels'], ['reels']], 'ReelCommentAdded', 600);
+    });
+
+    // Social - Statuses Subscriptions
+    const unsubStatusPublished = signalRService.onStatusPublished((msg) => {
+      devLog.info('realtime', 'StatusPublished', msg);
+      softInvalidate(queryClient, [['admin', 'statuses'], ['statuses'], ['admin', 'dashboard']], 'StatusPublished');
+    });
+
+    const unsubStatusDeleted = signalRService.onStatusDeleted((msg) => {
+      devLog.info('realtime', 'StatusDeleted', msg);
+      softInvalidate(queryClient, [['admin', 'statuses'], ['statuses'], ['admin', 'dashboard']], 'StatusDeleted');
+    });
+
+    const unsubStatusHidden = signalRService.onStatusHidden((msg) => {
+      devLog.info('realtime', 'StatusHidden', msg);
+      softInvalidate(queryClient, [['admin', 'statuses'], ['statuses'], ['admin', 'dashboard']], 'StatusHidden');
+    });
+
+    const unsubStatusRestored = signalRService.onStatusRestored((msg) => {
+      devLog.info('realtime', 'StatusRestored', msg);
+      softInvalidate(queryClient, [['admin', 'statuses'], ['statuses'], ['admin', 'dashboard']], 'StatusRestored');
+    });
+
+    // Social - Moderation Reports Subscriptions
+    const unsubNewReelReport = signalRService.onNewReelReport((msg) => {
+      devLog.info('realtime', 'NewReelReport', msg);
+      softInvalidate(queryClient, [['admin', 'reports'], ['admin', 'reels'], ['admin', 'dashboard']], 'NewReelReport');
+    });
+
+    const unsubNewStatusReport = signalRService.onNewStatusReport((msg) => {
+      devLog.info('realtime', 'NewStatusReport', msg);
+      softInvalidate(queryClient, [['admin', 'reports'], ['admin', 'statuses'], ['admin', 'dashboard']], 'NewStatusReport');
+    });
+
     let hasConnectedOnce = signalRService.getStatus() === 'connected';
     const unsubStatus = signalRService.onStatusChange((status) => {
       if (status === 'connected') {
@@ -157,7 +220,7 @@ export function useSignalRSubscriptions() {
         devLog.ok('realtime', `Hub status: ${status}`);
         // Catch anything missed while the hub was down / negotiating.
         if (wasReconnect) {
-          softInvalidate(queryClient, [['admin', 'verification']], 'HubReconnected', 200);
+          softInvalidate(queryClient, [['admin', 'verification'], ['admin', 'reels'], ['admin', 'statuses']], 'HubReconnected', 200);
         }
       } else if (status === 'reconnecting') {
         devLog.warn('realtime', 'Hub status: reconnecting…');
@@ -183,6 +246,18 @@ export function useSignalRSubscriptions() {
       unsubRestored();
       unsubLocation();
       unsubVerification();
+      unsubReelPublished();
+      unsubReelHidden();
+      unsubReelRestored();
+      unsubReelDeleted();
+      unsubReelReaction();
+      unsubReelComment();
+      unsubStatusPublished();
+      unsubStatusDeleted();
+      unsubStatusHidden();
+      unsubStatusRestored();
+      unsubNewReelReport();
+      unsubNewStatusReport();
       unsubStatus();
     };
   }, [queryClient]);

@@ -45,3 +45,92 @@ export interface LocationApprovedMessage {
   type: string;
   parentId: number | null;
 }
+
+// Social - Reels Events
+export interface ReelPublishedMessage {
+  reelId: string;
+  userId: string;
+  authorName: string;
+  caption: string;
+  mediaUrl: string;
+  locationId?: number | null;
+  categoryId?: number | null;
+  eventId?: string | null;
+  publishedAt: string;
+}
+
+export interface ReelHiddenMessage {
+  reelId: string;
+  reason: string;
+}
+
+export interface ReelRestoredMessage {
+  reelId: string;
+}
+
+export interface ReelDeletedMessage {
+  reelId: string;
+}
+
+export interface ReelReactionUpdatedMessage {
+  reelId: string;
+  reactionsCount: number;
+  reactionType: string;
+  userId: string;
+}
+
+export interface ReelCommentAddedMessage {
+  reelId: string;
+  commentId: string;
+  userId: string;
+  userName: string;
+  commentText: string;
+  commentsCount: number;
+  createdAt: string;
+}
+
+// Social - Status Events
+export interface StatusPublishedMessage {
+  statusId: string;
+  userId: string;
+  authorName: string;
+  mediaUrl: string;
+  mediaType: string;
+  text?: string | null;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface StatusDeletedMessage {
+  statusId: string;
+  userId: string;
+}
+
+export interface StatusHiddenMessage {
+  statusId: string;
+  reason: string;
+}
+
+export interface StatusRestoredMessage {
+  statusId: string;
+}
+
+// Social - Admin Events
+export interface NewReelReportMessage {
+  reportId: string;
+  reelId: string;
+  reporterUserId: string;
+  reporterName: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface NewStatusReportMessage {
+  reportId: string;
+  statusId: string;
+  reporterUserId: string;
+  reporterName: string;
+  reason: string;
+  createdAt: string;
+}
+

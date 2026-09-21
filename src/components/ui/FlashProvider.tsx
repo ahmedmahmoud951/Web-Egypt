@@ -20,6 +20,7 @@ type FlashContextValue = {
   success: (message: string, title?: string) => void;
   error: (message: string, title?: string) => void;
   warn: (message: string, title?: string) => void;
+  info: (message: string, title?: string) => void;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
 };
 
@@ -68,6 +69,7 @@ export function FlashProvider({ children }: { children: React.ReactNode }) {
       success: (m, t) => toast(m, 'success', t ?? 'تم بنجاح'),
       error: (m, t) => toast(m, 'error', t ?? 'حدث خطأ'),
       warn: (m, t) => toast(m, 'warn', t ?? 'تنبيه'),
+      info: (m, t) => toast(m, 'info', t ?? 'معلومة'),
       confirm,
     }),
     [toast, confirm]

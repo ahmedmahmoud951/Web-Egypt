@@ -9,8 +9,10 @@ import {
   AdminStaffMember,
   AdminUserDetail,
   AdminUserListItem,
+  AdminUserReport,
   CreateAdminStaffRequest,
 } from '@/types/admin';
+import { PostDto, ProfilePhotoDto } from '@/types/social';
 
 export const adminApi = {
   getDashboardStats: async (signal?: AbortSignal): Promise<AdminDashboardStats> => {
@@ -104,6 +106,30 @@ export const adminApi = {
 
   changeUserRole: async (id: string, role: 'Admin' | 'User'): Promise<void> => {
     await apiClient.post(`/admin/users/${id}/role`, { role });
+  },
+
+  getUserReports: async (userId: string, page = 1, pageSize = 20, signal?: AbortSignal): Promise<PagedResponse<AdminUserReport>> => {
+    const res = await apiClient.get<ApiResponse<PagedResponse<AdminUserReport>>>(`/admin/users/${userId}/reports`, {
+      params: { page, pageSize },
+      signal,
+    });
+    return res.data.data!;
+  },
+
+  getUserPosts: async (userId: string, page = 1, pageSize = 20, signal?: AbortSignal): Promise<PagedResponse<PostDto>> => {
+    const res = await apiClient.get<ApiResponse<PagedResponse<PostDto>>>(`/users/${userId}/profile/posts`, {
+      params: { page, pageSize },
+      signal,
+    });
+    return res.data.data!;
+  },
+
+  getUserPhotos: async (userId: string, page = 1, pageSize = 20, signal?: AbortSignal): Promise<PagedResponse<ProfilePhotoDto>> => {
+    const res = await apiClient.get<ApiResponse<PagedResponse<ProfilePhotoDto>>>(`/users/${userId}/profile/photos`, {
+      params: { page, pageSize },
+      signal,
+    });
+    return res.data.data!;
   },
 
   getComplaints: async (params?: {

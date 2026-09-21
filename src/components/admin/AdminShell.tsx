@@ -20,16 +20,20 @@ import {
   Users,
   UserCog,
   BadgeCheck,
+  Film,
+  Sparkles,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'لوحة القيادة', shortLabel: 'لوحة', icon: LayoutDashboard, exact: true },
   { href: '/admin/verification', label: 'توثيق الحسابات', shortLabel: 'توثيق', icon: BadgeCheck },
   { href: '/admin/events', label: 'المنشورات', shortLabel: 'منشورات', icon: Newspaper },
+  { href: '/admin/reels', label: 'إدارة الريلز', shortLabel: 'ريلز', icon: Film },
+  { href: '/admin/statuses', label: 'إدارة الحالات', shortLabel: 'حالات', icon: Sparkles },
+  { href: '/admin/reports', label: 'مركز البلاغات', shortLabel: 'بلاغات', icon: Flag },
   { href: '/admin/users', label: 'المستخدمون', shortLabel: 'مستخدمون', icon: Users },
   { href: '/admin/blocked', label: 'الحسابات الموقوفة', shortLabel: 'موقوفة', icon: Ban },
   { href: '/admin/complaints', label: 'الشكاوى', shortLabel: 'شكاوى', icon: MessageSquareWarning },
-  { href: '/admin/reports', label: 'البلاغات', shortLabel: 'بلاغات', icon: Flag },
   { href: '/admin/locations', label: 'المواقع المعلقة', shortLabel: 'مواقع', icon: MapPin },
 ];
 

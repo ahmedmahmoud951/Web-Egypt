@@ -12,6 +12,9 @@ export interface AdminDashboardStats {
 export interface AdminUserListItem {
   id: string;
   name: string;
+  username?: string | null;
+  avatarUrl?: string | null;
+  isVerified?: boolean;
   phoneNumber: string;
   role: string;
   isSuperAdmin: boolean;
@@ -22,7 +25,25 @@ export interface AdminUserListItem {
   createdAt: string;
 }
 
-export interface AdminUserDetail extends AdminUserListItem {}
+export interface AdminUserDetail extends AdminUserListItem {
+  firstName?: string | null;
+  lastName?: string | null;
+  username?: string | null;
+  email?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  avatarMediaId?: string | null;
+  isVerified: boolean;
+  verificationType?: string | null;
+  visibility: string;
+  followersCount: number;
+  followingCount: number;
+  postsCount: number;
+  reelsCount: number;
+  photosCount: number;
+  reportsCount: number;
+  blockedUsersCount: number;
+}
 
 export interface AdminStaffMember {
   id: string;
@@ -83,4 +104,20 @@ export interface AdminEventDetail {
     url: string;
     fileSize: number;
   }>;
+}
+
+export interface AdminUserReport {
+  id: string;
+  contentType: string;
+  contentId?: string | null;
+  contentTitle?: string | null;
+  reporterId: string;
+  reporterName: string;
+  reporterPhone: string;
+  reason: string;
+  reviewStatus: string;
+  reviewedAt?: string | null;
+  adminNotes?: string | null;
+  createdAt: string;
+  isReportAgainstUser: boolean;
 }
