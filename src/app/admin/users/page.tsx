@@ -10,7 +10,6 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useAdminQueryEnabled } from '@/hooks/useAdminQueryEnabled';
 import {
   Search,
-  Shield,
   RefreshCw,
   ChevronRight,
   ChevronLeft,
