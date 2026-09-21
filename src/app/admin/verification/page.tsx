@@ -53,7 +53,28 @@ import {
   Ban,
   CircleSlash,
   Ticket,
+  Award,
+  Crown,
+  ShieldOff,
+  Gem,
 } from 'lucide-react';
+
+function activeDaysProgress(uv: ActiveVerificationItem) {
+  const start = new Date(uv.startedAt).getTime();
+  const end = new Date(uv.expiresAt).getTime();
+  const total = Math.max(1, Math.round((end - start) / 86_400_000));
+  const remaining = Math.max(0, uv.daysRemaining);
+  const pct = Math.min(100, Math.max(4, (remaining / total) * 100));
+  const urgent = remaining <= 7;
+  return { total, remaining, pct, urgent };
+}
+
+function userInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '؟';
+  if (parts.length === 1) return parts[0].slice(0, 1);
+  return `${parts[0].slice(0, 1)}${parts[parts.length - 1].slice(0, 1)}`;
+}
 
 export default function AdminVerificationPage() {
   const adminReady = useAdminQueryEnabled();
@@ -155,7 +176,8 @@ export default function AdminVerificationPage() {
         signal,
       }),
     enabled: adminReady && activeTab === 'requests',
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: typesData, refetch: refetchTypes } = useQuery({
@@ -294,15 +316,48 @@ export default function AdminVerificationPage() {
     onError: (err: any) => showToast(err?.response?.data?.message || 'فشل مسح طلب التوثيق', 'error'),
   });
 
-  // Real-Time Listener: Instantly update requests table when a user submits/cancels or admin reviews
+  // Real-Time Listener: Instantly update lists when a user creates/submits or admin acts
   useEffect(() => {
     const unsub = signalRService.onVerificationEvent((msg) => {
-      refetchRequests();
-      refetchStats();
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'verification'], refetchType: 'active' });
+      void refetchRequests();
+      void refetchStats();
+      void refetchActive();
       showToast(`🔔 تحديث لحظي للتوثيق: ${msg.type} (${msg.status})`, 'success');
     });
     return () => unsub();
-  }, [refetchRequests, refetchStats]);
+  }, [queryClient, refetchRequests, refetchStats, refetchActive]);
+
+  // Fallback poll while SignalR is down — otherwise new requests only appear after leaving the page
+  useEffect(() => {
+    if (!adminReady) return;
+
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    const syncPolling = (status: string) => {
+      const needPoll =
+        status === 'disconnected' ||
+        status === 'disabled' ||
+        status === 'reconnecting' ||
+        status === 'connecting';
+      if (needPoll && !intervalId) {
+        intervalId = setInterval(() => {
+          void queryClient.invalidateQueries({ queryKey: ['admin', 'verification'], refetchType: 'active' });
+        }, 12_000);
+      } else if (!needPoll && intervalId) {
+        clearInterval(intervalId);
+        intervalId = undefined;
+      }
+    };
+
+    syncPolling(signalRService.getStatus());
+    const unsubStatus = signalRService.onStatusChange(syncPolling);
+
+    return () => {
+      unsubStatus();
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [adminReady, queryClient]);
 
   const saveTypeMutation = useMutation({
     mutationFn: () => {
@@ -530,7 +585,7 @@ export default function AdminVerificationPage() {
                 full: `الباقات (${plansData?.length ?? 0})`,
                 icon: Tag,
               },
-              { id: 'grants' as const, label: 'المنح', full: 'المنح والسحب', icon: Gift },
+              { id: 'grants' as const, label: 'المنح', full: 'المنح والسحب', icon: Crown },
               { id: 'settings' as const, label: 'الأمان', full: 'الأمان والقواعد', icon: Shield },
             ] as const
           ).map((tab) => {
@@ -1148,23 +1203,27 @@ export default function AdminVerificationPage() {
         {/* TAB 4: DIRECT GRANTS & ACTIVE MANAGEMENT */}
         {activeTab === 'grants' && (
           <div className="space-y-6">
-            {/* Active verifications — revoke without deleting request history */}
+            {/* Active verifications — Nile Vault */}
             <div
               id="active-verifications-panel"
-              className={`admin-card p-4 sm:p-5 space-y-4 ${focusActiveList ? 'ring-2 ring-[#1F6B7A]/40' : ''}`}
+              className="verif-vault"
+              data-focus={focusActiveList ? 'true' : 'false'}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-[#1F6B7A] font-extrabold text-base sm:text-lg">
-                    <ShieldCheck className="w-5 h-5 shrink-0" />
-                    التوثيقات النشطة
+              <div className="verif-vault-head">
+                <div className="verif-vault-title">
+                  <span className="verif-vault-seal" aria-hidden>
+                    <Crown className="w-5 h-5" strokeWidth={2.4} />
+                  </span>
+                  <div className="min-w-0">
+                    <h3>التوثيقات النشطة</h3>
+                    <p>
+                      خزنة الشارات الحية — اسحب التوثيق دون مسح الطلب التاريخي. بعد السحب تظهر الحالة «تم سحب
+                      التوثيق» وليست قيد الانتظار.
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    اسحب الشارة من هنا دون حذف الطلب التاريخي. بعد السحب يظهر الطلب بحالة «تم سحب التوثيق» وليس قيد الانتظار.
-                  </p>
                 </div>
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <div className="verif-vault-search">
+                  <Search className="w-4 h-4" />
                   <input
                     type="text"
                     placeholder="بحث في التوثيقات النشطة..."
@@ -1173,82 +1232,127 @@ export default function AdminVerificationPage() {
                       setActiveSearch(e.target.value);
                       setActivePage(1);
                     }}
-                    className="admin-input w-full pr-9 py-2.5 text-sm"
                   />
                 </div>
               </div>
 
               {activeLoading ? (
-                <div className="py-10 text-center text-gray-400 text-sm">
+                <div className="verif-empty">
                   <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#1F6B7A]" />
                   جاري تحميل التوثيقات النشطة...
                 </div>
               ) : !activeVerifications?.items?.length ? (
-                <div className="py-8 text-center text-sm text-gray-500 bg-gray-50 rounded-xl">
+                <div className="verif-empty">
+                  <Gem className="w-7 h-7 mx-auto mb-2 text-[#C4A35A]" />
                   لا توجد توثيقات نشطة حالياً.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {activeVerifications.items.map((uv: ActiveVerificationItem) => (
-                    <div key={uv.id} className="admin-mobile-card space-y-3 border border-[rgba(31,107,122,0.14)]">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="font-extrabold text-[var(--egypt-navy)] truncate">{uv.userName}</div>
-                          <div className="admin-cell-mono mt-0.5">{uv.userPhoneNumber}</div>
+                <div className="verif-active-grid">
+                  {activeVerifications.items.map((uv: ActiveVerificationItem) => {
+                    const progress = activeDaysProgress(uv);
+                    const circumference = 2 * Math.PI * 18;
+                    const dash = (progress.pct / 100) * circumference;
+                    const ringColor = progress.urgent ? '#c23a4d' : '#1F6B7A';
+                    return (
+                      <article key={uv.id} className="verif-active-card">
+                        <div className="verif-active-top">
+                          <div className="verif-active-identity">
+                            <span className="verif-mono" aria-hidden>
+                              {userInitials(uv.userName)}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="name">{uv.userName}</div>
+                              <div className="phone">{uv.userPhoneNumber}</div>
+                            </div>
+                          </div>
+                          <div className="verif-day-ring" title={`متبقي ${progress.remaining} يوم`}>
+                            <svg viewBox="0 0 44 44" aria-hidden>
+                              <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(31,107,122,0.12)" strokeWidth="4" />
+                              <circle
+                                cx="22"
+                                cy="22"
+                                r="18"
+                                fill="none"
+                                stroke={ringColor}
+                                strokeWidth="4"
+                                strokeLinecap="round"
+                                strokeDasharray={`${dash} ${circumference}`}
+                              />
+                            </svg>
+                            <div className="label">
+                              <strong>{progress.remaining}</strong>
+                              <span>يوم</span>
+                            </div>
+                          </div>
                         </div>
-                        <span className="admin-badge admin-badge-ok shrink-0">نشط</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1 font-bold px-2 py-1 rounded-lg bg-[rgba(196,163,90,0.14)] text-[#8A6A1F]">
-                          <BadgeCheck className="w-3.5 h-3.5" />
-                          {uv.badgeName || uv.verificationTypeName}
-                        </span>
-                        <span className="px-2 py-1 rounded-lg bg-gray-100 text-gray-700 font-semibold">
-                          متبقي {uv.daysRemaining} يوم
-                        </span>
-                        {uv.isFree && (
-                          <span className="px-2 py-1 rounded-lg bg-[#C4A35A]/15 text-[#8A6A1F] font-bold">مجاني</span>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-gray-500">
-                        يبدأ {new Date(uv.startedAt).toLocaleDateString('ar-EG')} · ينتهي{' '}
-                        {new Date(uv.expiresAt).toLocaleDateString('ar-EG')}
-                      </div>
-                      <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-100">
-                        {uv.verificationRequestId && (
+
+                        <div className="verif-chip-row">
+                          <span className="verif-chip verif-chip-live">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            نشط
+                          </span>
+                          <span className="verif-chip verif-chip-gold">
+                            <Award className="w-3.5 h-3.5" />
+                            {uv.badgeName || uv.verificationTypeName}
+                          </span>
+                          {uv.isFree && (
+                            <span className="verif-chip verif-chip-free">
+                              <Ticket className="w-3.5 h-3.5" />
+                              مجاني
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="verif-meta">
+                          <span>
+                            يبدأ <em>{new Date(uv.startedAt).toLocaleDateString('ar-EG')}</em>
+                          </span>
+                          <span>
+                            ينتهي <em>{new Date(uv.expiresAt).toLocaleDateString('ar-EG')}</em>
+                          </span>
+                          {uv.grantedByUserName && (
+                            <span>
+                              بواسطة <em>{uv.grantedByUserName}</em>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="verif-actions">
+                          {uv.verificationRequestId && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedRequestId(uv.verificationRequestId!)}
+                              className="admin-touch-btn verif-btn-docs"
+                            >
+                              <Eye className="w-4 h-4" />
+                              الطلب والمستندات
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => setSelectedRequestId(uv.verificationRequestId!)}
-                            className="admin-touch-btn bg-[rgba(31,107,122,0.1)] text-[#1F6B7A] border border-[rgba(31,107,122,0.2)]"
+                            disabled={revokeMutation.isPending}
+                            onClick={() => {
+                              const reason = window.prompt(
+                                `سبب سحب توثيق (${uv.userName}) — لن يُحذف الطلب وسيظهر كـ «تم سحب التوثيق»:`
+                              );
+                              if (!reason?.trim()) return;
+                              revokeMutation.mutate({ verificationId: uv.id, reason: reason.trim() });
+                            }}
+                            className="admin-touch-btn verif-btn-revoke"
                           >
-                            <Eye className="w-4 h-4" />
-                            الطلب والمستندات
+                            <ShieldOff className="w-4 h-4" />
+                            سحب التوثيق
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={revokeMutation.isPending}
-                          onClick={() => {
-                            const reason = window.prompt(
-                              `سبب سحب توثيق (${uv.userName}) — لن يُحذف الطلب وسيظهر كـ «تم سحب التوثيق»:`
-                            );
-                            if (!reason?.trim()) return;
-                            revokeMutation.mutate({ verificationId: uv.id, reason: reason.trim() });
-                          }}
-                          className="admin-touch-btn bg-rose-600 text-white"
-                        >
-                          <Ban className="w-4 h-4" />
-                          سحب التوثيق
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               )}
 
               {activeVerifications && activeVerifications.totalPages > 1 && (
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <span className="text-xs text-gray-500">
+                <div className="flex items-center justify-between gap-2 pt-3">
+                  <span className="text-xs font-bold text-[var(--egypt-muted)]">
                     صفحة {activeVerifications.page} / {activeVerifications.totalPages}
                   </span>
                   <div className="flex gap-2">
@@ -1256,7 +1360,7 @@ export default function AdminVerificationPage() {
                       type="button"
                       disabled={!activeVerifications.hasPreviousPage}
                       onClick={() => setActivePage((p) => Math.max(1, p - 1))}
-                      className="admin-touch-btn border border-gray-300 disabled:opacity-40"
+                      className="admin-touch-btn border border-[rgba(31,107,122,0.25)] disabled:opacity-40"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -1264,7 +1368,7 @@ export default function AdminVerificationPage() {
                       type="button"
                       disabled={!activeVerifications.hasNextPage}
                       onClick={() => setActivePage((p) => p + 1)}
-                      className="admin-touch-btn border border-gray-300 disabled:opacity-40"
+                      className="admin-touch-btn border border-[rgba(31,107,122,0.25)] disabled:opacity-40"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -1275,13 +1379,15 @@ export default function AdminVerificationPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Direct Grant Card */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-              <div className="flex items-center gap-2 text-[#1F6B7A] font-bold text-lg mb-1">
-                <Gift className="w-5 h-5" />
-                منح توثيق مباشر لمستخدم (Direct Grant)
+            <div className="verif-ops-card" data-tone="grant">
+              <div className="verif-ops-head">
+                <span className="verif-ops-icon">
+                  <Gift className="w-5 h-5" strokeWidth={2.4} />
+                </span>
+                <h4>منح توثيق مباشر</h4>
               </div>
-              <p className="text-xs text-gray-500 mb-5">
-                تتيح للإدارة منح شارة توثيق فورية لأي حساب برقم الموبايل أو اسم المستخدم دون الحاجة لمعرفة الـ ID أو رفع وثائق.
+              <p className="lead">
+                شارة فورية بأي حساب عبر الموبايل أو اسم المستخدم — بدون ID وبدون رفع وثائق.
               </p>
 
               <div className="space-y-4">
@@ -1409,7 +1515,7 @@ export default function AdminVerificationPage() {
                 <button
                   disabled={!grantUserIdentifier.trim() || !grantTypeId || directGrantMutation.isPending}
                   onClick={() => directGrantMutation.mutate()}
-                  className="w-full py-2.5 rounded-xl bg-[#1F6B7A] hover:bg-[#185561] text-white font-bold text-sm transition shadow disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-xl bg-gradient-to-l from-[#1F6B7A] to-[#2D8A9C] hover:from-[#185561] hover:to-[#1F6B7A] text-white font-black text-sm transition shadow-lg shadow-[rgba(31,107,122,0.35)] disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <UserCheck className="w-4 h-4" />
                   {directGrantMutation.isPending ? 'جاري المنح...' : 'تأكيد منح التوثيق فوراً'}
@@ -1418,15 +1524,16 @@ export default function AdminVerificationPage() {
             </div>
 
             {/* Revoke & Extend Card */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-rose-700 font-bold text-lg mb-1">
-                  <AlertTriangle className="w-5 h-5" />
-                  سحب التوثيق أو تمديده (Revoke / Extend)
-                </div>
-                <p className="text-xs text-gray-500 mb-5">
-                  إلغاء شارة التوثيق الفعالة أو تمديدها باستخدام اسم المستخدم أو رقم الموبايل مباشرة.
-                </p>
+            <div className="verif-ops-card" data-tone="revoke">
+              <div className="verif-ops-head">
+                <span className="verif-ops-icon">
+                  <ShieldOff className="w-5 h-5" strokeWidth={2.4} />
+                </span>
+                <h4>سحب التوثيق أو تمديده</h4>
+              </div>
+              <p className="lead">
+                إلغاء الشارة الفعالة أو تمديدها مباشرة باسم المستخدم أو رقم الموبايل.
+              </p>
 
                 <div className="space-y-4">
                   <div className="relative">
@@ -1542,10 +1649,9 @@ export default function AdminVerificationPage() {
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-6 bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs text-gray-500">
-                💡 يمكنك كتابة رقم الموبايل (مثلاً 01012345678) أو اسم المستخدم وسيقوم النظام بالتعرف على الحساب فورياً.
+              <div className="mt-6 bg-[rgba(31,107,122,0.06)] p-3 rounded-xl border border-[rgba(31,107,122,0.14)] text-xs font-bold text-[var(--egypt-muted)]">
+                يمكنك كتابة رقم الموبايل أو اسم المستخدم وسيتعرف النظام على الحساب فوراً.
               </div>
             </div>
           </div>

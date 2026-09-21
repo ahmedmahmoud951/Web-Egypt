@@ -141,9 +141,9 @@ export function useSignalRSubscriptions() {
 
     const unsubVerification = signalRService.onVerificationEvent((msg) => {
       devLog.info('realtime', 'VerificationEvent', msg);
+      // Prefix key covers dashboard / requests / active / types / plans observers.
       softInvalidate(queryClient, [
-        ['admin', 'verification', 'dashboard'],
-        ['admin', 'verification', 'requests'],
+        ['admin', 'verification'],
         ['verification', 'me'],
         ['verification', 'plans'],
       ], 'VerificationEvent', 100);
@@ -152,8 +152,13 @@ export function useSignalRSubscriptions() {
     let hasConnectedOnce = signalRService.getStatus() === 'connected';
     const unsubStatus = signalRService.onStatusChange((status) => {
       if (status === 'connected') {
+        const wasReconnect = hasConnectedOnce;
         hasConnectedOnce = true;
         devLog.ok('realtime', `Hub status: ${status}`);
+        // Catch anything missed while the hub was down / negotiating.
+        if (wasReconnect) {
+          softInvalidate(queryClient, [['admin', 'verification']], 'HubReconnected', 200);
+        }
       } else if (status === 'reconnecting') {
         devLog.warn('realtime', 'Hub status: reconnecting…');
       } else if (status === 'disconnected') {
