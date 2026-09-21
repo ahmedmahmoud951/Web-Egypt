@@ -14,6 +14,7 @@ import {
   CreateTypePayload,
   CreatePlanPayload,
   UserLookupItem,
+  ActiveVerificationItem,
 } from '@/api/verificationAdmin';
 import { resolveMediaUrl } from '@/lib/media';
 import {
@@ -122,6 +123,9 @@ export default function AdminVerificationPage() {
   const [actionMatchedUser, setActionMatchedUser] = useState<UserLookupItem | null>(null);
   const [actionReason, setActionReason] = useState<string>('');
   const [extendDays, setExtendDays] = useState<number>(30);
+  const [activeSearch, setActiveSearch] = useState('');
+  const [activePage, setActivePage] = useState(1);
+  const [focusActiveList, setFocusActiveList] = useState(false);
 
   // Notification / Feedback alert
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -164,6 +168,16 @@ export default function AdminVerificationPage() {
     queryKey: ['admin', 'verification', 'plans'],
     queryFn: ({ signal }) => verificationAdminApi.getPlans(undefined, signal),
     enabled: adminReady,
+  });
+
+  const { data: activeVerifications, isLoading: activeLoading, refetch: refetchActive } = useQuery({
+    queryKey: ['admin', 'verification', 'active', activeSearch, activePage],
+    queryFn: ({ signal }) =>
+      verificationAdminApi.getActiveVerifications(
+        { page: activePage, pageSize: 12, search: activeSearch || undefined },
+        signal
+      ),
+    enabled: adminReady && (activeTab === 'grants' || focusActiveList),
   });
 
   const { data: selectedRequestDetail, isLoading: detailsLoading } = useQuery({
@@ -239,9 +253,17 @@ export default function AdminVerificationPage() {
   });
 
   const revokeMutation = useMutation({
-    mutationFn: () => verificationAdminApi.revokeByIdentifier(actionIdentifier.trim(), actionReason),
+    mutationFn: (vars?: { verificationId?: string; identifier?: string; reason: string }) => {
+      if (vars?.verificationId) {
+        return verificationAdminApi.revokeVerification(vars.verificationId, vars.reason);
+      }
+      return verificationAdminApi.revokeByIdentifier(
+        (vars?.identifier ?? actionIdentifier).trim(),
+        vars?.reason ?? actionReason
+      );
+    },
     onSuccess: () => {
-      showToast('تم سحب التوثيق الفعال بنجاح.');
+      showToast('تم سحب شارة التوثيق — الطلب التاريخي محفوظ ولم يعد كقيد الانتظار.');
       setActionIdentifier('');
       setActionMatchedUser(null);
       setActionReason('');
@@ -326,6 +348,10 @@ export default function AdminVerificationPage() {
         return <span className="px-2.5 py-1 text-xs rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20 font-medium">مرفوض</span>;
       case 5:
         return <span className="px-2.5 py-1 text-xs rounded-full bg-gray-500/10 text-gray-600 border border-gray-500/20 font-medium">ملغي</span>;
+      case 6:
+        return <span className="px-2.5 py-1 text-xs rounded-full bg-slate-500/10 text-slate-600 border border-slate-500/20 font-medium">منتهي الصلاحية</span>;
+      case 7:
+        return <span className="px-2.5 py-1 text-xs rounded-full bg-orange-500/10 text-orange-700 border border-orange-500/25 font-medium">تم سحب التوثيق</span>;
       default:
         return <span className="px-2.5 py-1 text-xs rounded-full bg-gray-100 text-gray-700">{name}</span>;
     }
@@ -421,7 +447,8 @@ export default function AdminVerificationPage() {
                   value: stats?.activeVerifications ?? 0,
                   icon: ShieldCheck,
                   tone: 'text-emerald-300',
-                  status: 3 as number | undefined,
+                  status: undefined as number | undefined,
+                  goActive: true,
                 },
                 {
                   label: 'تنتهي قريباً',
@@ -429,6 +456,7 @@ export default function AdminVerificationPage() {
                   icon: Clock,
                   tone: 'text-orange-300',
                   status: undefined as number | undefined,
+                  goActive: true,
                 },
                 {
                   label: 'مرفوضة',
@@ -436,13 +464,15 @@ export default function AdminVerificationPage() {
                   icon: Ban,
                   tone: 'text-rose-300',
                   status: 4 as number | undefined,
+                  goActive: false,
                 },
                 {
                   label: 'منتهية',
                   value: stats?.expiredVerifications ?? stats?.expired ?? 0,
                   icon: CircleSlash,
                   tone: 'text-gray-300',
-                  status: undefined as number | undefined,
+                  status: 6 as number | undefined,
+                  goActive: false,
                 },
                 {
                   label: 'مجانية',
@@ -450,6 +480,7 @@ export default function AdminVerificationPage() {
                   icon: Ticket,
                   tone: 'text-[#C4A35A]',
                   status: undefined as number | undefined,
+                  goActive: true,
                 },
               ].map((kpi) => {
                 const Icon = kpi.icon;
@@ -458,6 +489,13 @@ export default function AdminVerificationPage() {
                     key={kpi.label}
                     type="button"
                     onClick={() => {
+                      if (kpi.goActive) {
+                        setFocusActiveList(true);
+                        setActiveTab('grants');
+                        setActivePage(1);
+                        return;
+                      }
+                      setFocusActiveList(false);
                       setStatusFilter(kpi.status);
                       setActiveTab('requests');
                     }}
@@ -547,6 +585,8 @@ export default function AdminVerificationPage() {
                   <option value="3">معتمد وموثق</option>
                   <option value="4">مرفوض</option>
                   <option value="5">ملغي</option>
+                  <option value="6">منتهي الصلاحية</option>
+                  <option value="7">تم سحب التوثيق</option>
                 </select>
 
                 <select
@@ -1107,6 +1147,132 @@ export default function AdminVerificationPage() {
 
         {/* TAB 4: DIRECT GRANTS & ACTIVE MANAGEMENT */}
         {activeTab === 'grants' && (
+          <div className="space-y-6">
+            {/* Active verifications — revoke without deleting request history */}
+            <div
+              id="active-verifications-panel"
+              className={`admin-card p-4 sm:p-5 space-y-4 ${focusActiveList ? 'ring-2 ring-[#1F6B7A]/40' : ''}`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-[#1F6B7A] font-extrabold text-base sm:text-lg">
+                    <ShieldCheck className="w-5 h-5 shrink-0" />
+                    التوثيقات النشطة
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    اسحب الشارة من هنا دون حذف الطلب التاريخي. بعد السحب يظهر الطلب بحالة «تم سحب التوثيق» وليس قيد الانتظار.
+                  </p>
+                </div>
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="بحث في التوثيقات النشطة..."
+                    value={activeSearch}
+                    onChange={(e) => {
+                      setActiveSearch(e.target.value);
+                      setActivePage(1);
+                    }}
+                    className="admin-input w-full pr-9 py-2.5 text-sm"
+                  />
+                </div>
+              </div>
+
+              {activeLoading ? (
+                <div className="py-10 text-center text-gray-400 text-sm">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#1F6B7A]" />
+                  جاري تحميل التوثيقات النشطة...
+                </div>
+              ) : !activeVerifications?.items?.length ? (
+                <div className="py-8 text-center text-sm text-gray-500 bg-gray-50 rounded-xl">
+                  لا توجد توثيقات نشطة حالياً.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {activeVerifications.items.map((uv: ActiveVerificationItem) => (
+                    <div key={uv.id} className="admin-mobile-card space-y-3 border border-[rgba(31,107,122,0.14)]">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-extrabold text-[var(--egypt-navy)] truncate">{uv.userName}</div>
+                          <div className="admin-cell-mono mt-0.5">{uv.userPhoneNumber}</div>
+                        </div>
+                        <span className="admin-badge admin-badge-ok shrink-0">نشط</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1 font-bold px-2 py-1 rounded-lg bg-[rgba(196,163,90,0.14)] text-[#8A6A1F]">
+                          <BadgeCheck className="w-3.5 h-3.5" />
+                          {uv.badgeName || uv.verificationTypeName}
+                        </span>
+                        <span className="px-2 py-1 rounded-lg bg-gray-100 text-gray-700 font-semibold">
+                          متبقي {uv.daysRemaining} يوم
+                        </span>
+                        {uv.isFree && (
+                          <span className="px-2 py-1 rounded-lg bg-[#C4A35A]/15 text-[#8A6A1F] font-bold">مجاني</span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-gray-500">
+                        يبدأ {new Date(uv.startedAt).toLocaleDateString('ar-EG')} · ينتهي{' '}
+                        {new Date(uv.expiresAt).toLocaleDateString('ar-EG')}
+                      </div>
+                      <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-100">
+                        {uv.verificationRequestId && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRequestId(uv.verificationRequestId!)}
+                            className="admin-touch-btn bg-[rgba(31,107,122,0.1)] text-[#1F6B7A] border border-[rgba(31,107,122,0.2)]"
+                          >
+                            <Eye className="w-4 h-4" />
+                            الطلب والمستندات
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={revokeMutation.isPending}
+                          onClick={() => {
+                            const reason = window.prompt(
+                              `سبب سحب توثيق (${uv.userName}) — لن يُحذف الطلب وسيظهر كـ «تم سحب التوثيق»:`
+                            );
+                            if (!reason?.trim()) return;
+                            revokeMutation.mutate({ verificationId: uv.id, reason: reason.trim() });
+                          }}
+                          className="admin-touch-btn bg-rose-600 text-white"
+                        >
+                          <Ban className="w-4 h-4" />
+                          سحب التوثيق
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeVerifications && activeVerifications.totalPages > 1 && (
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-xs text-gray-500">
+                    صفحة {activeVerifications.page} / {activeVerifications.totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={!activeVerifications.hasPreviousPage}
+                      onClick={() => setActivePage((p) => Math.max(1, p - 1))}
+                      className="admin-touch-btn border border-gray-300 disabled:opacity-40"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!activeVerifications.hasNextPage}
+                      onClick={() => setActivePage((p) => p + 1)}
+                      className="admin-touch-btn border border-gray-300 disabled:opacity-40"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Direct Grant Card */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
@@ -1349,7 +1515,7 @@ export default function AdminVerificationPage() {
                       disabled={!actionIdentifier.trim() || !actionReason || revokeMutation.isPending}
                       onClick={() => {
                         if (confirm(`هل أنت متأكد من رغبتك في سحب وإلغاء شارة التوثيق للحساب (${actionIdentifier})؟`)) {
-                          revokeMutation.mutate();
+                          revokeMutation.mutate({ reason: actionReason });
                         }
                       }}
                       className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm transition shadow disabled:opacity-50"
@@ -1382,6 +1548,7 @@ export default function AdminVerificationPage() {
                 💡 يمكنك كتابة رقم الموبايل (مثلاً 01012345678) أو اسم المستخدم وسيقوم النظام بالتعرف على الحساب فورياً.
               </div>
             </div>
+          </div>
           </div>
         )}
 

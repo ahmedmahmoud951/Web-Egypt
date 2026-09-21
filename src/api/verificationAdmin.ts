@@ -186,9 +186,45 @@ export interface CreatePlanPayload {
   sortOrder?: number;
 }
 
+export interface ActiveVerificationItem {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhoneNumber: string;
+  verificationTypeId: string;
+  verificationTypeName: string;
+  badgeName: string;
+  badgeIcon?: string;
+  verificationRequestId?: string;
+  status: number;
+  statusName: string;
+  startedAt: string;
+  expiresAt: string;
+  isFree: boolean;
+  daysRemaining: number;
+  isActive: boolean;
+  grantedByUserName?: string;
+}
+
 export const verificationAdminApi = {
   getDashboard: async (signal?: AbortSignal): Promise<VerificationDashboardStats> => {
     const res = await apiClient.get<ApiResponse<VerificationDashboardStats>>('/admin/verification/dashboard', { signal });
+    return res.data.data!;
+  },
+
+  getActiveVerifications: async (params?: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+  }, signal?: AbortSignal): Promise<PagedResponse<ActiveVerificationItem>> => {
+    const res = await apiClient.get<ApiResponse<PagedResponse<ActiveVerificationItem>>>('/admin/verification/active', {
+      params: {
+        page: params?.page ?? 1,
+        pageSize: params?.pageSize ?? 20,
+        search: params?.search || undefined,
+      },
+      signal,
+    });
     return res.data.data!;
   },
 
