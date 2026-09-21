@@ -7,6 +7,7 @@ import { useAdminQueryEnabled } from '@/hooks/useAdminQueryEnabled';
 import { signalRService } from '@/lib/signalr';
 import {
   verificationAdminApi,
+  verificationDocumentTypeLabel,
   VerificationRequestItem,
   VerificationTypeItem,
   VerificationPlanItem,
@@ -14,6 +15,7 @@ import {
   CreatePlanPayload,
   UserLookupItem,
 } from '@/api/verificationAdmin';
+import { resolveMediaUrl } from '@/lib/media';
 import {
   BadgeCheck,
   Clock,
@@ -42,6 +44,8 @@ import {
   Tag,
   Flame,
   ArrowRight,
+  ZoomIn,
+  ImageIcon,
 } from 'lucide-react';
 
 export default function AdminVerificationPage() {
@@ -59,6 +63,8 @@ export default function AdminVerificationPage() {
 
   // Selected Request for Modal Details
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
+  const [previewDocTitle, setPreviewDocTitle] = useState<string>('');
 
   // Modals state
   const [approveModalRequest, setApproveModalRequest] = useState<VerificationRequestItem | null>(null);
@@ -1353,7 +1359,10 @@ export default function AdminVerificationPage() {
                   <h3 className="font-bold text-lg text-gray-900">تفاصيل طلب التوثيق وفحص الوثائق</h3>
                 </div>
                 <button
-                  onClick={() => setSelectedRequestId(null)}
+                  onClick={() => {
+                    setSelectedRequestId(null);
+                    setPreviewDocUrl(null);
+                  }}
                   className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                 >
                   <XCircle className="w-6 h-6" />
@@ -1396,45 +1405,84 @@ export default function AdminVerificationPage() {
                       الوثائق والمستندات المرفقة بالطلب ({selectedRequestDetail.documents?.length ?? 0})
                     </h4>
 
-                    {selectedRequestDetail.documents?.length === 0 ? (
+                    {!selectedRequestDetail.documents?.length ? (
                       <div className="p-4 rounded-xl bg-gray-50 text-center text-xs text-gray-500">
                         لم يتم إرفاق أي وثائق في هذا الطلب.
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {selectedRequestDetail.documents?.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="border border-gray-200 rounded-xl p-3 bg-white hover:border-[#1F6B7A] transition flex flex-col justify-between"
-                          >
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-gray-800">{doc.documentTypeName}</span>
-                                <span className="text-[10px] text-gray-400">
-                                  {Math.round(doc.fileSizeBytes / 1024)} كيلوبايت
-                                </span>
-                              </div>
-                              {doc.notes && <p className="text-xs text-gray-500 mt-1">{doc.notes}</p>}
-                            </div>
+                        {selectedRequestDetail.documents.map((doc) => {
+                          const rawUrl = doc.documentUrl || doc.mediaUrl || '';
+                          const imageUrl = resolveMediaUrl(rawUrl);
+                          const title = verificationDocumentTypeLabel(doc.documentType, doc.documentTypeName);
+                          const fileLabel = doc.fileName || doc.mediaFileName;
 
-                            <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between">
-                              <span className="text-[10px] text-gray-400">
-                                {new Date(doc.createdAt).toLocaleDateString('ar-EG')}
-                              </span>
-                              {doc.mediaUrl && (
-                                <a
-                                  href={doc.mediaUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs text-[#1F6B7A] hover:underline font-semibold"
+                          return (
+                            <div
+                              key={doc.id}
+                              className="border border-gray-200 rounded-xl overflow-hidden bg-white hover:border-[#1F6B7A] transition flex flex-col"
+                            >
+                              {imageUrl ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPreviewDocUrl(imageUrl);
+                                    setPreviewDocTitle(title);
+                                  }}
+                                  className="relative group bg-slate-100 aspect-[4/3] w-full overflow-hidden text-left"
+                                  title="اضغط للتكبير"
                                 >
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                  معاينة الوثيقة
-                                </a>
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={imageUrl}
+                                    alt={title}
+                                    className="w-full h-full object-contain bg-slate-50"
+                                    loading="lazy"
+                                  />
+                                  <span className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition flex items-center justify-center">
+                                    <span className="opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-1.5 rounded-full bg-white/95 text-[#1F6B7A] text-xs font-bold px-3 py-1.5 shadow">
+                                      <ZoomIn className="w-3.5 h-3.5" />
+                                      تكبير المعاينة
+                                    </span>
+                                  </span>
+                                </button>
+                              ) : (
+                                <div className="aspect-[4/3] w-full bg-gray-50 flex flex-col items-center justify-center text-gray-400 gap-2">
+                                  <ImageIcon className="w-8 h-8" />
+                                  <span className="text-xs">لا تتوفر معاينة للصورة</span>
+                                </div>
                               )}
+
+                              <div className="p-3 flex flex-col gap-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <span className="text-xs font-bold text-gray-800">{title}</span>
+                                  {fileLabel && (
+                                    <span className="text-[10px] text-gray-400 truncate max-w-[40%]" title={fileLabel}>
+                                      {fileLabel}
+                                    </span>
+                                  )}
+                                </div>
+                                {doc.notes && <p className="text-xs text-gray-500">{doc.notes}</p>}
+                                <div className="pt-1 border-t border-gray-100 flex items-center justify-between">
+                                  <span className="text-[10px] text-gray-400">
+                                    {new Date(doc.createdAt).toLocaleDateString('ar-EG')}
+                                  </span>
+                                  {imageUrl && (
+                                    <a
+                                      href={imageUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-[#1F6B7A] hover:underline font-semibold"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5" />
+                                      فتح في تبويب جديد
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1480,7 +1528,10 @@ export default function AdminVerificationPage() {
                     </button>
 
                     <button
-                      onClick={() => setSelectedRequestId(null)}
+                      onClick={() => {
+                    setSelectedRequestId(null);
+                    setPreviewDocUrl(null);
+                  }}
                       className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition"
                     >
                       إغلاق
@@ -1851,6 +1902,53 @@ export default function AdminVerificationPage() {
                 >
                   {savePlanMutation.isPending ? 'جاري الحفظ...' : 'حفظ الباقة'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Full-size document image preview */}
+        {previewDocUrl && (
+          <div
+            className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setPreviewDocUrl(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label={previewDocTitle || 'معاينة المستند'}
+          >
+            <div
+              className="relative max-w-5xl w-full max-h-[92vh] flex flex-col gap-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between text-white px-1">
+                <h3 className="text-sm font-bold truncate">{previewDocTitle || 'معاينة المستند'}</h3>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={previewDocUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-white/90 hover:text-white px-2 py-1 rounded-lg hover:bg-white/10"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    فتح
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDocUrl(null)}
+                    className="p-1.5 rounded-lg hover:bg-white/10 text-white"
+                    aria-label="إغلاق"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+              <div className="bg-black/40 rounded-xl overflow-auto flex items-center justify-center min-h-[40vh]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewDocUrl}
+                  alt={previewDocTitle || 'مستند'}
+                  className="max-w-full max-h-[80vh] object-contain"
+                />
               </div>
             </div>
           </div>

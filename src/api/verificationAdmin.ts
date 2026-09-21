@@ -61,11 +61,42 @@ export interface VerificationRequestDocumentItem {
   mediaFileId: string;
   documentType: number;
   documentTypeName: string;
-  mediaUrl?: string;
-  mediaFileName?: string;
-  fileSizeBytes: number;
+  /** API field — relative path like /api/media/{id}/file */
+  documentUrl?: string;
+  fileName?: string;
   notes?: string;
   createdAt: string;
+  /** Legacy aliases (older clients) */
+  mediaUrl?: string;
+  mediaFileName?: string;
+  fileSizeBytes?: number;
+}
+
+/** Arabic labels for VerificationDocumentType enum values from the API. */
+export function verificationDocumentTypeLabel(
+  documentType: number,
+  fallbackName?: string
+): string {
+  switch (documentType) {
+    case 1:
+      return 'وش بطاقة الرقم القومي';
+    case 2:
+      return 'ظهر بطاقة الرقم القومي';
+    case 3:
+      return 'جواز سفر';
+    case 4:
+      return 'كارنيه صحافة';
+    case 5:
+      return 'ترخيص جهة';
+    case 6:
+      return 'سجل تجاري';
+    case 7:
+      return 'بطاقة ضريبية';
+    case 99:
+      return 'مستند آخر';
+    default:
+      return fallbackName || `مستند (${documentType})`;
+  }
 }
 
 export interface VerificationAuditLogItem {
