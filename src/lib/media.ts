@@ -28,3 +28,10 @@ export function resolveMediaUrl(url: string | null | undefined, apiBase?: string
   if (url.startsWith('/')) return `${origin}${url}`;
   return `${origin}/${url}`;
 }
+
+/** Pull media GUID from `/api/media/{guid}/file` (or absolute equivalent). */
+export function extractMediaId(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const match = url.match(/\/api\/media\/([0-9a-fA-F-]{36})(?:\/|$)/);
+  return match?.[1] ?? null;
+}

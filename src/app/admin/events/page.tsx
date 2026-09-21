@@ -118,8 +118,8 @@ export default function AdminEventsPage() {
               <Newspaper className="w-5 h-5" strokeWidth={2.4} />
             </span>
             <div className="admin-col">
-              <h1 className="text-2xl font-black text-[#0F1B2D]">كل المنشورات</h1>
-              <p className="text-sm text-[#5A6D80] mt-1">مراقبة وحذف — التحديثات لحظية مع شبكة متوهجة</p>
+              <h1 className="text-2xl font-black text-[#F2F6FA]">كل المنشورات</h1>
+              <p className="text-sm text-[#8B9CB0] mt-1">مراقبة وحذف — التحديثات لحظية مع شبكة متوهجة</p>
             </div>
           </div>
         </div>
@@ -193,7 +193,7 @@ export default function AdminEventsPage() {
                         {event.userName || 'مستخدم'}
                       </Link>
                     </td>
-                    <td className="text-[#5A6D80]">
+                    <td className="text-[#8B9CB0]">
                       <span className="inline-flex items-center gap-1.5">
                         <MapPin className="w-3.5 h-3.5 text-[#C4A35A] shrink-0" />
                         <span className="truncate max-w-[160px]">
@@ -244,7 +244,7 @@ export default function AdminEventsPage() {
           </div>
 
           {(data?.totalPages ?? 0) > 1 && (
-            <div className="admin-row justify-between p-3.5 border-t border-[rgba(15,27,45,0.08)] text-xs bg-white/40">
+            <div className="admin-row justify-between p-3.5 border-t border-[rgba(15,27,45,0.08)] text-xs bg-white/5">
               <button
                 type="button"
                 disabled={page <= 1}
@@ -254,7 +254,7 @@ export default function AdminEventsPage() {
                 <ChevronRight className="w-3.5 h-3.5" />
                 السابق
               </button>
-              <span className="font-bold text-[#5A6D80]">
+              <span className="font-bold text-[#8B9CB0]">
                 صفحة {page} من {data?.totalPages}
               </span>
               <button

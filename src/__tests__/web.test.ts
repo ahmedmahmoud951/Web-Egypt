@@ -356,8 +356,16 @@ describe('Phase 27: Web Unit & Integration Tests', () => {
       const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
       assert.equal(formatRelativeArabicTime(twoHoursAgo), 'منذ ساعتين');
 
-      const yesterday = new Date(now.getTime() - 26 * 60 * 60 * 1000).toISOString();
-      assert.equal(formatRelativeArabicTime(yesterday), 'أمس');
+      const oneDayAgo = new Date(now.getTime() - 26 * 60 * 60 * 1000).toISOString();
+      assert.equal(formatRelativeArabicTime(oneDayAgo), 'منذ يوم');
+
+      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000 - 60 * 60 * 1000).toISOString();
+      assert.equal(formatRelativeArabicTime(threeDaysAgo), 'منذ 3 أيام');
+
+      const fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString();
+      const fourDaysLabel = formatRelativeArabicTime(fourDaysAgo);
+      assert.ok(!fourDaysLabel.startsWith('منذ'), `expected absolute date, got: ${fourDaysLabel}`);
+      assert.ok(fourDaysLabel.length > 5);
 
       // Naive ISO (no Z) must still be treated as UTC — Egypt UTC+3 used to show "~3 hours ago".
       const naiveUtcJustNow = new Date(now.getTime() - 15 * 1000).toISOString().replace(/Z$/, '');

@@ -10,27 +10,35 @@ import {
   ReelDto,
   UserStatusGroupDto,
 } from '@/types/social';
+import { normalizeReelDto, normalizeStatusDto } from '@/lib/socialNormalize';
+import { resolveMediaUrl } from '@/lib/media';
 
 export const socialAdminApi = {
-  // === Reels ===
   getReels: async (params?: AdminReelFilter, signal?: AbortSignal): Promise<PagedResponse<ReelDto>> => {
     const res = await apiClient.get<ApiResponse<PagedResponse<ReelDto>>>('/admin/reels', {
       params: {
         page: params?.page ?? 1,
         pageSize: params?.pageSize ?? 20,
-        status: params?.status || undefined,
-        userId: params?.userId,
-        locationId: params?.locationId,
-        categoryId: params?.categoryId,
-        eventId: params?.eventId,
-        dateFrom: params?.dateFrom,
-        dateTo: params?.dateTo,
-        isReported: params?.isReported,
-        search: params?.search,
+        ...(params?.status ? { status: params.status } : {}),
+        ...(params?.userId ? { userId: params.userId } : {}),
+        ...(params?.locationId != null ? { locationId: params.locationId } : {}),
+        ...(params?.categoryId != null ? { categoryId: params.categoryId } : {}),
+        ...(params?.eventId ? { eventId: params.eventId } : {}),
+        ...(params?.dateFrom ? { dateFrom: params.dateFrom } : {}),
+        ...(params?.dateTo ? { dateTo: params.dateTo } : {}),
+        ...(params?.isReported === true ? { isReported: true } : {}),
+        ...(params?.search ? { search: params.search } : {}),
       },
       signal,
     });
-    return res.data.data!;
+    const data = res.data?.data;
+    if (!data) {
+      throw new Error('استجابة الريلز فارغة من الخادم.');
+    }
+    return {
+      ...data,
+      items: (data.items ?? []).map((r) => normalizeReelDto(r)),
+    };
   },
 
   getReelStats: async (signal?: AbortSignal): Promise<AdminReelStats> => {
@@ -50,23 +58,29 @@ export const socialAdminApi = {
     await apiClient.delete(`/admin/reels/${id}`);
   },
 
-  // === Statuses ===
-  getStatuses: async (params?: AdminStatusFilter, signal?: AbortSignal): Promise<PagedResponse<AdminStatusDetailDto>> => {
+  getStatuses: async (
+    params?: AdminStatusFilter,
+    signal?: AbortSignal
+  ): Promise<PagedResponse<AdminStatusDetailDto>> => {
     const res = await apiClient.get<ApiResponse<PagedResponse<AdminStatusDetailDto>>>('/admin/statuses', {
       params: {
         page: params?.page ?? 1,
         pageSize: params?.pageSize ?? 20,
-        userId: params?.userId,
-        status: params?.status || undefined,
-        mediaType: params?.mediaType || undefined,
-        dateFrom: params?.dateFrom,
-        dateTo: params?.dateTo,
-        isReported: params?.isReported,
-        search: params?.search,
+        ...(params?.userId ? { userId: params.userId } : {}),
+        ...(params?.status ? { status: params.status } : {}),
+        ...(params?.mediaType ? { mediaType: params.mediaType } : {}),
+        ...(params?.dateFrom ? { dateFrom: params.dateFrom } : {}),
+        ...(params?.dateTo ? { dateTo: params.dateTo } : {}),
+        ...(params?.isReported === true ? { isReported: true } : {}),
+        ...(params?.search ? { search: params.search } : {}),
       },
       signal,
     });
-    return res.data.data!;
+    const data = res.data.data!;
+    return {
+      ...data,
+      items: (data.items ?? []).map((s) => normalizeStatusDto(s) as AdminStatusDetailDto),
+    };
   },
 
   getStatusStats: async (signal?: AbortSignal): Promise<AdminStatusStats> => {
@@ -76,7 +90,7 @@ export const socialAdminApi = {
 
   getStatusById: async (id: string, signal?: AbortSignal): Promise<AdminStatusDetailDto> => {
     const res = await apiClient.get<ApiResponse<AdminStatusDetailDto>>(`/admin/statuses/${id}`, { signal });
-    return res.data.data!;
+    return normalizeStatusDto(res.data.data!) as AdminStatusDetailDto;
   },
 
   hideStatus: async (id: string): Promise<void> => {
@@ -93,24 +107,30 @@ export const socialAdminApi = {
 
   getStatusFeed: async (signal?: AbortSignal): Promise<UserStatusGroupDto[]> => {
     const res = await apiClient.get<ApiResponse<UserStatusGroupDto[]>>('/statuses/feed', { signal });
-    return res.data.data || [];
+    return (res.data.data || []).map((g) => ({
+      ...g,
+      authorAvatar: g.authorAvatar ? resolveMediaUrl(g.authorAvatar) : g.authorAvatar,
+      items: (g.items ?? []).map((s) => normalizeStatusDto(s)),
+    }));
   },
 
   viewStatus: async (id: string): Promise<void> => {
     await apiClient.post(`/statuses/${id}/view`);
   },
 
-  // === Central Reports ===
-  getReports: async (params?: {
-    page?: number;
-    pageSize?: number;
-    contentType?: string;
-    reason?: string;
-    status?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    search?: string;
-  }, signal?: AbortSignal): Promise<PagedResponse<CentralReportDto>> => {
+  getReports: async (
+    params?: {
+      page?: number;
+      pageSize?: number;
+      contentType?: string;
+      reason?: string;
+      status?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      search?: string;
+    },
+    signal?: AbortSignal
+  ): Promise<PagedResponse<CentralReportDto>> => {
     const res = await apiClient.get<ApiResponse<PagedResponse<CentralReportDto>>>('/admin/reports', {
       params: {
         page: params?.page ?? 1,
@@ -124,12 +144,25 @@ export const socialAdminApi = {
       },
       signal,
     });
-    return res.data.data!;
+    const data = res.data.data!;
+    return {
+      ...data,
+      items: (data.items ?? []).map((r) => ({
+        ...r,
+        mediaUrl: r.mediaUrl ? resolveMediaUrl(r.mediaUrl) : r.mediaUrl,
+        authorAvatar: r.authorAvatar ? resolveMediaUrl(r.authorAvatar) : r.authorAvatar,
+      })),
+    };
   },
 
   getReportById: async (id: string, signal?: AbortSignal): Promise<CentralReportDto> => {
     const res = await apiClient.get<ApiResponse<CentralReportDto>>(`/admin/reports/${id}`, { signal });
-    return res.data.data!;
+    const r = res.data.data!;
+    return {
+      ...r,
+      mediaUrl: r.mediaUrl ? resolveMediaUrl(r.mediaUrl) : r.mediaUrl,
+      authorAvatar: r.authorAvatar ? resolveMediaUrl(r.authorAvatar) : r.authorAvatar,
+    };
   },
 
   resolveReport: async (id: string, notes?: string): Promise<CentralReportDto> => {

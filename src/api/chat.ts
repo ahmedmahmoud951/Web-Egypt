@@ -50,10 +50,28 @@ export const chatApi = {
   },
 
   async getMessages(conversationId: string, before?: string, limit: number = 50): Promise<ChatMessageDto[]> {
-    const res = await apiClient.get<ApiResponse<ChatMessageDto[]>>(`/chat/conversations/${conversationId}/messages`, {
-      params: { before, limit },
-    });
-    return res.data.data!;
+    const res = await apiClient.get<ApiResponse<PagedResponse<ChatMessageDto> | ChatMessageDto[]>>(
+      `/chat/conversations/${conversationId}/messages`,
+      {
+        params: { page: 1, pageSize: limit },
+      }
+    );
+    const data = res.data.data;
+    const items = Array.isArray(data)
+      ? data
+      : Array.isArray((data as PagedResponse<ChatMessageDto> | null)?.items)
+        ? (data as PagedResponse<ChatMessageDto>).items
+        : [];
+    // Deduplicate by id and sort oldest → newest
+    const map = new Map<string, ChatMessageDto>();
+    for (const item of items) {
+      if (item && item.id) {
+        map.set(item.id.toLowerCase(), item);
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
   },
 
   async sendMessage(conversationId: string, request: SendMessageRequest): Promise<ChatMessageDto> {

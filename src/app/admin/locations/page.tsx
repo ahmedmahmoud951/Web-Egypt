@@ -62,8 +62,8 @@ export default function AdminLocationsPage() {
               <MapPin className="w-5 h-5" strokeWidth={2.4} />
             </span>
             <div className="admin-col space-y-1">
-              <h1 className="text-xl sm:text-2xl font-black text-[#0F1B2D]">المواقع المعلقة</h1>
-              <p className="text-xs text-[#5A6D80]">
+              <h1 className="text-xl sm:text-2xl font-black text-[#F2F6FA]">المواقع المعلقة</h1>
+              <p className="text-xs text-[#8B9CB0]">
                 اعتماد أو رفض الأماكن المقترحة من مستخدمي تطبيق الموبايل
               </p>
             </div>
@@ -81,7 +81,7 @@ export default function AdminLocationsPage() {
           </div>
         ) : suggestions?.length === 0 ? (
           <div className="admin-card p-12 text-center space-y-2">
-            <h3 className="text-base font-bold text-[#0F1B2D]">لا توجد اقتراحات معلقة</h3>
+            <h3 className="text-base font-bold text-[#F2F6FA]">لا توجد اقتراحات معلقة</h3>
           </div>
         ) : (
           <div className="admin-col gap-3">
@@ -92,7 +92,7 @@ export default function AdminLocationsPage() {
               >
                 <div className="admin-col gap-1">
                   <div className="admin-row gap-2 flex-wrap">
-                    <h3 className="font-bold text-base text-[#0F1B2D]">{item.nameAr}</h3>
+                    <h3 className="font-bold text-base text-[#F2F6FA]">{item.nameAr}</h3>
                     {item.nameEn && (
                       <span className="text-xs text-[#8A9AAB] font-mono">({item.nameEn})</span>
                     )}
@@ -100,7 +100,7 @@ export default function AdminLocationsPage() {
                       {item.type}
                     </span>
                   </div>
-                  <div className="admin-row gap-4 text-xs text-[#5A6D80]">
+                  <div className="admin-row gap-4 text-xs text-[#8B9CB0]">
                     <span>{formatArabicDate(item.createdAt)}</span>
                     {item.parentId && <span>Parent ID: {item.parentId}</span>}
                   </div>

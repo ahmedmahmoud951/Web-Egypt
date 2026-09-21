@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { StatusDto, AdminStatusDetailDto } from '@/types/social';
 import { socialAdminApi } from '@/api/socialAdmin';
-import { formatArabicDate } from '@/lib/utils';
+import { formatArabicDate, formatRemainingTime } from '@/lib/utils';
 import {
   X,
   ChevronRight,
@@ -17,6 +17,9 @@ import {
   Clock,
   MapPin,
   Flame,
+  Image as ImageIcon,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useFlash } from '@/components/ui/FlashProvider';
@@ -42,9 +45,12 @@ export function StatusStoryViewerModal({
   const flash = useFlash();
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  const [imageError, setImageError] = useState(false);
+
   useEffect(() => {
     setCurrentIndex(initialIndex);
     setProgress(0);
+    setImageError(false);
   }, [initialIndex, isOpen]);
 
   const currentStatus = statuses[currentIndex];
@@ -54,12 +60,14 @@ export function StatusStoryViewerModal({
     if (isOpen && currentStatus) {
       socialAdminApi.viewStatus(currentStatus.id).catch(() => {});
       setProgress(0);
+      setImageError(false);
     }
   }, [isOpen, currentIndex, currentStatus]);
 
   // Reset progress when index changes
   useEffect(() => {
     setProgress(0);
+    setImageError(false);
   }, [currentIndex]);
 
   // Sync video play/pause
@@ -252,7 +260,34 @@ export function StatusStoryViewerModal({
 
         {/* Story Media Viewer */}
         <div className="relative flex-1 w-full bg-black flex items-center justify-center overflow-hidden">
-          {isVideo ? (
+          {imageError ? (
+            <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-slate-900 via-[#0A101D] to-black z-10">
+              <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/30 mb-3 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                <AlertCircle className="w-8 h-8 text-amber-400" />
+              </div>
+              <span className="text-base font-black text-white mb-1.5">تعذر تحميل ملف الوسائط</span>
+              <p className="text-xs text-amber-200/80 max-w-xs mb-4 leading-relaxed font-semibold">
+                تم تجاوز السقف اليومي في حساب التخزين السحابي (Backblaze B2 Cap Exceeded). يرجى زيادة السقف في لوحة Backblaze من تبويب Caps & Alerts.
+              </p>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageError(false);
+                }}
+                className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20 shadow-md"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                إعادة المحاولة
+              </button>
+            </div>
+          ) : !currentStatus.mediaUrl || currentStatus.mediaUrl.includes('00000000-0000-0000-0000-000000000000') ? (
+            <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-[#0F766E] via-[#0A4D46] to-[#062E2A]">
+              <p className="text-white text-xl font-bold leading-relaxed max-w-sm drop-shadow-md">
+                {currentStatus.text || 'حالة نصية بدون محتوى'}
+              </p>
+            </div>
+          ) : isVideo ? (
             <video
               ref={videoRef}
               src={currentStatus.mediaUrl}
@@ -261,6 +296,7 @@ export function StatusStoryViewerModal({
               playsInline
               muted={false}
               loop
+              onError={() => setImageError(true)}
             />
           ) : (
             <Image
@@ -270,6 +306,7 @@ export function StatusStoryViewerModal({
               className="object-contain"
               priority
               unoptimized
+              onError={() => setImageError(true)}
             />
           )}
 
@@ -324,8 +361,9 @@ export function StatusStoryViewerModal({
                 {currentStatus.reactionsCount} تفاعل
               </span>
             </div>
-            <div className="text-[11px] text-white/50">
-              ينتهي في: {formatArabicDate(currentStatus.expiresAt)}
+            <div className="text-[11px] text-white/70 flex items-center gap-1 font-medium bg-black/40 px-2 py-0.5 rounded-lg border border-white/10">
+              <Clock className="w-3 h-3 text-amber-300" />
+              <span>{formatRemainingTime(currentStatus.expiresAt) || `ينتهي: ${formatArabicDate(currentStatus.expiresAt)}`}</span>
             </div>
           </div>
 

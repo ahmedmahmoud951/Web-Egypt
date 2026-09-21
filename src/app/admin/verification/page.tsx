@@ -472,7 +472,7 @@ export default function AdminVerificationPage() {
                     setGrantMatchedUser(null);
                     setActiveTab('grants');
                   }}
-                  className="admin-touch-btn bg-[#C4A35A] hover:bg-[#b09149] text-[#0F1B2D] shadow-lg"
+                  className="admin-touch-btn bg-[#C4A35A] hover:bg-[#b09149] text-[#F2F6FA] shadow-lg"
                 >
                   <Gift className="w-4 h-4" />
                   منح فوري
@@ -1117,7 +1117,7 @@ export default function AdminVerificationPage() {
                   }`}
                 >
                   {p.isFree && (
-                    <div className="absolute -top-3 left-4 px-3 py-0.5 rounded-full bg-[#C4A35A] text-[#0F1B2D] text-xs font-black shadow flex items-center gap-1">
+                    <div className="absolute -top-3 left-4 px-3 py-0.5 rounded-full bg-[#C4A35A] text-[#F2F6FA] text-xs font-black shadow flex items-center gap-1">
                       <Gift className="w-3.5 h-3.5" />
                       عرض مجاني
                     </div>
@@ -1815,7 +1815,7 @@ export default function AdminVerificationPage() {
                                     setPreviewDocUrl(imageUrl);
                                     setPreviewDocTitle(title);
                                   }}
-                                  className="relative group bg-slate-100 aspect-[4/3] w-full overflow-hidden text-left"
+                                  className="relative group bg-white/10 aspect-[4/3] w-full overflow-hidden text-left"
                                   title="اضغط للتكبير"
                                 >
                                   {/* eslint-disable-next-line @next/next/no-img-element */}

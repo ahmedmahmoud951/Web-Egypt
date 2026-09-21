@@ -112,16 +112,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-smooth ${
-                  active
-                    ? 'bg-[rgba(42,107,120,0.4)] text-white shadow-[0_0_18px_rgba(184,149,74,0.25),inset_0_0_0_1px_rgba(184,149,74,0.35)]'
-                    : 'text-[#C5D0DC] hover:bg-white/5 hover:text-white hover:shadow-[0_0_12px_rgba(42,107,120,0.2)]'
-                }`}
+                data-active={active ? 'true' : 'false'}
+                className="admin-nav-link"
               >
                 <span
                   className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                     active
-                      ? 'bg-[rgba(184,149,74,0.22)] text-[#F5E6B8] shadow-[0_0_14px_rgba(184,149,74,0.35)]'
+                      ? 'bg-[rgba(196,163,90,0.24)] text-[#F5E6B8] shadow-[0_0_16px_rgba(196,163,90,0.4)]'
                       : 'bg-white/5 text-[#8FA3B8]'
                   }`}
                 >
@@ -135,11 +132,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           {isSuperAdmin && (
             <Link
               href="/admin/staff"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-smooth ${
-                isActive('/admin/staff')
-                  ? 'bg-[rgba(184,149,74,0.2)] text-[#F5E6B8] shadow-[inset_0_0_0_1px_rgba(184,149,74,0.35)]'
-                  : 'text-[#C5D0DC] hover:bg-white/5 hover:text-white'
-              }`}
+              data-active={isActive('/admin/staff') ? 'true' : 'false'}
+              className="admin-nav-link"
             >
               <span className="w-9 h-9 rounded-xl flex items-center justify-center bg-[rgba(184,149,74,0.12)] text-[#B8954A] shrink-0">
                 <UserCog className="w-[18px] h-[18px]" strokeWidth={2.25} />
@@ -172,12 +166,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         <div className="admin-flag-stripe" />
-        <header className="sticky top-0 z-30 min-h-14 glass-card border-b border-[rgba(26,36,51,0.07)] px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 py-2">
+        <header className="sticky top-0 z-30 min-h-14 glass-card border-b border-[rgba(45,138,156,0.18)] px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 py-2">
           <div className="md:hidden flex items-center gap-2 min-w-0">
             <BrandLogo size={32} />
             <div className="min-w-0">
-              <div className="text-sm font-black text-[var(--egypt-navy)] truncate leading-tight">النهارده في مصر</div>
-              <div className="text-[10px] font-bold text-[var(--egypt-gold)] flex items-center gap-1">
+              <div className="text-sm font-black text-[#F2F6FA] truncate leading-tight">النهارده في مصر</div>
+              <div className="text-[10px] font-bold text-[#C4A35A] flex items-center gap-1">
                 <EgyptFlagMark className="w-4 h-3" />
                 مركز التحكم
               </div>
@@ -203,7 +197,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Mobile icon rail — short labels, no horizontal crush */}
-        <div className="md:hidden sticky top-14 z-20 bg-[#E8EEF2]/95 backdrop-blur-md border-b border-[rgba(26,36,51,0.07)] safe-px">
+        <div className="md:hidden sticky top-14 z-20 bg-[#1E2C3C]/92 backdrop-blur-md border-b border-[rgba(45,138,156,0.18)] safe-px">
           <div className="flex gap-1 overflow-x-auto px-2 py-2 scrollbar-none">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -215,12 +209,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   className={`shrink-0 min-w-[4.35rem] max-w-[5.5rem] flex flex-col items-center gap-1 px-1.5 py-2 rounded-2xl text-[10px] font-extrabold leading-tight text-center transition ${
                     active
                       ? 'bg-[var(--egypt-nile)] text-white shadow-[0_8px_20px_-10px_rgba(31,107,122,0.7)]'
-                      : 'bg-[#FBFDFF] text-[#3D4F63] border border-[rgba(26,36,51,0.08)]'
+                      : 'bg-[#1A2433] text-[#A8B8C8] border border-[rgba(45,138,156,0.22)]'
                   }`}
                 >
                   <span
                     className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                      active ? 'bg-white/15 text-[#F5E6B8]' : 'bg-[rgba(31,107,122,0.08)] text-[var(--egypt-nile)]'
+                      active ? 'bg-white/15 text-[#F5E6B8]' : 'bg-[rgba(45,138,156,0.14)] text-[#5ec4d4]'
                     }`}
                   >
                     <Icon className="w-4 h-4" strokeWidth={2.35} />
@@ -235,10 +229,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 className={`shrink-0 min-w-[4.35rem] max-w-[5.5rem] flex flex-col items-center gap-1 px-1.5 py-2 rounded-2xl text-[10px] font-extrabold leading-tight text-center transition ${
                   isActive('/admin/staff')
                     ? 'bg-[var(--egypt-gold)] text-[var(--egypt-navy)] shadow'
-                    : 'bg-[#FBFDFF] text-[#3D4F63] border border-[rgba(26,36,51,0.08)]'
+                    : 'bg-[#1A2433] text-[#A8B8C8] border border-[rgba(45,138,156,0.22)]'
                 }`}
               >
-                <span className="w-8 h-8 rounded-xl flex items-center justify-center bg-[rgba(196,163,90,0.2)] text-[#8A6A1F]">
+                <span className="w-8 h-8 rounded-xl flex items-center justify-center bg-[rgba(196,163,90,0.2)] text-[#E6D19A]">
                   <UserCog className="w-4 h-4" strokeWidth={2.35} />
                 </span>
                 <span>طاقم</span>

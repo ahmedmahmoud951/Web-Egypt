@@ -76,8 +76,8 @@ export default function AdminComplaintsPage() {
               <MessageSquareWarning className="w-5 h-5" strokeWidth={2.4} />
             </span>
             <div className="admin-col">
-              <h1 className="text-2xl font-black text-[#0F1B2D]">الشكاوى والبلاغات</h1>
-              <p className="text-sm text-[#5A6D80] mt-1">
+              <h1 className="text-2xl font-black text-[#F2F6FA]">الشكاوى والبلاغات</h1>
+              <p className="text-sm text-[#8B9CB0] mt-1">
                 كل شكاوى المستخدمين على المنشورات — راجعها وسجّل القرار
               </p>
             </div>
@@ -130,18 +130,18 @@ export default function AdminComplaintsPage() {
                 <div className="admin-col gap-1">
                   <Link
                     href={`/admin/events/${c.eventId}`}
-                    className="font-black text-[#0F1B2D] hover:text-[#1F6B7A]"
+                    className="font-black text-[#F2F6FA] hover:text-[#1F6B7A]"
                   >
                     {c.eventTitle || 'منشور'}
                   </Link>
-                  <div className="text-xs text-[#5A6D80] admin-row gap-2">
+                  <div className="text-xs text-[#8B9CB0] admin-row gap-2">
                     <span className="font-bold text-[#8A6A1F] bg-[rgba(196,163,90,0.16)] px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(196,163,90,0.2)]">
                       {reasonLabels[c.reason] || c.reason}
                     </span>
                     <span>حالة المنشور: {c.eventStatus}</span>
                     <span dir="ltr">{formatArabicDate(c.createdAt)}</span>
                   </div>
-                  <div className="text-xs text-[#5A6D80]">
+                  <div className="text-xs text-[#8B9CB0]">
                     المبلّغ:{' '}
                     <Link href={`/admin/users/${c.reporterUserId}`} className="text-[#1F6B7A] font-bold">
                       {c.reporterName}
@@ -154,7 +154,7 @@ export default function AdminComplaintsPage() {
                     حالة الشكوى:{' '}
                     <span className="font-bold">{c.reviewStatus}</span>
                     {c.adminNotes && (
-                      <span className="text-[#5A6D80]"> — {c.adminNotes}</span>
+                      <span className="text-[#8B9CB0]"> — {c.adminNotes}</span>
                     )}
                   </div>
                 </div>
@@ -232,7 +232,7 @@ export default function AdminComplaintsPage() {
               <ChevronRight className="w-3.5 h-3.5" />
               السابق
             </button>
-            <span className="font-bold text-[#5A6D80]">
+            <span className="font-bold text-[#8B9CB0]">
               {page} / {data?.totalPages}
             </span>
             <button

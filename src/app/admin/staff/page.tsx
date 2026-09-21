@@ -66,8 +66,8 @@ export default function AdminStaffPage() {
               <Shield className="w-5 h-5" strokeWidth={2.4} />
             </span>
             <div className="admin-col">
-              <h1 className="text-2xl font-black text-[#0F1B2D]">طاقم الأدمن</h1>
-              <p className="text-sm text-[#5A6D80] mt-1">
+              <h1 className="text-2xl font-black text-[#F2F6FA]">طاقم الأدمن</h1>
+              <p className="text-sm text-[#8B9CB0] mt-1">
                 إنشاء أدمن جديد من الداخل فقط — لا يمكن تسجيل أدمن من صفحة الدخول العامة.
               </p>
             </div>
@@ -76,7 +76,7 @@ export default function AdminStaffPage() {
 
         <div className="admin-card p-5 md:p-6 space-y-4 relative overflow-hidden">
           <div className="admin-flag-stripe absolute top-0 inset-x-0" />
-          <h2 className="font-black text-[#0F1B2D] inline-flex items-center gap-2 pt-1">
+          <h2 className="font-black text-[#F2F6FA] inline-flex items-center gap-2 pt-1">
             <span className="admin-page-icon !w-9 !h-9">
               <UserPlus className="w-4 h-4" />
             </span>

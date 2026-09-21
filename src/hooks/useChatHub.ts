@@ -44,21 +44,46 @@ export function useChatHub(callbacks: ChatHubCallbacks = {}) {
   const [connectionState, setConnectionState] = useState<string>('disconnected');
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const callbacksRef = useRef<ChatHubCallbacks>(callbacks);
+  const joinedConversationsRef = useRef<Set<string>>(new Set());
   callbacksRef.current = callbacks;
+
+  const rejoinActiveConversations = useCallback(async (connection: signalR.HubConnection) => {
+    const ids = Array.from(joinedConversationsRef.current);
+    for (const conversationId of ids) {
+      try {
+        await connection.invoke('JoinConversation', conversationId);
+        devLog.step('chat-hub', `Re-joined conversation after connect: ${conversationId}`);
+      } catch (err) {
+        devLog.warn('chat-hub', `Re-join failed for ${conversationId}`, err);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const token = storage.getToken();
     if (!token) return;
 
     const hubUrl = `${API_BASE_URL}/hubs/chat`;
+
+    const silentLogger: signalR.ILogger = {
+      log(logLevel: signalR.LogLevel, message: string) {
+        if (logLevel >= signalR.LogLevel.Critical) {
+          devLog.error('chat-hub', `[SignalR] ${message}`);
+        }
+      },
+    };
+
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(hubUrl, {
         accessTokenFactory: () => storage.getToken() ?? '',
         skipNegotiation: false,
-        transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
+        transport:
+          signalR.HttpTransportType.WebSockets |
+          signalR.HttpTransportType.ServerSentEvents |
+          signalR.HttpTransportType.LongPolling,
       })
-      .withAutomaticReconnect([0, 1000, 3000, 5000, 10000, 30000])
-      .configureLogging(signalR.LogLevel.Warning)
+      .withAutomaticReconnect([0, 2000, 5000, 10000, 20000, 30000])
+      .configureLogging(silentLogger)
       .build();
 
     connectionRef.current = connection;
@@ -153,6 +178,7 @@ export function useChatHub(callbacks: ChatHubCallbacks = {}) {
       setConnectionState('connected');
       setIsConnected(true);
       devLog.ok('chat-hub', 'SignalR ChatHub reconnected.');
+      void rejoinActiveConversations(connection);
     });
 
     connection.onclose(() => {
@@ -162,37 +188,83 @@ export function useChatHub(callbacks: ChatHubCallbacks = {}) {
     });
 
     setConnectionState('connecting');
-    connection
-      .start()
-      .then(() => {
-        setIsConnected(true);
-        setConnectionState('connected');
-        devLog.ok('chat-hub', 'SignalR ChatHub connected.');
-      })
-      .catch((err) => {
-        setIsConnected(false);
-        setConnectionState('disconnected');
-        devLog.error('chat-hub', 'SignalR ChatHub connection failed', err);
-      });
+
+    let destroyed = false;
+
+    const startWithRetry = async () => {
+      const maxAttempts = 5;
+      const baseDelay = 500;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (destroyed) return;
+        try {
+          await connection.start();
+          if (!destroyed) {
+            setIsConnected(true);
+            setConnectionState('connected');
+            devLog.ok('chat-hub', 'SignalR ChatHub connected.');
+            await rejoinActiveConversations(connection);
+          }
+          return;
+        } catch (err: unknown) {
+          if (destroyed) return;
+
+          const isNegotiationError =
+            err instanceof Error &&
+            (err.message.includes('negotiation') ||
+              err.message.includes('stopped during') ||
+              err.message.includes('WebSocket'));
+
+          if (attempt < maxAttempts && isNegotiationError) {
+            const delay = baseDelay * Math.pow(2, attempt - 1);
+            devLog.warn(
+              'chat-hub',
+              `SignalR negotiation failed (attempt ${attempt}/${maxAttempts}), retrying in ${delay}ms…`
+            );
+            await new Promise((r) => setTimeout(r, delay));
+          } else {
+            if (!destroyed) {
+              setIsConnected(false);
+              setConnectionState('disconnected');
+              devLog.error('chat-hub', 'SignalR ChatHub connection failed', err);
+            }
+            return;
+          }
+        }
+      }
+    };
+
+    startWithRetry();
 
     return () => {
+      destroyed = true;
       connection.stop();
       connectionRef.current = null;
     };
-  }, []);
+  }, [rejoinActiveConversations]);
 
   const joinConversation = useCallback(async (conversationId: string) => {
+    joinedConversationsRef.current.add(conversationId);
     if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
       try {
         await connectionRef.current.invoke('JoinConversation', conversationId);
         devLog.step('chat-hub', `Joined conversation: ${conversationId}`);
       } catch (err) {
-        devLog.error('chat-hub', `Failed to join conversation ${conversationId}`, err);
+        const message =
+          err instanceof Error
+            ? err.message
+            : typeof err === 'object' && err && 'message' in err
+              ? String((err as { message: unknown }).message)
+              : String(err);
+        devLog.error('chat-hub', `Failed to join conversation ${conversationId}`, { message });
       }
+    } else {
+      devLog.warn('chat-hub', `Queued join until connected: ${conversationId}`);
     }
   }, []);
 
   const leaveConversation = useCallback(async (conversationId: string) => {
+    joinedConversationsRef.current.delete(conversationId);
     if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
       try {
         await connectionRef.current.invoke('LeaveConversation', conversationId);
@@ -206,9 +278,9 @@ export function useChatHub(callbacks: ChatHubCallbacks = {}) {
   const startTyping = useCallback(async (conversationId: string) => {
     if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
       try {
-        await connectionRef.current.invoke('TypingStarted', conversationId);
-      } catch (err) {
-        // silent fail
+        await connectionRef.current.invoke('StartTyping', conversationId);
+      } catch {
+        // silent
       }
     }
   }, []);
@@ -216,9 +288,9 @@ export function useChatHub(callbacks: ChatHubCallbacks = {}) {
   const stopTyping = useCallback(async (conversationId: string) => {
     if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
       try {
-        await connectionRef.current.invoke('TypingStopped', conversationId);
-      } catch (err) {
-        // silent fail
+        await connectionRef.current.invoke('StopTyping', conversationId);
+      } catch {
+        // silent
       }
     }
   }, []);
@@ -227,7 +299,7 @@ export function useChatHub(callbacks: ChatHubCallbacks = {}) {
     if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
       try {
         await connectionRef.current.invoke('JoinCall', callId);
-      } catch (err) {}
+      } catch {}
     }
   }, []);
 
@@ -235,7 +307,7 @@ export function useChatHub(callbacks: ChatHubCallbacks = {}) {
     if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
       try {
         await connectionRef.current.invoke('LeaveCall', callId);
-      } catch (err) {}
+      } catch {}
     }
   }, []);
 
@@ -243,7 +315,7 @@ export function useChatHub(callbacks: ChatHubCallbacks = {}) {
     if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
       try {
         await connectionRef.current.invoke('SendOffer', callId, targetUserId, sdp);
-      } catch (err) {}
+      } catch {}
     }
   }, []);
 
@@ -251,7 +323,7 @@ export function useChatHub(callbacks: ChatHubCallbacks = {}) {
     if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
       try {
         await connectionRef.current.invoke('SendAnswer', callId, targetUserId, sdp);
-      } catch (err) {}
+      } catch {}
     }
   }, []);
 
@@ -259,7 +331,7 @@ export function useChatHub(callbacks: ChatHubCallbacks = {}) {
     if (connectionRef.current && connectionRef.current.state === signalR.HubConnectionState.Connected) {
       try {
         await connectionRef.current.invoke('SendIceCandidate', callId, targetUserId, candidate, sdpMid, sdpMLineIndex);
-      } catch (err) {}
+      } catch {}
     }
   }, []);
 

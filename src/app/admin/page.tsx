@@ -9,7 +9,10 @@ import { EgyptFlagMark } from '@/components/brand/EgyptFlagMark';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { FlashBanner } from '@/components/ui/FlashBanner';
 import { useAdminQueryEnabled } from '@/hooks/useAdminQueryEnabled';
+import { useAuth } from '@/hooks/useAuth';
 import { adminApi } from '@/api/admin';
+import { socialAdminApi } from '@/api/socialAdmin';
+import { verificationAdminApi } from '@/api/verificationAdmin';
 import { signalRService } from '@/lib/signalr';
 import {
   EyeOff,
@@ -22,11 +25,38 @@ import {
   Radio,
   Sparkles,
   RefreshCw,
+  Film,
+  BadgeCheck,
+  MessageCircle,
+  UserCog,
+  type LucideIcon,
 } from 'lucide-react';
+
+type StatTone = 'nile' | 'gold' | 'danger' | 'ok' | 'mute';
+
+type DashCard = {
+  label: string;
+  value: number | string | undefined;
+  hint?: string;
+  icon: LucideIcon;
+  href: string;
+  tone: StatTone;
+  superAdminOnly?: boolean;
+};
 
 export default function AdminDashboardPage() {
   const adminReady = useAdminQueryEnabled();
-  const { data: stats, isLoading, isError, error, dataUpdatedAt, isFetching, refetch } = useQuery({
+  const { isSuperAdmin } = useAuth();
+
+  const {
+    data: stats,
+    isLoading,
+    isError,
+    error,
+    dataUpdatedAt,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ['admin', 'dashboard', 'stats'],
     queryFn: ({ signal }) => adminApi.getDashboardStats(signal),
     enabled: adminReady,
@@ -34,12 +64,38 @@ export default function AdminDashboardPage() {
     retry: 0,
   });
 
-  // Real-time synchronization for dashboard counters
+  const { data: reelStats, isLoading: reelsLoading, refetch: refetchReels } = useQuery({
+    queryKey: ['admin', 'reels', 'stats'],
+    queryFn: ({ signal }) => socialAdminApi.getReelStats(signal),
+    enabled: adminReady,
+    staleTime: 120_000,
+    retry: 0,
+  });
+
+  const { data: statusStats, isLoading: statusesLoading, refetch: refetchStatuses } = useQuery({
+    queryKey: ['admin', 'statuses', 'stats'],
+    queryFn: ({ signal }) => socialAdminApi.getStatusStats(signal),
+    enabled: adminReady,
+    staleTime: 120_000,
+    retry: 0,
+  });
+
+  const { data: verifyStats, isLoading: verifyLoading, refetch: refetchVerify } = useQuery({
+    queryKey: ['admin', 'verification', 'dashboard'],
+    queryFn: ({ signal }) => verificationAdminApi.getDashboard(signal),
+    enabled: adminReady,
+    staleTime: 120_000,
+    retry: 0,
+  });
+
   useEffect(() => {
     signalRService.start();
 
     const refreshStats = () => {
       refetch();
+      refetchReels();
+      refetchStatuses();
+      refetchVerify();
     };
 
     const unsubs = [
@@ -62,18 +118,119 @@ export default function AdminDashboardPage() {
     return () => {
       unsubs.forEach((u) => u());
     };
-  }, [refetch]);
+  }, [refetch, refetchReels, refetchStatuses, refetchVerify]);
 
-  const cards = [
-    { label: 'المستخدمون', value: stats?.usersCount, icon: Users, href: '/admin/users', tone: 'text-[#1F6B7A] bg-[rgba(31,107,122,0.12)]' },
-    { label: 'حسابات موقوفة', value: stats?.blockedUsers, icon: Ban, href: '/admin/blocked', tone: 'text-[#9E1B2C] bg-[rgba(158,27,44,0.1)]' },
-    { label: 'شكاوى معلّقة', value: stats?.pendingComplaints, icon: MessageSquareWarning, href: '/admin/complaints', tone: 'text-[#8A6A1F] bg-[rgba(196,163,90,0.18)]' },
-    { label: 'منشورات اليوم', value: stats?.eventsToday, icon: Newspaper, href: '/admin/events', tone: 'text-[#0F1B2D] bg-[rgba(15,27,45,0.08)]' },
-    { label: 'منشورات منشورة', value: stats?.publishedEvents, icon: Sparkles, href: '/admin/events', tone: 'text-[#0F766E] bg-teal-50' },
-    { label: 'بلاغات أحداث', value: stats?.reportedEvents, icon: Flag, href: '/admin/reports', tone: 'text-[#9E1B2C] bg-[rgba(158,27,44,0.1)]' },
-    { label: 'مواقع معلّقة', value: stats?.pendingLocations, icon: MapPin, href: '/admin/locations', tone: 'text-[#8A6A1F] bg-[rgba(196,163,90,0.16)]' },
-    { label: 'مخفية', value: stats?.hiddenEvents, icon: EyeOff, href: '/admin/reports', tone: 'text-[#5A6D80] bg-[#E4ECF2]' },
+  const anyLoading = isLoading || reelsLoading || statusesLoading || verifyLoading;
+
+  const cards: DashCard[] = [
+    {
+      label: 'المستخدمون',
+      value: stats?.usersCount,
+      hint: 'كل الحسابات',
+      icon: Users,
+      href: '/admin/users',
+      tone: 'nile',
+    },
+    {
+      label: 'توثيق الحسابات',
+      value: verifyStats?.pendingRequests,
+      hint: 'طلبات معلّقة',
+      icon: BadgeCheck,
+      href: '/admin/verification',
+      tone: 'gold',
+    },
+    {
+      label: 'الريلز',
+      value: reelStats?.totalReels,
+      hint: `${reelStats?.publishedCount ?? 0} منشور · ${reelStats?.reportedCount ?? 0} بلاغ`,
+      icon: Film,
+      href: '/admin/reels',
+      tone: 'ok',
+    },
+    {
+      label: 'الحالات',
+      value: statusStats?.activeCount ?? statusStats?.totalStatuses,
+      hint: `${statusStats?.totalStatuses ?? 0} إجمالي · ${statusStats?.reportedCount ?? 0} بلاغ`,
+      icon: Sparkles,
+      href: '/admin/statuses',
+      tone: 'gold',
+    },
+    {
+      label: 'مراقبة المحادثات',
+      value: 'مباشر',
+      hint: 'مين بيكلم مين · بدون Seen',
+      icon: MessageCircle,
+      href: '/admin/chat',
+      tone: 'ok',
+    },
+    {
+      label: 'المنشورات',
+      value: stats?.publishedEvents,
+      hint: 'منشورة الآن',
+      icon: Newspaper,
+      href: '/admin/events',
+      tone: 'nile',
+    },
+    {
+      label: 'منشورات اليوم',
+      value: stats?.eventsToday,
+      hint: 'آخر 24 ساعة',
+      icon: Radio,
+      href: '/admin/events',
+      tone: 'mute',
+    },
+    {
+      label: 'مركز البلاغات',
+      value: stats?.reportedEvents,
+      hint: 'بلاغات أحداث',
+      icon: Flag,
+      href: '/admin/reports',
+      tone: 'danger',
+    },
+    {
+      label: 'المواقع المعلّقة',
+      value: stats?.pendingLocations,
+      hint: 'بانتظار الموافقة',
+      icon: MapPin,
+      href: '/admin/locations',
+      tone: 'gold',
+    },
+    {
+      label: 'الحسابات الموقوفة',
+      value: stats?.blockedUsers,
+      hint: 'محظورة',
+      icon: Ban,
+      href: '/admin/blocked',
+      tone: 'danger',
+    },
+    {
+      label: 'الشكاوى',
+      value: stats?.pendingComplaints,
+      hint: 'معلّقة للمراجعة',
+      icon: MessageSquareWarning,
+      href: '/admin/complaints',
+      tone: 'gold',
+    },
+    {
+      label: 'منشورات مخفية',
+      value: stats?.hiddenEvents,
+      hint: 'مخفية إداريًا',
+      icon: EyeOff,
+      href: '/admin/reports',
+      tone: 'mute',
+    },
+    {
+      label: 'طاقم الأدمن',
+      value: 'إدارة',
+      hint: 'سوبر أدمن فقط',
+      icon: UserCog,
+      href: '/admin/staff',
+      tone: 'nile',
+      superAdminOnly: true,
+    },
   ];
+
+  const visibleCards = cards.filter((c) => !c.superAdminOnly || isSuperAdmin);
 
   const updatedLabel =
     dataUpdatedAt > 0
@@ -87,26 +244,30 @@ export default function AdminDashboardPage() {
   return (
     <AdminShell>
       <div className="space-y-6 text-right max-w-6xl mx-auto">
-        <div className="admin-card p-6 md:p-8 relative overflow-hidden">
+        <div className="admin-card admin-hero p-6 md:p-8 relative overflow-hidden">
           <div className="admin-flag-stripe absolute top-0 inset-x-0" />
           <div className="admin-row justify-between pt-1">
             <div className="admin-row items-start gap-4">
-              <BrandLogo size={64} priority className="rounded-2xl hidden sm:block" />
+              <BrandLogo size={64} priority className="rounded-2xl hidden sm:block brand-logo-ring" />
               <div className="admin-col">
-                <div className="admin-row gap-2 mb-1">
+                <div className="admin-row gap-2 mb-1.5">
                   <EgyptFlagMark className="w-8 h-5" />
-                  <span className="text-[11px] font-extrabold text-[#1F6B7A] tracking-wide">TODAY IN EGYPT</span>
+                  <span className="text-[11px] font-extrabold text-[#5ec4d4] tracking-[0.14em] uppercase">
+                    TODAY IN EGYPT
+                  </span>
                 </div>
-                <h1 className="text-2xl md:text-3xl font-black text-[#0F1B2D]">لوحة القيادة</h1>
-                <p className="text-sm text-[#5A6D80] mt-1.5 max-w-lg">
-                  شبكة مراقبة حية — أي منشور أو بلاغ يظهر فورًا مع تباين وأيقونات واضحة.
+                <h1 className="text-[1.75rem] md:text-[2.15rem] font-black text-[#F2F6FA] tracking-tight leading-tight">
+                  لوحة القيادة
+                </h1>
+                <p className="text-sm text-[#8B9CB0] mt-2 max-w-lg leading-relaxed">
+                  مركز تحكم غامق ومريح — كل قسم له كارت مباشر مع توهج حسب الحالة.
                 </p>
               </div>
             </div>
             <div className="flex flex-col items-start sm:items-end gap-2">
               <LiveStatusBadge />
               {updatedLabel && (
-                <span className="text-[11px] text-[#8A6A1F] font-semibold inline-flex items-center gap-1">
+                <span className="text-[11px] text-[#C4A35A] font-semibold inline-flex items-center gap-1">
                   <Radio className={`w-3 h-3 ${isFetching ? 'animate-pulse' : ''}`} />
                   آخر تحديث: {updatedLabel}
                 </span>
@@ -132,18 +293,28 @@ export default function AdminDashboardPage() {
         )}
 
         <div className="admin-grid admin-grid-4">
-          {cards.map((card) => {
+          {visibleCards.map((card) => {
             const Icon = card.icon;
+            const display =
+              typeof card.value === 'string'
+                ? card.value
+                : anyLoading && card.value === undefined
+                  ? '—'
+                  : (card.value ?? 0);
+
             return (
-              <Link key={card.label} href={card.href} className="admin-stat rounded-2xl p-5">
+              <Link
+                key={card.label}
+                href={card.href}
+                className={`admin-stat admin-stat--${card.tone} p-5`}
+              >
                 <div className="admin-row justify-between items-start">
                   <div className="admin-col">
-                    <div className="text-xs font-extrabold text-[#5A6D80]">{card.label}</div>
-                    <div className="text-3xl font-black text-[#0F1B2D] mt-2 tabular-nums">
-                      {isLoading ? '—' : (card.value ?? 0)}
-                    </div>
+                    <div className="admin-stat-label">{card.label}</div>
+                    <div className="admin-stat-value">{display}</div>
+                    {card.hint && <div className="admin-stat-hint">{card.hint}</div>}
                   </div>
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-[0_0_14px_rgba(31,107,122,0.15)] ${card.tone}`}>
+                  <div className="admin-stat-icon">
                     <Icon className="w-5 h-5" strokeWidth={2.25} />
                   </div>
                 </div>

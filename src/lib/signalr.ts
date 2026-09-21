@@ -148,8 +148,10 @@ class SignalRService {
           .withUrl(targetHubUrl, {
             accessTokenFactory: () => storage.getToken() || '',
             skipNegotiation: false,
-            transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.ServerSentEvents,
-            // Fallback to ServerSentEvents if WebSockets encounters proxy/firewall block
+            transport:
+              signalR.HttpTransportType.WebSockets |
+              signalR.HttpTransportType.ServerSentEvents |
+              signalR.HttpTransportType.LongPolling,
           })
           .withAutomaticReconnect([0, 1000, 2000, 5000, 10000, 30000])
           .configureLogging(customLogger)

@@ -4,13 +4,27 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { AdminShell } from '@/components/admin/AdminShell';
 import { useAuth } from '@/hooks/useAuth';
 import { chatApi, adminChatApi } from '@/api/chat';
+import { adminApi } from '@/api/admin';
 import { useChatHub } from '@/hooks/useChatHub';
+import { AdminUserListItem } from '@/types/admin';
+import { resolveMediaUrl } from '@/lib/media';
+import { devLog } from '@/lib/devLog';
+import { formatChatListTime, formatLastSeenArabic, parseApiUtcDate } from '@/lib/utils';
+import { enableWebChatPush, showChatMessageNotification } from '@/lib/webChatPush';
 import {
   ConversationType,
   ConversationDto,
   ChatMessageDto,
   MessageType,
   MessageDeliveryStatus,
+  isMessageRead,
+  isMessageDelivered,
+  isMessageSent,
+  isTypeVoice,
+  isTypeImage,
+  isTypeVideo,
+  isTypeFile,
+  isTypeCall,
   MessageReactionDto,
   ChatSettingsDto,
   LastSeenPrivacy,
@@ -24,6 +38,9 @@ import {
   UserCommunicationGraphDto,
   MessageSearchResultDto,
   ChatBackupDto,
+  getConversationDisplayName,
+  getConversationLastPreview,
+  getAdminConversationPeople,
 } from '@/types/chat';
 import {
   Search,
@@ -76,6 +93,7 @@ import {
   RefreshCw,
   ExternalLink,
   MessageSquare,
+  MessageCircle,
   Share2,
   Pin,
   PinOff,
@@ -89,9 +107,33 @@ import {
   CheckCircle2,
   Sparkles,
   Camera,
+  UserPlus,
 } from 'lucide-react';
 
 const EMOJI_LIST = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥', '👏'];
+
+const ADMIN_CHAT_SEEN_KEY = 'todayinegypt.adminChat.seenAt.v1';
+
+function loadAdminChatSeenMap(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(ADMIN_CHAT_SEEN_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveAdminChatSeenMap(map: Record<string, string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(ADMIN_CHAT_SEEN_KEY, JSON.stringify(map));
+  } catch {
+    // ignore quota
+  }
+}
 
 const toRtcIceServers = (
   servers: { urls: string[]; username?: string | null; credential?: string | null }[]
@@ -219,10 +261,17 @@ export default function AdminChatPage() {
   const [replyingTo, setReplyingTo] = useState<ChatMessageDto | null>(null);
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  const [lastSeenByUserId, setLastSeenByUserId] = useState<Record<string, string>>({});
+  const [webPushEnabled, setWebPushEnabled] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [newChatUserId, setNewChatUserId] = useState('');
+  const [userPickerQuery, setUserPickerQuery] = useState('');
+  const [userPickerResults, setUserPickerResults] = useState<AdminUserListItem[]>([]);
+  const [isUserPickerLoading, setIsUserPickerLoading] = useState(false);
+  const [isStartingChat, setIsStartingChat] = useState(false);
+  const selectedAdminConvIdRef = useRef<string | null>(null);
   const [groupTitle, setGroupTitle] = useState('');
   const [groupMemberIdsInput, setGroupMemberIdsInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -291,6 +340,33 @@ export default function AdminChatPage() {
   });
   const [adminInspectionReason, setAdminInspectionReason] = useState('فحص إداري وتحقيق أمني');
   const [isAdminLoading, setIsAdminLoading] = useState(false);
+  /** Last time admin opened each conversation (local only — no user Seen). */
+  const [adminSeenAtMap, setAdminSeenAtMap] = useState<Record<string, string>>(() => loadAdminChatSeenMap());
+  /** Extra unread bumps from realtime while list is open. */
+  const [adminUnreadBump, setAdminUnreadBump] = useState<Record<string, number>>({});
+
+  // Strictly deduplicated message lists preventing React duplicate key errors
+  const displayMessages = useMemo(() => {
+    const list = Array.isArray(messages) ? messages : [];
+    const map = new Map<string, ChatMessageDto>();
+    for (const m of list) {
+      if (m && m.id) {
+        map.set(m.id.toLowerCase(), m);
+      }
+    }
+    return Array.from(map.values());
+  }, [messages]);
+
+  const displayAdminMessages = useMemo(() => {
+    const list = Array.isArray(adminMessages) ? adminMessages : [];
+    const map = new Map<string, ChatMessageDto>();
+    for (const m of list) {
+      if (m && m.id) {
+        map.set(m.id.toLowerCase(), m);
+      }
+    }
+    return Array.from(map.values());
+  }, [adminMessages]);
 
   // Communication Graph State (ADMIN-CHAT-03)
   const [graphUsers, setGraphUsers] = useState<UserCommunicationGraphDto[]>([]);
@@ -335,17 +411,90 @@ export default function AdminChatPage() {
     sendIceCandidate,
   } = useChatHub({
     onMessageSent: (message: ChatMessageDto) => {
-      if (message.conversationId === activeConversationId) {
-        setMessages((prev) => [...prev, message]);
-        // NEVER markAsRead from admin panel — users must not see admin "seen"
+      // Live inbox (admin as participant)
+      if (message.conversationId?.toLowerCase() === activeConversationId?.toLowerCase()) {
+        setMessages((prev) => {
+          const list = Array.isArray(prev) ? prev : [];
+          const exists = list.some((m) => m.id?.toLowerCase() === message.id?.toLowerCase());
+          return exists
+            ? list.map((m) => (m.id?.toLowerCase() === message.id?.toLowerCase() ? message : m))
+            : [...list, message];
+        });
+        // In live inbox: mark peer messages as read so they get Seen ticks.
+        // Monitoring stays silent (never markAsRead).
+        if (
+          viewMode === 'live' &&
+          message.senderId &&
+          message.senderId.toLowerCase() !== currentUserId.toLowerCase()
+        ) {
+          void chatApi.markAsRead(message.conversationId, message.id).catch(() => undefined);
+        }
+      } else if (
+        viewMode === 'live' &&
+        message.senderId &&
+        message.senderId.toLowerCase() !== currentUserId.toLowerCase()
+      ) {
+        void showChatMessageNotification({
+          title: message.senderName || 'رسالة جديدة',
+          body:
+            message.text?.trim() ||
+            getConversationLastPreview({ lastMessage: message, lastMessageType: message.type }),
+          conversationId: message.conversationId,
+          tag: message.conversationId,
+          force: typeof document !== 'undefined' ? document.hidden : true,
+        });
       }
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === message.conversationId
+          c.id?.toLowerCase() === message.conversationId?.toLowerCase()
             ? {
                 ...c,
-                lastMessage: message,
-                unreadCount: c.id === activeConversationId ? 0 : c.unreadCount + 1,
+                lastMessage: message.text || (typeof c.lastMessage === 'string' ? c.lastMessage : null),
+                lastMessageType: message.type,
+                lastMessageAt: message.createdAt,
+                unreadCount:
+                  c.id?.toLowerCase() === activeConversationId?.toLowerCase() ||
+                  message.senderId?.toLowerCase() === currentUserId.toLowerCase()
+                    ? 0
+                    : (c.unreadCount || 0) + 1,
+              }
+            : c
+        )
+      );
+
+      // Silent monitoring inspector — append live without Seen
+      if (message.conversationId?.toLowerCase() === selectedAdminConvIdRef.current?.toLowerCase()) {
+        setAdminMessages((prev) => {
+          const exists = prev.some((m) => m.id?.toLowerCase() === message.id?.toLowerCase());
+          return exists
+            ? prev.map((m) => (m.id?.toLowerCase() === message.id?.toLowerCase() ? message : m))
+            : [...prev, message];
+        });
+        // Keep admin "seen" cursor up to date while viewing
+        setAdminSeenAtMap((prev) => {
+          const next = { ...prev, [message.conversationId]: message.createdAt };
+          saveAdminChatSeenMap(next);
+          return next;
+        });
+        setAdminUnreadBump((prev) => ({ ...prev, [message.conversationId]: 0 }));
+        devLog.ok('admin-chat', 'Realtime message received in monitoring', {
+          conversationId: message.conversationId,
+          messageId: message.id,
+        });
+      } else {
+        setAdminUnreadBump((prev) => ({
+          ...prev,
+          [message.conversationId]: (prev[message.conversationId] || 0) + 1,
+        }));
+      }
+      setAdminConversations((prev) =>
+        prev.map((c) =>
+          c.id?.toLowerCase() === message.conversationId?.toLowerCase()
+            ? {
+                ...c,
+                lastMessageSnippet: message.text || c.lastMessageSnippet,
+                lastMessageAt: message.createdAt || c.lastMessageAt,
+                lastActivityAt: message.createdAt || c.lastActivityAt,
               }
             : c
         )
@@ -353,19 +502,30 @@ export default function AdminChatPage() {
     },
 
     onMessageDelivered: (_conversationId: string, messageId: string) => {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId ? { ...m, deliveryStatus: MessageDeliveryStatus.Delivered } : m
-        )
-      );
+      setMessages((prev) => {
+        const target = prev.find((m) => m.id?.toLowerCase() === messageId?.toLowerCase());
+        const targetTime = target?.createdAt ? new Date(target.createdAt).getTime() : null;
+        return prev.map((m) => {
+          if (isMessageRead(m.deliveryStatus)) return m;
+          if (m.id?.toLowerCase() === messageId?.toLowerCase() || (targetTime && m.createdAt && new Date(m.createdAt).getTime() <= targetTime)) {
+            return { ...m, deliveryStatus: MessageDeliveryStatus.Delivered };
+          }
+          return m;
+        });
+      });
     },
 
     onMessageRead: (_conversationId: string, messageId: string) => {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId ? { ...m, deliveryStatus: MessageDeliveryStatus.Read } : m
-        )
-      );
+      setMessages((prev) => {
+        const target = prev.find((m) => m.id?.toLowerCase() === messageId?.toLowerCase());
+        const targetTime = target?.createdAt ? new Date(target.createdAt).getTime() : null;
+        return prev.map((m) => {
+          if (m.id?.toLowerCase() === messageId?.toLowerCase() || (targetTime && m.createdAt && new Date(m.createdAt).getTime() <= targetTime)) {
+            return { ...m, deliveryStatus: MessageDeliveryStatus.Read };
+          }
+          return m;
+        });
+      });
     },
 
     onReactionAdded: (_conversationId: string, reaction: MessageReactionDto) => {
@@ -405,15 +565,40 @@ export default function AdminChatPage() {
     },
 
     onUserOnline: (userId: string) => {
-      setOnlineUserIds((prev) => new Set([...prev, userId]));
+      const id = (userId || '').toLowerCase();
+      if (!id) return;
+      setOnlineUserIds((prev) => new Set([...prev, id, userId]));
+      setLastSeenByUserId((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        delete next[userId];
+        return next;
+      });
     },
 
-    onUserOffline: (userId: string) => {
+    onUserOffline: (userId: string, lastSeenAt?: string) => {
+      const id = (userId || '').toLowerCase();
+      if (!id) return;
       setOnlineUserIds((prev) => {
         const next = new Set(prev);
+        next.delete(id);
         next.delete(userId);
         return next;
       });
+      const stamp = lastSeenAt || new Date().toISOString();
+      setLastSeenByUserId((prev) => ({
+        ...prev,
+        [id]: stamp,
+        [userId]: stamp,
+      }));
+      // Keep conversation list last-seen fresh
+      setConversations((prev) =>
+        prev.map((c) => {
+          const peer = c.otherUserId || c.otherMember?.userId;
+          if (!peer || peer.toLowerCase() !== id) return c;
+          return { ...c, isOtherUserOnline: false, otherUserLastSeen: stamp };
+        })
+      );
     },
 
     onCallIncoming: (call: CallDto) => {
@@ -594,37 +779,167 @@ export default function AdminChatPage() {
 
   // Load Messages for Live Chat Room
   useEffect(() => {
-    if (!activeConversationId) return;
+    if (!activeConversationId || viewMode !== 'live') return;
 
     joinConversation(activeConversationId);
 
     chatApi
       .getMessages(activeConversationId, undefined, 50)
       .then((msgs) => {
-        const list = msgs || [];
+        const list = Array.isArray(msgs) ? msgs : [];
         setMessages(list);
-        // Admin panel is silent: never call markAsRead / delivered
+        // Participant inbox: acknowledge delivery + read so peer ticks update.
+        const lastIncoming = [...list]
+          .reverse()
+          .find((m) => m.senderId && m.senderId.toLowerCase() !== currentUserId.toLowerCase());
+        if (lastIncoming?.id) {
+          void chatApi.markAsDelivered(activeConversationId, lastIncoming.id).catch(() => undefined);
+          void chatApi.markAsRead(activeConversationId, lastIncoming.id).catch(() => undefined);
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id?.toLowerCase() === activeConversationId.toLowerCase() ? { ...c, unreadCount: 0 } : c
+            )
+          );
+        }
       })
-      .catch((err) => console.error('Failed to load messages', err));
+      .catch((err) => {
+        console.error('Failed to load messages', err);
+        setMessages([]);
+      });
 
     return () => {
       leaveConversation(activeConversationId);
     };
-  }, [activeConversationId, joinConversation, leaveConversation]);
+  }, [activeConversationId, joinConversation, leaveConversation, viewMode, currentUserId]);
+
+  // Enable browser push notifications for live chat
+  useEffect(() => {
+    if (viewMode !== 'live') return;
+    void enableWebChatPush().then((res) => {
+      setWebPushEnabled(res.permission === 'granted');
+    });
+  }, [viewMode]);
+
+  // Seed online / last-seen from conversation list
+  useEffect(() => {
+    if (!conversations.length) return;
+    setOnlineUserIds((prev) => {
+      const next = new Set(prev);
+      for (const c of conversations) {
+        const peerId = c.otherUserId || c.otherMember?.userId;
+        if (peerId && c.isOtherUserOnline) {
+          next.add(peerId);
+          next.add(peerId.toLowerCase());
+        }
+      }
+      return next;
+    });
+    setLastSeenByUserId((prev) => {
+      const next = { ...prev };
+      for (const c of conversations) {
+        const peerId = c.otherUserId || c.otherMember?.userId;
+        if (peerId && c.otherUserLastSeen) {
+          next[peerId] = c.otherUserLastSeen;
+          next[peerId.toLowerCase()] = c.otherUserLastSeen;
+        }
+      }
+      return next;
+    });
+  }, [conversations]);
 
   // Load Messages for Admin Monitoring Inspector (Strict Read-Receipt Isolation)
+  const markAdminConversationSeen = useCallback((convId: string, at?: string | null) => {
+    const stamp = at || new Date().toISOString();
+    setAdminSeenAtMap((prev) => {
+      const next = { ...prev, [convId]: stamp };
+      saveAdminChatSeenMap(next);
+      return next;
+    });
+    setAdminUnreadBump((prev) => ({ ...prev, [convId]: 0 }));
+  }, []);
+
+  const getAdminUnreadCount = useCallback(
+    (conv: AdminConversationListDto) => {
+      if (selectedAdminConv?.id === conv.id) return 0;
+      const bump = adminUnreadBump[conv.id] || 0;
+      const lastAt = conv.lastMessageAt || conv.lastActivityAt;
+      if (!lastAt) return bump;
+      const seenAt = adminSeenAtMap[conv.id];
+      if (!seenAt) {
+        // Never opened by this admin → treat as unread
+        return Math.max(bump, Math.min(conv.messageCount || 1, 99) || 1);
+      }
+      const lastMs = parseApiUtcDate(lastAt).getTime();
+      const seenMs = parseApiUtcDate(seenAt).getTime();
+      if (Number.isNaN(lastMs) || Number.isNaN(seenMs)) return bump;
+      if (lastMs > seenMs) return Math.max(bump, 1);
+      return bump;
+    },
+    [adminSeenAtMap, adminUnreadBump, selectedAdminConv?.id]
+  );
+
   const handleSelectAdminConversation = async (conv: AdminConversationListDto) => {
+    if (selectedAdminConv?.id) {
+      leaveConversation(selectedAdminConv.id);
+    }
+    selectedAdminConvIdRef.current = conv.id;
     setSelectedAdminConv(conv);
+    markAdminConversationSeen(conv.id, conv.lastMessageAt || conv.lastActivityAt || new Date().toISOString());
     setIsAdminLoading(true);
     try {
       const res = await adminChatApi.getAdminConversationMessages(conv.id, adminInspectionReason);
       setAdminMessages(res.items || []);
+      const latest = res.items?.[res.items.length - 1]?.createdAt || conv.lastMessageAt;
+      markAdminConversationSeen(conv.id, latest || new Date().toISOString());
+      // Observe live traffic (admin-allowed join after API deploy; safe to attempt now)
+      void joinConversation(conv.id);
     } catch (err) {
       console.error('Failed to load admin messages', err);
     } finally {
       setIsAdminLoading(false);
     }
   };
+
+  // Soft poll while inspecting — works even before API hub patch is deployed
+  useEffect(() => {
+    if (viewMode !== 'monitoring' || !selectedAdminConv?.id) return;
+    const convId = selectedAdminConv.id;
+    selectedAdminConvIdRef.current = convId;
+    void joinConversation(convId);
+
+    const tick = async () => {
+      try {
+        const res = await adminChatApi.getAdminConversationMessages(convId, adminInspectionReason);
+        const items = res.items || [];
+        setAdminMessages((prev) => {
+          if (items.length === 0) return prev;
+          const byId = new Map(prev.map((m) => [m.id, m]));
+          let changed = false;
+          for (const m of items) {
+            if (!byId.has(m.id)) {
+              byId.set(m.id, m);
+              changed = true;
+            }
+          }
+          if (!changed && prev.length === items.length) return prev;
+          return Array.from(byId.values()).sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+        });
+      } catch {
+        // keep silent — hub may still deliver
+      }
+    };
+
+    const interval = setInterval(tick, 4000);
+    return () => {
+      clearInterval(interval);
+      leaveConversation(convId);
+      if (selectedAdminConvIdRef.current === convId) {
+        selectedAdminConvIdRef.current = null;
+      }
+    };
+  }, [viewMode, selectedAdminConv?.id, adminInspectionReason, joinConversation, leaveConversation]);
 
   // Scroll to bottom on new live messages
   useEffect(() => {
@@ -660,7 +975,14 @@ export default function AdminChatPage() {
       const iceConfig = await chatApi.getIceServers();
       const isVideo = callType === CallType.Video;
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const mediaDevices = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
+      if (!mediaDevices?.getUserMedia) {
+        throw new Error(
+          'المتصفح لا يدعم الوصول للكاميرا/الميكروفون هنا. افتح اللوحة على HTTPS أو localhost.'
+        );
+      }
+
+      const stream = await mediaDevices.getUserMedia({
         audio: true,
         video: isVideo,
       });
@@ -783,7 +1105,17 @@ export default function AdminChatPage() {
         text: textToSend,
         replyToMessageId: replyId,
       });
-      setMessages((prev) => [...prev, newMsg]);
+      const withStatus: ChatMessageDto = {
+        ...newMsg,
+        deliveryStatus: newMsg.deliveryStatus ?? MessageDeliveryStatus.Sent,
+      };
+      setMessages((prev) => {
+        const list = Array.isArray(prev) ? prev : [];
+        const exists = list.some((m) => m.id?.toLowerCase() === withStatus.id?.toLowerCase());
+        return exists
+          ? list.map((m) => (m.id?.toLowerCase() === withStatus.id?.toLowerCase() ? withStatus : m))
+          : [...list, withStatus];
+      });
     } catch (err: any) {
       console.error('Send message failed', err);
       alert(err.response?.data?.message || 'تعذر إرسال الرسالة. تأكد من عدم وجود حظر.');
@@ -825,7 +1157,13 @@ export default function AdminChatPage() {
         text: isVoice ? 'تسجيل صوتي' : file.name,
       });
 
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => {
+        const list = Array.isArray(prev) ? prev : [];
+        const exists = list.some((m) => m.id?.toLowerCase() === msg.id?.toLowerCase());
+        return exists
+          ? list.map((m) => (m.id?.toLowerCase() === msg.id?.toLowerCase() ? msg : m))
+          : [...list, msg];
+      });
     } catch (err: any) {
       console.error('File upload failed', err);
       alert(err.response?.data?.message || 'فشل رفع الملف.');
@@ -874,19 +1212,49 @@ export default function AdminChatPage() {
     }
   };
 
-  // Create Direct Chat
-  const handleCreateDirectChat = async () => {
-    if (!newChatUserId.trim()) return;
+  // Create Direct Chat with user (admin → user)
+  const handleCreateDirectChat = async (userId?: string) => {
+    const targetId = (userId || newChatUserId).trim();
+    if (!targetId) return;
+    setIsStartingChat(true);
     try {
-      const conv = await chatApi.createDirectConversation({ targetUserId: newChatUserId.trim() });
+      const conv = await chatApi.createDirectConversation({ userId: targetId });
       setConversations((prev) => [conv, ...prev.filter((c) => c.id !== conv.id)]);
       setActiveConversationId(conv.id);
+      setViewMode('live');
       setShowNewChatModal(false);
       setNewChatUserId('');
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'تعذر بدء المحادثة.');
+      setUserPickerQuery('');
+      setUserPickerResults([]);
+      void joinConversation(conv.id);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: string }).message)
+          : 'تعذر بدء المحادثة.';
+      alert(msg);
+    } finally {
+      setIsStartingChat(false);
     }
   };
+
+  // Debounced user search for "كلم مستخدم"
+  useEffect(() => {
+    if (!showNewChatModal) return;
+    const q = userPickerQuery.trim();
+    const handle = setTimeout(async () => {
+      setIsUserPickerLoading(true);
+      try {
+        const res = await adminApi.getUsers({ q: q || undefined, page: 1, pageSize: 30 });
+        setUserPickerResults(res.items || []);
+      } catch {
+        setUserPickerResults([]);
+      } finally {
+        setIsUserPickerLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [userPickerQuery, showNewChatModal]);
 
   // Create Group Chat (CHAT-13)
   const handleCreateGroup = async () => {
@@ -983,7 +1351,13 @@ export default function AdminChatPage() {
       if (activeConversationId && forwardTargetIds.includes(activeConversationId)) {
         const myForward = forwardedMsgs.find((m) => m.conversationId === activeConversationId);
         if (myForward) {
-          setMessages((prev) => [...prev, myForward]);
+          setMessages((prev) => {
+            const list = Array.isArray(prev) ? prev : [];
+            const exists = list.some((m) => m.id?.toLowerCase() === myForward.id?.toLowerCase());
+            return exists
+              ? list.map((m) => (m.id?.toLowerCase() === myForward.id?.toLowerCase() ? myForward : m))
+              : [...list, myForward];
+          });
         }
       }
 
@@ -1111,11 +1485,21 @@ export default function AdminChatPage() {
 
   const activeContact = useMemo(() => {
     if (!activeConversation) return null;
-    const name = activeConversation.title || activeConversation.otherMember?.name || 'محادثة';
-    const userId = activeConversation.otherMember?.userId || '';
+    const name = getConversationDisplayName(activeConversation);
+    const userId = activeConversation.otherUserId || activeConversation.otherMember?.userId || '';
+    const userIdKey = userId.toLowerCase();
     const avatarUrl = activeConversation.avatarUrl || activeConversation.otherMember?.avatarUrl || null;
-    const isOnline = userId ? onlineUserIds.has(userId) : false;
-    const lastSeen = activeConversation.otherMember?.lastReadAt || null;
+    const isOnline =
+      !!activeConversation.isOtherUserOnline ||
+      (userId
+        ? onlineUserIds.has(userId) || onlineUserIds.has(userIdKey)
+        : false);
+    const lastSeen =
+      (userIdKey && lastSeenByUserId[userIdKey]) ||
+      (userId && lastSeenByUserId[userId]) ||
+      activeConversation.otherUserLastSeen ||
+      activeConversation.otherMember?.lastReadAt ||
+      null;
     return {
       userId,
       name,
@@ -1124,7 +1508,7 @@ export default function AdminChatPage() {
       lastSeen,
       isVerified: activeConversation.otherMember?.isVerified ?? false,
     };
-  }, [activeConversation, onlineUserIds]);
+  }, [activeConversation, onlineUserIds, lastSeenByUserId]);
 
   return (
     <AdminShell>
@@ -1164,6 +1548,17 @@ export default function AdminChatPage() {
               مين بيكلم مين
             </button>
             <button
+              onClick={() => setViewMode('live')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'live'
+                  ? 'bg-[#25d366] text-[#0b141a] shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              محادثاتي
+            </button>
+            <button
               onClick={() => setViewMode('graph')}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 viewMode === 'graph'
@@ -1175,6 +1570,19 @@ export default function AdminChatPage() {
               الشبكة
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowNewChatModal(true);
+              setUserPickerQuery('');
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25d366] hover:bg-[#1ebe57] text-xs font-black text-[#0b141a] transition-colors"
+            title="ابدأ محادثة مع مستخدم"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            كلم مستخدم
+          </button>
 
           <button
             onClick={loadAdminConversations}
@@ -1218,6 +1626,31 @@ export default function AdminChatPage() {
                     title="محادثة جديدة"
                   >
                     <Plus className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void enableWebChatPush().then((res) => {
+                        setWebPushEnabled(res.permission === 'granted');
+                        if (res.permission === 'granted') {
+                          void showChatMessageNotification({
+                            title: 'إشعارات الشات',
+                            body: 'تم تفعيل إشعارات الويب بنجاح',
+                            force: true,
+                          });
+                        } else if (res.permission === 'denied') {
+                          alert('الإشعارات مرفوضة من المتصفح. فعّلها من إعدادات الموقع.');
+                        }
+                      });
+                    }}
+                    className={`p-2 rounded-xl border ${
+                      webPushEnabled
+                        ? 'bg-emerald-600/20 border-emerald-500/40 text-emerald-300'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                    }`}
+                    title={webPushEnabled ? 'إشعارات الويب مفعّلة' : 'تفعيل إشعارات الويب'}
+                  >
+                    {webPushEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
                   </button>
                 </div>
 
@@ -1275,7 +1708,7 @@ export default function AdminChatPage() {
                 ) : (
                   conversations
                     .filter((c) => {
-                      const title = c.title || c.otherMember?.name || '';
+                      const title = getConversationDisplayName(c);
                       const matchesSearch = title.toLowerCase().includes(searchQuery.toLowerCase());
                       if (!matchesSearch) return false;
                       if (convFilter === 'unread') return c.unreadCount > 0;
@@ -1284,13 +1717,17 @@ export default function AdminChatPage() {
                     })
                     .map((conv) => {
                       const isActive = conv.id === activeConversationId;
-                      const isOnline = conv.otherMember?.userId ? onlineUserIds.has(conv.otherMember.userId) : false;
-                      const convTitle = conv.title || conv.otherMember?.name || 'محادثة';
+                      const peerId = conv.otherUserId || conv.otherMember?.userId;
+                      const isOnline =
+                        !!conv.isOtherUserOnline || (peerId ? onlineUserIds.has(peerId) : false);
+                      const convTitle = getConversationDisplayName(conv);
                       const convAvatar = conv.avatarUrl || conv.otherMember?.avatarUrl;
-                      const lastTime = conv.lastMessage?.createdAt
-                        ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        : '';
-                      const lastMsgSnippet = conv.lastMessage?.text || (conv.lastMessage?.type === MessageType.Voice ? 'رسالة صوتية 🎙️' : conv.lastMessage ? 'مرفق 📎' : 'بدء المحادثة...');
+                      const lastTime = conv.lastMessageAt
+                        ? formatChatListTime(conv.lastMessageAt)
+                        : typeof conv.lastMessage === 'object' && conv.lastMessage?.createdAt
+                          ? formatChatListTime(conv.lastMessage.createdAt)
+                          : '';
+                      const lastMsgSnippet = getConversationLastPreview(conv);
 
                       return (
                         <div
@@ -1435,7 +1872,7 @@ export default function AdminChatPage() {
                           ) : activeContact.isOnline ? (
                             <span className="text-emerald-400">متصل الآن</span>
                           ) : (
-                            'آخر ظهور غير متاح'
+                            formatLastSeenArabic(activeContact.lastSeen)
                           )}
                         </p>
                       </div>
@@ -1515,9 +1952,9 @@ export default function AdminChatPage() {
 
                   {/* Messages Area */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
-                    {messages.map((msg) => {
+                    {displayMessages.map((msg) => {
                       const isMe = msg.senderId === currentUserId;
-                      const isCall = msg.type === MessageType.Call;
+                      const isCall = isTypeCall(msg.type);
 
                       if (isCall) {
                         return (
@@ -1542,6 +1979,15 @@ export default function AdminChatPage() {
                                 : 'bg-slate-800 text-slate-100 rounded-tr-sm'
                             }`}
                           >
+                            <div
+                              className={`text-[12px] font-black mb-1.5 ${
+                                isMe ? 'text-emerald-100' : 'text-cyan-300'
+                              }`}
+                              title={msg.senderName}
+                            >
+                              {msg.senderName || (isMe ? 'أنت' : 'مستخدم')}
+                            </div>
+
                             {/* Reply preview */}
                             {msg.replyToMessageText && (
                               <div className="mb-2 p-2 rounded-lg bg-black/20 text-xs border-r-2 border-emerald-300 text-slate-300">
@@ -1553,7 +1999,7 @@ export default function AdminChatPage() {
                             )}
 
                             {/* Voice Message Player */}
-                            {msg.type === MessageType.Voice && msg.attachments?.[0] && (
+                            {isTypeVoice(msg.type) && msg.attachments?.[0] && (
                               <VoiceMessagePlayer
                                 audioUrl={msg.attachments[0].fileUrl}
                                 durationSeconds={msg.attachments[0].durationSeconds || 0}
@@ -1561,7 +2007,7 @@ export default function AdminChatPage() {
                             )}
 
                             {/* Image Attachment */}
-                            {msg.type === MessageType.Image && msg.attachments?.[0] && (
+                            {isTypeImage(msg.type) && msg.attachments?.[0] && (
                               <img
                                 src={msg.attachments[0].fileUrl}
                                 alt=""
@@ -1571,7 +2017,7 @@ export default function AdminChatPage() {
                             )}
 
                             {/* Video Attachment */}
-                            {msg.type === MessageType.Video && msg.attachments?.[0] && (
+                            {isTypeVideo(msg.type) && msg.attachments?.[0] && (
                               <video
                                 src={msg.attachments[0].fileUrl}
                                 controls
@@ -1580,7 +2026,7 @@ export default function AdminChatPage() {
                             )}
 
                             {/* File Attachment */}
-                            {msg.type === MessageType.File && msg.attachments?.[0] && (
+                            {isTypeFile(msg.type) && msg.attachments?.[0] && (
                               <a
                                 href={msg.attachments[0].fileUrl}
                                 target="_blank"
@@ -1599,7 +2045,7 @@ export default function AdminChatPage() {
                             )}
 
                             {/* Text message */}
-                            {msg.text && msg.type !== MessageType.Voice && (
+                            {msg.text && !isTypeVoice(msg.type) && (
                               <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                             )}
 
@@ -1610,12 +2056,22 @@ export default function AdminChatPage() {
                               </span>
                               {isMe && (
                                 <>
-                                  {msg.deliveryStatus === MessageDeliveryStatus.Read ? (
-                                    <CheckCheck className="w-3.5 h-3.5 text-cyan-300" />
-                                  ) : msg.deliveryStatus === MessageDeliveryStatus.Delivered ? (
-                                    <CheckCheck className="w-3.5 h-3.5 text-slate-300" />
+                                  {isMessageRead(msg.deliveryStatus) ? (
+                                    <span title="تمت القراءة (Seen)" className="inline-flex items-center">
+                                      <CheckCheck className="w-3.5 h-3.5 text-sky-400" />
+                                    </span>
+                                  ) : isMessageDelivered(msg.deliveryStatus) ? (
+                                    <span title="تم التسليم" className="inline-flex items-center">
+                                      <CheckCheck className="w-3.5 h-3.5 text-slate-300" />
+                                    </span>
+                                  ) : isMessageSent(msg.deliveryStatus) ? (
+                                    <span title="تم الإرسال" className="inline-flex items-center">
+                                      <Check className="w-3.5 h-3.5 text-slate-300" />
+                                    </span>
                                   ) : (
-                                    <Check className="w-3.5 h-3.5 text-slate-300" />
+                                    <span title="جارٍ الإرسال" className="inline-flex items-center">
+                                      <Clock className="w-3 h-3 text-slate-400" />
+                                    </span>
                                   )}
                                 </>
                               )}
@@ -1825,18 +2281,22 @@ export default function AdminChatPage() {
                 ) : (
                   adminConversations.map((conv) => {
                     const isSelected = selectedAdminConv?.id === conv.id;
-                    const people =
-                      conv.participants?.length > 0
-                        ? conv.participants.map((p) => p.name).join(' ↔ ')
-                        : conv.title || 'محادثة';
+                    const unread = getAdminUnreadCount(conv);
+                    const hasUnread = unread > 0;
+                    const people = getAdminConversationPeople(conv);
                     const avatars = conv.participants?.slice(0, 2) || [];
+                    const when = conv.lastMessageAt || conv.lastActivityAt || conv.createdAt;
                     return (
                       <button
                         key={conv.id}
                         type="button"
                         onClick={() => handleSelectAdminConversation(conv)}
                         className={`w-full text-right p-3 flex items-center gap-3 border-b border-[#1f2c34]/60 transition-colors ${
-                          isSelected ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'
+                          isSelected
+                            ? 'bg-[#2a3942]'
+                            : hasUnread
+                              ? 'bg-[#102a20] hover:bg-[#143528] border-r-2 border-r-[#25d366]'
+                              : 'hover:bg-[#202c33]'
                         }`}
                       >
                         <div className="relative shrink-0 w-12 h-12">
@@ -1864,26 +2324,55 @@ export default function AdminChatPage() {
                               {people.charAt(0)}
                             </div>
                           )}
+                          {hasUnread && (
+                            <span className="absolute -bottom-0.5 -left-0.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-[#25d366] text-[#0b141a] text-[10px] font-black grid place-items-center shadow-[0_0_0_2px_#111b21]">
+                              {unread > 99 ? '99+' : unread}
+                            </span>
+                          )}
                         </div>
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <h4 className="text-[13px] font-black text-[#e9edef] truncate">{people}</h4>
-                            <span className="text-[10px] text-[#8696a0] shrink-0">
-                              {new Date(conv.lastActivityAt || conv.createdAt).toLocaleDateString('ar-EG')}
+                            <h4
+                              className={`text-[13px] truncate ${
+                                hasUnread ? 'font-black text-white' : 'font-bold text-[#e9edef]'
+                              }`}
+                            >
+                              {people}
+                            </h4>
+                            <span
+                              className={`text-[10px] shrink-0 font-bold ${
+                                hasUnread ? 'text-[#25d366]' : 'text-[#8696a0]'
+                              }`}
+                              title={when}
+                            >
+                              {formatChatListTime(when)}
                             </span>
                           </div>
-                          <p className="text-[12px] text-[#8696a0] truncate mt-0.5">
-                            {conv.lastMessageSnippet || 'بدون رسائل بعد'}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <span className="text-[10px] text-[#25d366] font-bold">
-                              {conv.messageCount} رسالة
-                            </span>
-                            {conv.type === ConversationType.Group && (
-                              <span className="text-[10px] text-[#53bdeb] font-bold">مجموعة</span>
+                          <div className="flex items-center justify-between gap-2 mt-0.5">
+                            <p
+                              className={`text-[12px] truncate ${
+                                hasUnread ? 'text-[#d1d7db] font-semibold' : 'text-[#8696a0]'
+                              }`}
+                            >
+                              {conv.lastMessageSnippet ||
+                                (conv.lastMessageType && conv.lastMessageType !== MessageType.Text
+                                  ? getConversationLastPreview({ lastMessageType: conv.lastMessageType })
+                                  : 'بدون رسائل بعد')}
+                            </p>
+                            {hasUnread ? (
+                              <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-[#25d366] text-[#0b141a]">
+                                {unread} جديدة
+                              </span>
+                            ) : (
+                              <span className="shrink-0 text-[10px] text-[#667781] font-bold">
+                                {conv.messageCount} رسالة
+                              </span>
                             )}
                           </div>
+                          {conv.type === ConversationType.Group && (
+                            <span className="inline-block mt-1 text-[10px] text-[#53bdeb] font-bold">مجموعة</span>
+                          )}
                         </div>
                       </button>
                     );
@@ -1906,9 +2395,7 @@ export default function AdminChatPage() {
                   <div className="bg-[#202c33] border-b border-[#1f2c34] px-4 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <h3 className="text-sm font-black text-[#e9edef] truncate">
-                        {(selectedAdminConv.participants?.length
-                          ? selectedAdminConv.participants.map((p) => p.name).join(' ↔ ')
-                          : selectedAdminConv.title) || 'محادثة'}
+                        {getAdminConversationPeople(selectedAdminConv)}
                       </h3>
                       <p className="text-[11px] text-[#25d366] font-bold mt-0.5">
                         معاينة صامتة · لن يحصل Seen لأي طرف
@@ -1925,9 +2412,9 @@ export default function AdminChatPage() {
                     ) : adminMessages.length === 0 ? (
                       <div className="text-center text-xs text-[#8696a0] py-10">لا رسائل في هذه المحادثة</div>
                     ) : (
-                      adminMessages.map((msg) => {
-                        const firstId = selectedAdminConv.participants?.[0]?.id;
-                        const isSideA = firstId ? msg.senderId === firstId : true;
+                      displayAdminMessages.map((msg) => {
+                        const firstUserId = selectedAdminConv.participants?.[0]?.userId;
+                        const isSideA = firstUserId ? msg.senderId === firstUserId : true;
                         return (
                           <div
                             key={msg.id}
@@ -1941,21 +2428,22 @@ export default function AdminChatPage() {
                               }`}
                             >
                               <div
-                                className={`text-[11px] font-black mb-1 ${
+                                className={`text-[12px] font-black mb-1.5 truncate ${
                                   isSideA ? 'text-[#25d366]' : 'text-[#8ce9c5]'
                                 }`}
+                                title={msg.senderName}
                               >
-                                {msg.senderName}
+                                {msg.senderName || 'مستخدم'}
                               </div>
 
-                              {msg.type === MessageType.Voice && msg.attachments?.[0] && (
+                              {isTypeVoice(msg.type) && msg.attachments?.[0] && (
                                 <VoiceMessagePlayer
                                   audioUrl={msg.attachments[0].fileUrl}
                                   durationSeconds={msg.attachments[0].durationSeconds || 0}
                                 />
                               )}
 
-                              {msg.type === MessageType.Image && msg.attachments?.[0] && (
+                              {isTypeImage(msg.type) && msg.attachments?.[0] && (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                   src={msg.attachments[0].fileUrl}
@@ -1964,7 +2452,7 @@ export default function AdminChatPage() {
                                 />
                               )}
 
-                              {msg.type === MessageType.Video && msg.attachments?.[0] && (
+                              {isTypeVideo(msg.type) && msg.attachments?.[0] && (
                                 <video
                                   src={msg.attachments[0].fileUrl}
                                   controls
@@ -1972,7 +2460,7 @@ export default function AdminChatPage() {
                                 />
                               )}
 
-                              {msg.type === MessageType.File && msg.attachments?.[0] && (
+                              {isTypeFile(msg.type) && msg.attachments?.[0] && (
                                 <a
                                   href={msg.attachments[0].fileUrl}
                                   target="_blank"
@@ -2406,9 +2894,9 @@ export default function AdminChatPage() {
               </span>
               <p className="text-xs text-slate-300 line-clamp-2">
                 {forwardingMessage.text ||
-                  (forwardingMessage.type === MessageType.Image ? 'صورة مرفقة 🖼️' :
-                   forwardingMessage.type === MessageType.Video ? 'مقطع فيديو 🎬' :
-                   forwardingMessage.type === MessageType.Voice ? 'رسالة صوتية 🎙️' : 'ملف مرفق 📎')}
+                  (isTypeImage(forwardingMessage.type) ? 'صورة مرفقة 🖼️' :
+                   isTypeVideo(forwardingMessage.type) ? 'مقطع فيديو 🎬' :
+                   isTypeVoice(forwardingMessage.type) ? 'رسالة صوتية 🎙️' : 'ملف مرفق 📎')}
               </p>
               {forwardingMessage.attachments?.[0] && (
                 <div className="mt-2 text-[11px] text-slate-400 flex items-center gap-2">
@@ -2435,12 +2923,12 @@ export default function AdminChatPage() {
             <div className="flex-1 overflow-y-auto space-y-1.5 divide-y divide-slate-800/40 min-h-[160px] max-h-[220px]">
               {conversations
                 .filter((c) => {
-                  const title = c.title || c.otherMember?.name || '';
+                  const title = getConversationDisplayName(c);
                   return title.toLowerCase().includes(forwardSearchQuery.toLowerCase());
                 })
                 .map((conv) => {
                   const isSelected = forwardTargetIds.includes(conv.id);
-                  const convTitle = conv.title || conv.otherMember?.name || 'محادثة';
+                  const convTitle = getConversationDisplayName(conv);
                   return (
                     <div
                       key={conv.id}
@@ -2930,6 +3418,102 @@ export default function AdminChatPage() {
                 className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs text-slate-950 font-bold"
               >
                 حفظ التغييرات
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Start chat with any user */}
+      {showNewChatModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" dir="rtl">
+          <div className="w-full max-w-lg rounded-2xl bg-[#111b21] border border-[#2a3942] shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1f2c34]">
+              <div>
+                <h3 className="text-sm font-black text-[#e9edef] flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-[#25d366]" />
+                  كلم مستخدم
+                </h3>
+                <p className="text-[11px] text-[#8696a0] font-semibold mt-0.5">
+                  ابحث بالاسم أو رقم الموبايل ثم ابدأ محادثة مباشرة
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewChatModal(false)}
+                className="p-2 rounded-lg hover:bg-[#2a3942] text-[#8696a0]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 border-b border-[#1f2c34]">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute right-3 top-2.5 text-[#8696a0]" />
+                <input
+                  autoFocus
+                  type="text"
+                  value={userPickerQuery}
+                  onChange={(e) => setUserPickerQuery(e.target.value)}
+                  placeholder="اسم المستخدم أو رقم الموبايل..."
+                  className="w-full pl-3 pr-9 py-2 rounded-xl bg-[#202c33] border-0 text-sm text-[#e9edef] placeholder-[#8696a0] focus:outline-none focus:ring-1 focus:ring-[#25d366]/50"
+                />
+              </div>
+            </div>
+
+            <div className="max-h-[50vh] overflow-y-auto">
+              {isUserPickerLoading ? (
+                <div className="p-8 text-center text-xs text-[#8696a0]">جاري البحث...</div>
+              ) : userPickerResults.length === 0 ? (
+                <div className="p-8 text-center text-xs text-[#8696a0]">
+                  لا يوجد مستخدمون مطابقون
+                </div>
+              ) : (
+                userPickerResults.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    disabled={isStartingChat || u.id === currentUserId}
+                    onClick={() => handleCreateDirectChat(u.id)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-right hover:bg-[#202c33] border-b border-[#1f2c34]/50 disabled:opacity-40 transition-colors"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-[#25d366]/20 text-[#25d366] font-black grid place-items-center overflow-hidden shrink-0">
+                      {u.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={resolveMediaUrl(u.avatarUrl)}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        u.name?.charAt(0) || '?'
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-bold text-[#e9edef] truncate flex items-center gap-1.5">
+                        {u.name}
+                        {u.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#53bdeb]" />}
+                        {u.isBlocked && (
+                          <span className="text-[10px] text-rose-400 font-bold">محظور</span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[#8696a0] font-semibold truncate" dir="ltr">
+                        {u.phoneNumber || u.username || u.id.slice(0, 8)}
+                      </div>
+                    </div>
+                    <MessageCircle className="w-4 h-4 text-[#25d366] shrink-0" />
+                  </button>
+                ))
+              )}
+            </div>
+
+            <div className="p-3 border-t border-[#1f2c34] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowNewChatModal(false)}
+                className="px-4 py-2 rounded-xl bg-[#2a3942] text-xs font-bold text-[#e9edef]"
+              >
+                إغلاق
               </button>
             </div>
           </div>

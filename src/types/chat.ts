@@ -31,6 +31,42 @@ export enum MessageDeliveryStatus {
   Failed = 4,
 }
 
+export function isMessageRead(status: any): boolean {
+  if (status === null || status === undefined) return false;
+  return status === MessageDeliveryStatus.Read || status === 3 || status === 'Read' || status === 'read';
+}
+
+export function isMessageDelivered(status: any): boolean {
+  if (status === null || status === undefined) return false;
+  return status === MessageDeliveryStatus.Delivered || status === 2 || status === 'Delivered' || status === 'delivered';
+}
+
+export function isMessageSent(status: any): boolean {
+  if (status === null || status === undefined) return false;
+  return status === MessageDeliveryStatus.Sent || status === 1 || status === 'Sent' || status === 'sent';
+}
+
+export function isTypeVoice(type: any): boolean {
+  return type === MessageType.Voice || type === MessageType.Audio || type === 'Voice' || type === 'voice' || type === 5 || type === 'Audio' || type === 4;
+}
+
+export function isTypeImage(type: any): boolean {
+  return type === MessageType.Image || type === 'Image' || type === 'image' || type === 2;
+}
+
+export function isTypeVideo(type: any): boolean {
+  return type === MessageType.Video || type === 'Video' || type === 'video' || type === 3;
+}
+
+export function isTypeFile(type: any): boolean {
+  return type === MessageType.File || type === 'File' || type === 'file' || type === 6;
+}
+
+export function isTypeCall(type: any): boolean {
+  return type === MessageType.Call || type === 'Call' || type === 'call' || type === 10;
+}
+
+
 export enum CallType {
   Voice = 1,
   Video = 2,
@@ -118,17 +154,101 @@ export interface ChatMessageDto {
 export interface ConversationDto {
   id: string;
   type: ConversationType;
+  /** Display name from API (other user full name for direct, group title for groups). */
+  name?: string | null;
+  /** Legacy/alternate field some clients used; prefer `name`. */
   title?: string | null;
   description?: string | null;
   avatarUrl?: string | null;
   createdAt: string;
-  lastMessage?: ChatMessageDto | null;
+  updatedAt?: string | null;
+  /** Plain preview string from API (not a full message object). */
+  lastMessage?: string | ChatMessageDto | null;
+  lastMessageId?: string | null;
+  lastMessageType?: MessageType | null;
+  lastMessageAt?: string | null;
+  lastMessageSenderId?: string | null;
+  lastMessageSenderName?: string | null;
   unreadCount: number;
   isMuted: boolean;
   isPinned: boolean;
   isArchived?: boolean;
+  otherUserId?: string | null;
+  isOtherUserOnline?: boolean;
+  otherUserLastSeen?: string | null;
+  /** Legacy nested shape — prefer otherUserId + name. */
   otherMember?: ConversationMemberDto | null;
-  members: ConversationMemberDto[];
+  members?: ConversationMemberDto[];
+}
+
+/** Full display name for a conversation list/header row. */
+export function getConversationDisplayName(conv: {
+  name?: string | null;
+  title?: string | null;
+  otherMember?: { name?: string | null } | null;
+  members?: { userId?: string; name?: string | null }[] | null;
+  otherUserId?: string | null;
+}): string {
+  const fromName = (conv.name || '').trim();
+  if (fromName) return fromName;
+
+  const fromTitle = (conv.title || '').trim();
+  if (fromTitle) return fromTitle;
+
+  const fromOther = (conv.otherMember?.name || '').trim();
+  if (fromOther) return fromOther;
+
+  if (conv.members?.length) {
+    const peer = conv.otherUserId
+      ? conv.members.find((m) => m.userId === conv.otherUserId)
+      : null;
+    const peerName = (peer?.name || '').trim();
+    if (peerName) return peerName;
+
+    const joined = conv.members
+      .map((m) => (m.name || '').trim())
+      .filter(Boolean)
+      .join(' ↔ ');
+    if (joined) return joined;
+  }
+
+  return 'محادثة';
+}
+
+export function getConversationLastPreview(conv: {
+  lastMessage?: string | ChatMessageDto | null;
+  lastMessageType?: MessageType | null;
+}): string {
+  const lm = conv.lastMessage;
+  if (typeof lm === 'string' && lm.trim()) {
+    // API sometimes returns "[Image]" style tokens
+    const token = lm.trim();
+    if (/^\[(Image|Video|Audio|Voice|File|Location|Contact|Call)\]$/i.test(token)) {
+      const kind = token.slice(1, -1).toLowerCase();
+      if (kind === 'voice' || kind === 'audio') return 'رسالة صوتية';
+      if (kind === 'image') return 'صورة';
+      if (kind === 'video') return 'فيديو';
+      if (kind === 'call') return 'مكالمة';
+      return 'مرفق';
+    }
+    return token;
+  }
+  if (lm && typeof lm === 'object') {
+    if (lm.text?.trim()) return lm.text.trim();
+    if (lm.type === MessageType.Voice || lm.type === MessageType.Audio) return 'رسالة صوتية';
+    if (lm.type === MessageType.Image) return 'صورة';
+    if (lm.type === MessageType.Video) return 'فيديو';
+    if (lm.type === MessageType.Call) return 'مكالمة';
+    return 'مرفق';
+  }
+  if (conv.lastMessageType === MessageType.Voice || conv.lastMessageType === MessageType.Audio) {
+    return 'رسالة صوتية';
+  }
+  if (conv.lastMessageType === MessageType.Image) return 'صورة';
+  if (conv.lastMessageType === MessageType.Video) return 'فيديو';
+  if (conv.lastMessageType === MessageType.Call) return 'مكالمة';
+  if (conv.lastMessageType != null && conv.lastMessageType !== MessageType.Text) return 'مرفق';
+  return 'بدء المحادثة...';
 }
 
 export interface ForwardMessageRequest {
@@ -146,7 +266,8 @@ export interface ChatBackupDto {
 }
 
 export interface CreateDirectConversationRequest {
-  targetUserId: string;
+  /** Matches API CreateDirectChatRequest.UserId (camelCase: userId). */
+  userId: string;
 }
 
 export interface CreateGroupConversationRequest {
@@ -276,6 +397,24 @@ export interface AdminConversationListDto {
   hasReportedContent: boolean;
   hasBlockedMember: boolean;
   participants: AdminConversationParticipantDto[];
+}
+
+/** Full names of people in an admin-monitored conversation. */
+export function getAdminConversationPeople(conv: {
+  title?: string | null;
+  participants?: { name?: string | null; phoneNumber?: string | null }[] | null;
+}): string {
+  const parts = (conv.participants || [])
+    .map((p) => {
+      const n = (p.name || '').trim();
+      if (n && n !== 'مستخدم') return n;
+      const phone = (p.phoneNumber || '').trim();
+      return phone || n;
+    })
+    .filter(Boolean);
+  if (parts.length > 0) return parts.join(' ↔ ');
+  const title = (conv.title || '').trim();
+  return title || 'محادثة';
 }
 
 export interface AdminConversationFilterDto {

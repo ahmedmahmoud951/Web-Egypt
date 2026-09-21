@@ -178,10 +178,10 @@ function AdminReportsContent() {
               <ShieldAlert className="w-6 h-6" strokeWidth={2.2} />
             </span>
             <div className="admin-col gap-0.5">
-              <h1 className="text-xl sm:text-2xl font-black text-[#0F1B2D] flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-[#F2F6FA] flex items-center gap-2">
                 المركز المركزي للبلاغات والإشراف (Central Moderation)
               </h1>
-              <p className="text-xs text-[#5A6D80]">
+              <p className="text-xs text-[#8B9CB0]">
                 منظومة موحدة لإدارة وفحص بلاغات المجتمع على المنشورات، الريلز، الحالات، التعليقات، والحسابات
               </p>
             </div>
@@ -210,7 +210,7 @@ function AdminReportsContent() {
                 className={`btn-glow px-4 h-9 text-xs flex items-center gap-1.5 whitespace-nowrap ${
                   isSelected
                     ? 'btn-glow-primary bg-[#0F1B2D] text-white border-[var(--egypt-gold)] shadow-[0_0_15px_rgba(196,163,90,0.35)]'
-                    : 'btn-glow-ghost text-slate-700 bg-white/70'
+                    : 'btn-glow-ghost text-[#C5D0DC] bg-white/10'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -223,7 +223,7 @@ function AdminReportsContent() {
         {/* Filters */}
         <div className="admin-card p-4 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2 text-sm font-black text-[#0F1B2D]">
+            <div className="flex items-center gap-2 text-sm font-black text-[#F2F6FA]">
               <Filter className="w-4 h-4 text-[var(--egypt-red)]" />
               <span>تصفية البلاغات والبحث</span>
             </div>
@@ -258,7 +258,7 @@ function AdminReportsContent() {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                className="w-full h-10 pr-9 pl-3 text-xs rounded-xl bg-white border border-slate-200 focus:border-[var(--egypt-nile)] shadow-sm"
+                className="w-full h-10 pr-9 pl-3 text-xs rounded-xl bg-[#2A3D52] text-[#F8FBFF] border border-[rgba(94,196,212,0.5)] focus:border-[#C4A35A] shadow-sm placeholder:text-[#A8B8C8]"
               />
             </div>
 
@@ -270,7 +270,7 @@ function AdminReportsContent() {
                   setStatus(e.target.value);
                   setPage(1);
                 }}
-                className="w-full h-10 px-3 text-xs rounded-xl bg-white border border-slate-200 focus:border-[var(--egypt-nile)] shadow-sm font-medium"
+                className="w-full h-10 px-3 text-xs rounded-xl bg-[#2A3D52] text-[#F8FBFF] border border-[rgba(94,196,212,0.5)] focus:border-[#C4A35A] shadow-sm font-medium"
               >
                 <option value="">جميع حالات المراجعة</option>
                 <option value="Pending">قيد الانتظار (Pending)</option>
@@ -288,7 +288,7 @@ function AdminReportsContent() {
                   setReason(e.target.value);
                   setPage(1);
                 }}
-                className="w-full h-10 px-3 text-xs rounded-xl bg-white border border-slate-200 focus:border-[var(--egypt-nile)] shadow-sm font-medium"
+                className="w-full h-10 px-3 text-xs rounded-xl bg-[#2A3D52] text-[#F8FBFF] border border-[rgba(94,196,212,0.5)] focus:border-[#C4A35A] shadow-sm font-medium"
               >
                 <option value="">جميع الأسباب</option>
                 <option value="InaccurateLocation">موقع غير دقيق</option>
@@ -311,7 +311,7 @@ function AdminReportsContent() {
                   setDateFrom(e.target.value);
                   setPage(1);
                 }}
-                className="w-full h-10 px-3 text-xs rounded-xl bg-white border border-slate-200 focus:border-[var(--egypt-nile)] shadow-sm text-slate-700"
+                className="w-full h-10 px-3 text-xs rounded-xl bg-[#2A3D52] text-[#F8FBFF] border border-[rgba(94,196,212,0.5)] focus:border-[#C4A35A] shadow-sm"
                 title="تاريخ البدء"
               />
             </div>
@@ -325,7 +325,7 @@ function AdminReportsContent() {
                   setDateTo(e.target.value);
                   setPage(1);
                 }}
-                className="w-full h-10 px-3 text-xs rounded-xl bg-white border border-slate-200 focus:border-[var(--egypt-nile)] shadow-sm text-slate-700"
+                className="w-full h-10 px-3 text-xs rounded-xl bg-[#2A3D52] text-[#F8FBFF] border border-[rgba(94,196,212,0.5)] focus:border-[#C4A35A] shadow-sm"
                 title="تاريخ الانتهاء"
               />
             </div>
@@ -349,7 +349,7 @@ function AdminReportsContent() {
                   <th className="py-3.5 px-4 font-bold text-center">الإجراءات</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 bg-white/60">
+              <tbody className="divide-y divide-white/10 bg-white/5">
                 {isLoading ? (
                   Array.from({ length: 6 }).map((_, idx) => (
                     <tr key={idx} className="animate-pulse">
@@ -377,13 +377,13 @@ function AdminReportsContent() {
                       className="hover:bg-slate-50/80 transition-colors duration-150 group"
                     >
                       {/* Report ID */}
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 whitespace-nowrap">
+                      <td className="py-3 px-4 font-mono font-bold text-[#C5D0DC] whitespace-nowrap">
                         #{rep.id.slice(0, 8)}
                       </td>
 
                       {/* Content Type */}
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 font-bold text-[11px] text-slate-800">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border border-[rgba(45,138,156,0.28)] font-bold text-[11px] text-slate-800">
                           {getContentIcon(rep.contentType)}
                           {rep.contentType}
                         </span>
@@ -392,7 +392,7 @@ function AdminReportsContent() {
                       {/* Content Details */}
                       <td className="py-3 px-4 max-w-xs">
                         <p
-                          className="line-clamp-2 font-bold text-[#0F1B2D] cursor-pointer hover:text-[var(--egypt-nile)]"
+                          className="line-clamp-2 font-bold text-[#F2F6FA] cursor-pointer hover:text-[var(--egypt-nile)]"
                           onClick={() => handleOpenDetail(rep)}
                           title={rep.contentTitle}
                         >
@@ -438,7 +438,7 @@ function AdminReportsContent() {
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : rep.reviewStatus === 'Reviewed'
                               ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
-                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                              : 'bg-white/10 text-slate-600 border border-[rgba(45,138,156,0.28)]'
                           }`}
                         >
                           {rep.reviewStatus === 'Pending'
@@ -512,7 +512,7 @@ function AdminReportsContent() {
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>
-                <span className="font-bold text-[#0F1B2D]">
+                <span className="font-bold text-[#F2F6FA]">
                   صفحة {page} من {totalPages}
                 </span>
                 <Button

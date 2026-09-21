@@ -48,8 +48,8 @@ export default function AdminUsersPage() {
               <Users className="w-5 h-5" strokeWidth={2.4} />
             </span>
             <div className="admin-col">
-              <h1 className="text-2xl font-black text-[#0F1B2D]">المستخدمون</h1>
-              <p className="text-sm text-[#5A6D80] mt-1">بحث بالاسم أو رقم الموبايل — متابعة كل الحسابات</p>
+              <h1 className="text-2xl font-black text-[#F2F6FA]">المستخدمون</h1>
+              <p className="text-sm text-[#8B9CB0] mt-1">بحث بالاسم أو رقم الموبايل — متابعة كل الحسابات</p>
             </div>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function AdminUsersPage() {
                           )}
                         </div>
                         <div className="flex flex-col">
-                          <span className="inline-flex items-center gap-1.5 font-bold text-[#0F1B2D]">
+                          <span className="inline-flex items-center gap-1.5 font-bold text-[#F2F6FA]">
                             {user.role === 'Admin' || user.isSuperAdmin ? 'Admin' : user.name}
                             {(user.role === 'Admin' || user.isSuperAdmin) && (
                               <AdminVerifiedBadge title="حساب إدارة موثّق" />
@@ -133,7 +133,7 @@ export default function AdminUsersPage() {
                     <td>
                       <span className="admin-badge admin-badge-nile">{user.role}</span>
                     </td>
-                    <td className="tabular-nums font-bold text-[#0F1B2D]">{user.eventsCount}</td>
+                    <td className="tabular-nums font-bold text-[#F2F6FA]">{user.eventsCount}</td>
                     <td>
                       {user.isBlocked ? (
                         <span className="admin-badge admin-badge-danger">
@@ -162,7 +162,7 @@ export default function AdminUsersPage() {
             </table>
           </div>
           {(data?.totalPages ?? 0) > 1 && (
-            <div className="admin-row justify-between p-3.5 border-t border-[rgba(15,27,45,0.08)] text-xs bg-white/40">
+            <div className="admin-row justify-between p-3.5 border-t border-[rgba(15,27,45,0.08)] text-xs bg-white/5">
               <button
                 type="button"
                 disabled={page <= 1}
@@ -172,7 +172,7 @@ export default function AdminUsersPage() {
                 <ChevronRight className="w-3.5 h-3.5" />
                 السابق
               </button>
-              <span className="font-bold text-[#5A6D80]">
+              <span className="font-bold text-[#8B9CB0]">
                 صفحة {page} من {data?.totalPages}
               </span>
               <button

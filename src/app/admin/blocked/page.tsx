@@ -70,8 +70,8 @@ export default function AdminBlockedUsersPage() {
               <Ban className="w-5 h-5" strokeWidth={2.4} />
             </span>
             <div className="admin-col">
-              <h1 className="text-2xl font-black text-[#0F1B2D]">الحسابات الموقوفة</h1>
-              <p className="text-sm text-[#5A6D80] mt-1">
+              <h1 className="text-2xl font-black text-[#F2F6FA]">الحسابات الموقوفة</h1>
+              <p className="text-sm text-[#8B9CB0] mt-1">
                 ابحث عن حساب محظور وأعد تفعيله. طالما الحساب موقوف لا يمكن الدخول أو إنشاء حساب جديد بنفس البيانات.
               </p>
             </div>
@@ -150,7 +150,7 @@ export default function AdminBlockedUsersPage() {
             </table>
           </div>
           {(data?.totalPages ?? 0) > 1 && (
-            <div className="admin-row justify-between p-3.5 border-t border-[rgba(15,27,45,0.08)] text-xs bg-white/40">
+            <div className="admin-row justify-between p-3.5 border-t border-[rgba(15,27,45,0.08)] text-xs bg-white/5">
               <button
                 type="button"
                 disabled={page <= 1}
@@ -160,7 +160,7 @@ export default function AdminBlockedUsersPage() {
                 <ChevronRight className="w-3.5 h-3.5" />
                 السابق
               </button>
-              <span className="font-bold text-[#5A6D80]">
+              <span className="font-bold text-[#8B9CB0]">
                 {page} / {data?.totalPages}
               </span>
               <button

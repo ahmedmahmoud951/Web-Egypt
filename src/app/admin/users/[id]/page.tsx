@@ -205,12 +205,12 @@ export default function AdminUserDetailPage() {
   return (
     <AdminShell>
       <div className="profile-fb text-right" dir="rtl">
-        <div className="admin-row items-center gap-2 text-xs text-[#5A6D80] mb-3 px-1">
+        <div className="admin-row items-center gap-2 text-xs text-[#8B9CB0] mb-3 px-1">
           <Link href="/admin/users" className="hover:text-[#1F6B7A] transition-smooth font-bold">
             المستخدمون
           </Link>
           <ChevronRight className="w-3.5 h-3.5 rotate-180 text-[#8A9AAB]" />
-          <span className="text-[#0F1B2D] font-black">{user.name}</span>
+          <span className="text-[#F2F6FA] font-black">{user.name}</span>
         </div>
 
         {/* Cover + identity (Facebook-style) */}
@@ -399,8 +399,8 @@ export default function AdminUserDetailPage() {
                 const mediaItems: ProfileLightboxItem[] = (post.media ?? []).map((m) => ({ url: m.url }));
                 return (
                   <article key={post.id} className="profile-fb-post space-y-3">
-                    <div className="flex items-center justify-between text-xs text-[#5A6D80]">
-                      <span className="font-bold text-[#0F1B2D]">
+                    <div className="flex items-center justify-between text-xs text-[#8B9CB0]">
+                      <span className="font-bold text-[#F2F6FA]">
                         {new Date(post.createdAt).toLocaleString('ar-EG')}
                       </span>
                       <span
@@ -413,7 +413,7 @@ export default function AdminUserDetailPage() {
                         {post.status}
                       </span>
                     </div>
-                    {post.text && <p className="text-sm text-[#0F1B2D] whitespace-pre-wrap font-medium">{post.text}</p>}
+                    {post.text && <p className="text-sm text-[#F2F6FA] whitespace-pre-wrap font-medium">{post.text}</p>}
                     {mediaItems.length > 0 && (
                       <div className="profile-fb-media-grid">
                         {mediaItems.map((m, idx) => (
@@ -428,7 +428,7 @@ export default function AdminUserDetailPage() {
                         ))}
                       </div>
                     )}
-                    <div className="flex items-center gap-4 text-xs text-[#5A6D80] pt-2 border-t border-[rgba(15,27,45,0.06)]">
+                    <div className="flex items-center gap-4 text-xs text-[#8B9CB0] pt-2 border-t border-[rgba(15,27,45,0.06)]">
                       <span className="inline-flex items-center gap-1 font-bold">
                         <Heart className="w-3.5 h-3.5 text-[#DC2626]" />
                         {post.reactionsCount}
@@ -477,8 +477,8 @@ export default function AdminUserDetailPage() {
                     </span>
                   </div>
                   <div className="p-3 space-y-2">
-                    <p className="text-xs text-[#0F1B2D] font-bold line-clamp-2">{reel.caption}</p>
-                    <div className="flex items-center justify-between text-[11px] text-[#5A6D80] pt-1 border-t border-[rgba(15,27,45,0.06)] font-bold">
+                    <p className="text-xs text-[#F2F6FA] font-bold line-clamp-2">{reel.caption}</p>
+                    <div className="flex items-center justify-between text-[11px] text-[#8B9CB0] pt-1 border-t border-[rgba(15,27,45,0.06)] font-bold">
                       <span className="inline-flex items-center gap-0.5">
                         <Eye className="w-3 h-3" /> {reel.viewsCount}
                       </span>
@@ -541,19 +541,19 @@ export default function AdminUserDetailPage() {
                   className="profile-fb-post flex items-center justify-between hover:border-[#1F6B7A] transition-smooth"
                 >
                   <div className="space-y-1">
-                    <div className="font-black text-sm text-[#0F1B2D] flex items-center gap-2 flex-wrap">
+                    <div className="font-black text-sm text-[#F2F6FA] flex items-center gap-2 flex-wrap">
                       {ev.title}
                       <span
                         className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                           ev.status === 'Published'
                             ? 'bg-[rgba(22,163,74,0.1)] text-[#16A34A]'
-                            : 'bg-[#F0F4F8] text-[#5A6D80]'
+                            : 'bg-[#F0F4F8] text-[#8B9CB0]'
                         }`}
                       >
                         {ev.status}
                       </span>
                     </div>
-                    <div className="text-xs text-[#5A6D80] font-semibold">
+                    <div className="text-xs text-[#8B9CB0] font-semibold">
                       {ev.locationPathAr || ev.locationNameAr} · {new Date(ev.createdAt).toLocaleDateString('ar-EG')}
                     </div>
                   </div>
@@ -577,7 +577,7 @@ export default function AdminUserDetailPage() {
               {reportsData?.items?.map((rep) => (
                 <div key={rep.id} className="profile-fb-post space-y-2.5">
                   <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
-                    <span className="font-black text-[#0F1B2D] inline-flex items-center gap-1.5">
+                    <span className="font-black text-[#F2F6FA] inline-flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5 text-[#DC2626]" />
                       {rep.contentType} · {rep.reason}
                     </span>
@@ -592,7 +592,7 @@ export default function AdminUserDetailPage() {
                     </span>
                   </div>
                   {rep.contentTitle && (
-                    <div className="text-xs text-[#5A6D80] bg-[#F8FAFC] p-2 rounded-lg font-semibold">
+                    <div className="text-xs text-[#8B9CB0] bg-[#F8FAFC] p-2 rounded-lg font-semibold">
                       {rep.contentTitle}
                     </div>
                   )}
