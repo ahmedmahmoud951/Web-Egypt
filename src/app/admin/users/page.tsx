@@ -18,7 +18,10 @@ import {
   Ban,
   CheckCircle2,
   ExternalLink,
+  UserCheck,
+  Crown,
 } from 'lucide-react';
+import { AdminVerifiedBadge } from '@/components/ui/AdminVerifiedBadge';
 
 export default function AdminUsersPage() {
   const [q, setQ] = useState('');
@@ -99,10 +102,33 @@ export default function AdminUsersPage() {
                 {data?.items?.map((user) => (
                   <tr key={user.id} className="admin-tr">
                     <td className="admin-cell-title">
-                      <span className="inline-flex items-center gap-1.5">
-                        {user.name}
-                        {user.isSuperAdmin && <Shield className="w-3.5 h-3.5 text-[#C4A35A]" />}
-                      </span>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-[#E8EDF2] overflow-hidden shrink-0 flex items-center justify-center text-xs font-bold text-[#1F6B7A]">
+                          {user.avatarUrl ? (
+                            <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{user.name.charAt(0)}</span>
+                          )}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="inline-flex items-center gap-1.5 font-bold text-[#0F1B2D]">
+                            {user.role === 'Admin' || user.isSuperAdmin ? 'Admin' : user.name}
+                            {(user.role === 'Admin' || user.isSuperAdmin) && (
+                              <AdminVerifiedBadge title="حساب إدارة موثّق" />
+                            )}
+                            {user.role !== 'Admin' && !user.isSuperAdmin && user.isVerified && (
+                              <UserCheck className="w-3.5 h-3.5 text-[#C4A35A]" />
+                            )}
+                            {user.isSuperAdmin && <Crown className="w-3.5 h-3.5 text-[#C4A35A]" />}
+                          </span>
+                          {(user.role === 'Admin' || user.isSuperAdmin) && (
+                            <span className="text-[11px] text-[#8A9AAB] font-semibold">{user.name}</span>
+                          )}
+                          {user.username && (
+                            <span className="text-[11px] font-mono text-[#8A9AAB]">@{user.username}</span>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     <td className="admin-cell-mono">{user.phoneNumber}</td>
                     <td>
