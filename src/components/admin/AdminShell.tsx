@@ -23,14 +23,14 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/admin', label: 'لوحة القيادة', icon: LayoutDashboard, exact: true },
-  { href: '/admin/verification', label: 'توثيق الحسابات', icon: BadgeCheck },
-  { href: '/admin/events', label: 'المنشورات', icon: Newspaper },
-  { href: '/admin/users', label: 'المستخدمون', icon: Users },
-  { href: '/admin/blocked', label: 'الحسابات الموقوفة', icon: Ban },
-  { href: '/admin/complaints', label: 'الشكاوى', icon: MessageSquareWarning },
-  { href: '/admin/reports', label: 'البلاغات', icon: Flag },
-  { href: '/admin/locations', label: 'المواقع المعلقة', icon: MapPin },
+  { href: '/admin', label: 'لوحة القيادة', shortLabel: 'لوحة', icon: LayoutDashboard, exact: true },
+  { href: '/admin/verification', label: 'توثيق الحسابات', shortLabel: 'توثيق', icon: BadgeCheck },
+  { href: '/admin/events', label: 'المنشورات', shortLabel: 'منشورات', icon: Newspaper },
+  { href: '/admin/users', label: 'المستخدمون', shortLabel: 'مستخدمون', icon: Users },
+  { href: '/admin/blocked', label: 'الحسابات الموقوفة', shortLabel: 'موقوفة', icon: Ban },
+  { href: '/admin/complaints', label: 'الشكاوى', shortLabel: 'شكاوى', icon: MessageSquareWarning },
+  { href: '/admin/reports', label: 'البلاغات', shortLabel: 'بلاغات', icon: Flag },
+  { href: '/admin/locations', label: 'المواقع المعلقة', shortLabel: 'مواقع', icon: MapPin },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -57,21 +57,20 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       }
       return;
     }
-    // log once per authenticated admin session on this mount
     devLog.ok('shell', 'Admin shell ready', {
       pathname,
       user: user?.name,
       isSuperAdmin,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- avoid remount loops on pathname/name churn
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isAuthenticated, isAdmin, router]);
 
   if (isLoading || !isAuthenticated || !isAdmin) {
     return (
-      <div className="min-h-screen admin-canvas flex flex-col items-center justify-center gap-4 text-[#2A6B78] text-sm">
+      <div className="min-h-screen admin-canvas flex flex-col items-center justify-center gap-4 text-[var(--egypt-nile)] text-sm px-4">
         <BrandLogo size={72} priority />
         <EgyptFlagMark className="w-12 h-8" />
-        <span className="font-bold">جاري التحقق من صلاحيات الإدارة...</span>
+        <span className="font-bold text-center">جاري التحقق من صلاحيات الإدارة...</span>
       </div>
     );
   }
@@ -80,7 +79,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <div className="min-h-screen admin-canvas text-[#1A2433] flex" dir="rtl">
+    <div className="min-h-screen admin-canvas text-[var(--egypt-ink)] flex" dir="rtl">
       <aside className="admin-sidebar w-[17.5rem] shrink-0 hidden md:flex flex-col relative overflow-hidden">
         <div className="admin-flag-stripe absolute top-0 inset-x-0" />
 
@@ -91,7 +90,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <div className="font-black text-white text-[15px] tracking-tight leading-tight">
                 النهارده في مصر
               </div>
-              <div className="text-[11px] text-[#B8954A] font-bold mt-0.5 flex items-center gap-1.5">
+              <div className="text-[11px] text-[var(--egypt-gold)] font-bold mt-0.5 flex items-center gap-1.5">
                 <EgyptFlagMark className="w-5 h-3.5" />
                 مركز التحكم
               </div>
@@ -114,13 +113,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 }`}
               >
                 <span
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    active ? 'bg-[rgba(184,149,74,0.2)] text-[#B8954A]' : 'bg-white/5 text-[#8FA3B8]'
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    active
+                      ? 'bg-[rgba(184,149,74,0.22)] text-[#F5E6B8] shadow-[0_0_14px_rgba(184,149,74,0.35)]'
+                      : 'bg-white/5 text-[#8FA3B8]'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-[18px] h-[18px]" strokeWidth={2.25} />
                 </span>
-                {item.label}
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
@@ -134,8 +135,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   : 'text-[#C5D0DC] hover:bg-white/5 hover:text-white'
               }`}
             >
-              <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-[rgba(184,149,74,0.12)] text-[#B8954A]">
-                <UserCog className="w-4 h-4" />
+              <span className="w-9 h-9 rounded-xl flex items-center justify-center bg-[rgba(184,149,74,0.12)] text-[#B8954A] shrink-0">
+                <UserCog className="w-[18px] h-[18px]" strokeWidth={2.25} />
               </span>
               طاقم الأدمن
             </Link>
@@ -156,11 +157,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={logout}
-            className="btn-glow btn-glow-danger w-full h-10 text-sm"
-          >
+          <button type="button" onClick={logout} className="btn-glow btn-glow-danger w-full h-10 text-sm">
             <LogOut className="w-4 h-4" />
             تسجيل الخروج
           </button>
@@ -169,53 +166,84 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         <div className="admin-flag-stripe" />
-        <header className="sticky top-0 z-30 h-14 glass-card border-b border-[rgba(26,36,51,0.07)] px-4 md:px-6 flex items-center justify-between gap-3">
-          <div className="md:hidden flex items-center gap-2.5 font-black text-[#152238]">
-            <BrandLogo size={34} />
-            <span className="text-sm">النهارده في مصر</span>
+        <header className="sticky top-0 z-30 min-h-14 glass-card border-b border-[rgba(26,36,51,0.07)] px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 py-2">
+          <div className="md:hidden flex items-center gap-2 min-w-0">
+            <BrandLogo size={32} />
+            <div className="min-w-0">
+              <div className="text-sm font-black text-[var(--egypt-navy)] truncate leading-tight">النهارده في مصر</div>
+              <div className="text-[10px] font-bold text-[var(--egypt-gold)] flex items-center gap-1">
+                <EgyptFlagMark className="w-4 h-3" />
+                مركز التحكم
+              </div>
+            </div>
           </div>
-          <div className="text-xs text-[#5B6B7C] hidden sm:flex items-center gap-2 font-medium">
-            <BrandLogo size={28} className="rounded-lg" />
-            <EgyptFlagMark className="w-6 h-4" />
-            مراقبة المنشورات والمستخدمين — بث لحظي
+          <div className="text-xs text-[var(--egypt-muted)] hidden md:flex items-center gap-2 font-medium min-w-0">
+            <BrandLogo size={28} className="rounded-lg shrink-0" />
+            <EgyptFlagMark className="w-6 h-4 shrink-0" />
+            <span className="truncate">مراقبة المنشورات والمستخدمين — بث لحظي</span>
           </div>
-          <LiveStatusBadge />
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <LiveStatusBadge />
+            <button
+              type="button"
+              onClick={logout}
+              className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-xl bg-[rgba(158,27,44,0.1)] text-[var(--egypt-red)] border border-[rgba(158,27,44,0.2)]"
+              title="تسجيل الخروج"
+              aria-label="تسجيل الخروج"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </header>
 
-        <div className="md:hidden flex gap-1.5 overflow-x-auto px-3 py-2.5 bg-[#E8EEF2]/90 border-b border-[rgba(26,36,51,0.07)]">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
+        {/* Mobile icon rail — short labels, no horizontal crush */}
+        <div className="md:hidden sticky top-14 z-20 bg-[#E8EEF2]/95 backdrop-blur-md border-b border-[rgba(26,36,51,0.07)] safe-px">
+          <div className="flex gap-1 overflow-x-auto px-2 py-2 scrollbar-none">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href, item.exact);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`shrink-0 min-w-[4.35rem] max-w-[5.5rem] flex flex-col items-center gap-1 px-1.5 py-2 rounded-2xl text-[10px] font-extrabold leading-tight text-center transition ${
+                    active
+                      ? 'bg-[var(--egypt-nile)] text-white shadow-[0_8px_20px_-10px_rgba(31,107,122,0.7)]'
+                      : 'bg-[#FBFDFF] text-[#3D4F63] border border-[rgba(26,36,51,0.08)]'
+                  }`}
+                >
+                  <span
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                      active ? 'bg-white/15 text-[#F5E6B8]' : 'bg-[rgba(31,107,122,0.08)] text-[var(--egypt-nile)]'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" strokeWidth={2.35} />
+                  </span>
+                  <span className="px-0.5 line-clamp-2">{item.shortLabel}</span>
+                </Link>
+              );
+            })}
+            {isSuperAdmin && (
               <Link
-                key={item.href}
-                href={item.href}
-                className={`whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                  isActive(item.href, item.exact)
-                    ? 'bg-[#2A6B78] text-white'
+                href="/admin/staff"
+                className={`shrink-0 min-w-[4.35rem] max-w-[5.5rem] flex flex-col items-center gap-1 px-1.5 py-2 rounded-2xl text-[10px] font-extrabold leading-tight text-center transition ${
+                  isActive('/admin/staff')
+                    ? 'bg-[var(--egypt-gold)] text-[var(--egypt-navy)] shadow'
                     : 'bg-[#FBFDFF] text-[#3D4F63] border border-[rgba(26,36,51,0.08)]'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
-                {item.label}
+                <span className="w-8 h-8 rounded-xl flex items-center justify-center bg-[rgba(196,163,90,0.2)] text-[#8A6A1F]">
+                  <UserCog className="w-4 h-4" strokeWidth={2.35} />
+                </span>
+                <span>طاقم</span>
               </Link>
-            );
-          })}
-          {isSuperAdmin && (
-            <Link
-              href="/admin/staff"
-              className={`whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-                isActive('/admin/staff')
-                  ? 'bg-[#B8954A] text-[#152238]'
-                  : 'bg-[#FBFDFF] text-[#3D4F63] border border-[rgba(26,36,51,0.08)]'
-              }`}
-            >
-              <UserCog className="w-3.5 h-3.5" />
-              طاقم الأدمن
-            </Link>
-          )}
+            )}
+          </div>
         </div>
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8">{children}</main>
+        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          {children}
+        </main>
       </div>
     </div>
   );

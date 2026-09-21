@@ -46,6 +46,12 @@ import {
   ArrowRight,
   ZoomIn,
   ImageIcon,
+  Hourglass,
+  ScanSearch,
+  ShieldCheck,
+  Ban,
+  CircleSlash,
+  Ticket,
 } from 'lucide-react';
 
 export default function AdminVerificationPage() {
@@ -327,211 +333,202 @@ export default function AdminVerificationPage() {
 
   return (
     <AdminShell>
-      <div className="space-y-6 text-right max-w-7xl mx-auto pb-12 font-sans" dir="rtl">
+      <div className="space-y-4 sm:space-y-6 text-right max-w-7xl mx-auto pb-8 sm:pb-12 font-sans" dir="rtl">
         {/* Toast Alert */}
         {feedback && (
           <div
-            className={`fixed top-5 left-5 z-50 px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 transition-all transform animate-in slide-in-from-top ${
+            className={`admin-toast ${
               feedback.type === 'success'
-                ? 'bg-emerald-600 text-white border border-emerald-400'
-                : 'bg-rose-600 text-white border border-rose-400'
+                ? 'bg-emerald-600 text-white border border-emerald-400/40'
+                : 'bg-rose-600 text-white border border-rose-400/40'
             }`}
           >
-            {feedback.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
-            <span className="font-semibold text-sm">{feedback.message}</span>
+            {feedback.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+            )}
+            <span className="min-w-0 break-words">{feedback.message}</span>
           </div>
         )}
 
         {/* Header Title & Quick Actions */}
-        <div className="bg-gradient-to-l from-[#0F1B2D] via-[#162740] to-[#1F6B7A] rounded-2xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-[#C4A35A]/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[#C4A35A] text-xs font-semibold backdrop-blur-md mb-2">
-                <Sparkles className="w-3.5 h-3.5" />
-                منظومة توثيق الحسابات والشارات الرسمية
+        <div className="bg-gradient-to-l from-[#0F1B2D] via-[#162740] to-[#1F6B7A] rounded-2xl sm:rounded-[1.5rem] p-4 sm:p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-72 sm:w-96 h-72 sm:h-96 bg-[#C4A35A]/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-40 h-40 bg-[#9E1B2C]/15 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none" />
+          <div className="relative z-10 flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 text-[#C4A35A] text-[11px] sm:text-xs font-bold backdrop-blur-md mb-2">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">منظومة التوثيق والشارات الرسمية</span>
+                </div>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-snug">
+                  إدارة ومراجعة طلبات التوثيق
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-300 mt-1.5 max-w-xl leading-relaxed">
+                  فحص الوثائق الثبوتية، اعتماد الشارات، وإدارة الباقات والمنح بأمان.
+                </p>
               </div>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">إدارة ومراجعة طلبات التوثيق</h1>
-              <p className="text-sm text-gray-300 mt-1 max-w-xl">
-                التحكم الكامل بأنواع التوثيق، الخطط والعروض الخاصة، فحص الوثائق الثبوتية، واعتماد أو سحب التوثيقات بأمان تام.
-              </p>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    refetchStats();
+                    refetchRequests();
+                    refetchTypes();
+                    refetchPlans();
+                  }}
+                  className="admin-touch-btn bg-white/10 hover:bg-white/20 text-white border border-white/15"
+                  title="تحديث البيانات"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="hidden xs:inline sm:inline">تحديث</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setGrantUserIdentifier('');
+                    setGrantMatchedUser(null);
+                    setActiveTab('grants');
+                  }}
+                  className="admin-touch-btn bg-[#C4A35A] hover:bg-[#b09149] text-[#0F1B2D] shadow-lg"
+                >
+                  <Gift className="w-4 h-4" />
+                  منح فوري
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  refetchStats();
-                  refetchRequests();
-                  refetchTypes();
-                  refetchPlans();
-                }}
-                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition border border-white/10"
-                title="تحديث البيانات"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  setGrantUserIdentifier('');
-                  setGrantMatchedUser(null);
-                  setActiveTab('grants');
-                }}
-                className="px-4 py-2.5 rounded-xl bg-[#C4A35A] hover:bg-[#b09149] text-[#0F1B2D] font-bold text-sm transition shadow-lg flex items-center gap-2"
-              >
-                <Gift className="w-4 h-4" />
-                منح توثيق فوري
-              </button>
-            </div>
-          </div>
-
-          {/* Stats KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-6 pt-6 border-t border-white/10">
-            <div
-              onClick={() => {
-                setStatusFilter(1);
-                setActiveTab('requests');
-              }}
-              className="bg-white/5 hover:bg-white/10 p-3.5 rounded-xl cursor-pointer transition border border-white/10 text-center group"
-            >
-              <div className="text-xs text-amber-300 font-medium">قيد الانتظار</div>
-              <div className="text-2xl font-bold mt-1 group-hover:scale-105 transition">{stats?.pendingRequests ?? 0}</div>
-            </div>
-
-            <div
-              onClick={() => {
-                setStatusFilter(2);
-                setActiveTab('requests');
-              }}
-              className="bg-white/5 hover:bg-white/10 p-3.5 rounded-xl cursor-pointer transition border border-white/10 text-center group"
-            >
-              <div className="text-xs text-blue-300 font-medium">قيد المراجعة</div>
-              <div className="text-2xl font-bold mt-1 group-hover:scale-105 transition">{stats?.underReviewRequests ?? 0}</div>
-            </div>
-
-            <div
-              onClick={() => {
-                setStatusFilter(3);
-                setActiveTab('requests');
-              }}
-              className="bg-white/5 hover:bg-white/10 p-3.5 rounded-xl cursor-pointer transition border border-white/10 text-center group"
-            >
-              <div className="text-xs text-emerald-300 font-medium">توثيقات نشطة</div>
-              <div className="text-2xl font-bold mt-1 group-hover:scale-105 transition">{stats?.activeVerifications ?? 0}</div>
-            </div>
-
-            <div
-              onClick={() => {
-                setStatusFilter(undefined);
-                setActiveTab('requests');
-              }}
-              className="bg-white/5 hover:bg-white/10 p-3.5 rounded-xl cursor-pointer transition border border-white/10 text-center group"
-            >
-              <div className="text-xs text-orange-300 font-medium">تنتهي قريباً</div>
-              <div className="text-2xl font-bold mt-1 group-hover:scale-105 transition">{stats?.expiringSoon ?? 0}</div>
-            </div>
-
-            <div
-              onClick={() => {
-                setStatusFilter(4);
-                setActiveTab('requests');
-              }}
-              className="bg-white/5 hover:bg-white/10 p-3.5 rounded-xl cursor-pointer transition border border-white/10 text-center group"
-            >
-              <div className="text-xs text-rose-300 font-medium">مرفوضة</div>
-              <div className="text-2xl font-bold mt-1 group-hover:scale-105 transition">{stats?.rejectedRequests ?? 0}</div>
-            </div>
-
-            <div
-              onClick={() => {
-                setStatusFilter(undefined);
-                setActiveTab('requests');
-              }}
-              className="bg-white/5 hover:bg-white/10 p-3.5 rounded-xl cursor-pointer transition border border-white/10 text-center group"
-            >
-              <div className="text-xs text-gray-300 font-medium">منتهية الصلاحية</div>
-              <div className="text-2xl font-bold mt-1 group-hover:scale-105 transition">{stats?.expired ?? 0}</div>
-            </div>
-
-            <div
-              onClick={() => {
-                setStatusFilter(undefined);
-                setActiveTab('requests');
-              }}
-              className="bg-white/5 hover:bg-white/10 p-3.5 rounded-xl cursor-pointer transition border border-white/10 text-center group"
-            >
-              <div className="text-xs text-[#C4A35A] font-medium">توثيقات مجانية</div>
-              <div className="text-2xl font-bold mt-1 group-hover:scale-105 transition">{stats?.freeVerifications ?? 0}</div>
+            {/* Stats KPI Cards */}
+            <div className="admin-kpi-grid mt-1 pt-4 border-t border-white/10">
+              {[
+                {
+                  label: 'قيد الانتظار',
+                  value: stats?.pendingRequests ?? 0,
+                  icon: Hourglass,
+                  tone: 'text-amber-300',
+                  status: 1 as number | undefined,
+                },
+                {
+                  label: 'قيد المراجعة',
+                  value: stats?.underReviewRequests ?? 0,
+                  icon: ScanSearch,
+                  tone: 'text-sky-300',
+                  status: 2 as number | undefined,
+                },
+                {
+                  label: 'توثيقات نشطة',
+                  value: stats?.activeVerifications ?? 0,
+                  icon: ShieldCheck,
+                  tone: 'text-emerald-300',
+                  status: 3 as number | undefined,
+                },
+                {
+                  label: 'تنتهي قريباً',
+                  value: stats?.expiringSoonVerifications ?? stats?.expiringSoon ?? 0,
+                  icon: Clock,
+                  tone: 'text-orange-300',
+                  status: undefined as number | undefined,
+                },
+                {
+                  label: 'مرفوضة',
+                  value: stats?.rejectedRequests ?? 0,
+                  icon: Ban,
+                  tone: 'text-rose-300',
+                  status: 4 as number | undefined,
+                },
+                {
+                  label: 'منتهية',
+                  value: stats?.expiredVerifications ?? stats?.expired ?? 0,
+                  icon: CircleSlash,
+                  tone: 'text-gray-300',
+                  status: undefined as number | undefined,
+                },
+                {
+                  label: 'مجانية',
+                  value: stats?.freeVerifications ?? 0,
+                  icon: Ticket,
+                  tone: 'text-[#C4A35A]',
+                  status: undefined as number | undefined,
+                },
+              ].map((kpi) => {
+                const Icon = kpi.icon;
+                return (
+                  <button
+                    key={kpi.label}
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter(kpi.status);
+                      setActiveTab('requests');
+                    }}
+                    className="admin-kpi-tile"
+                  >
+                    <span className={`kpi-icon ${kpi.tone}`}>
+                      <Icon className="w-4 h-4" strokeWidth={2.4} />
+                    </span>
+                    <span className={`kpi-label ${kpi.tone}`}>{kpi.label}</span>
+                    <span className="kpi-value">{kpi.value}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-gray-200 bg-white rounded-xl shadow-sm p-1.5 gap-1.5 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('requests')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition whitespace-nowrap ${
-              activeTab === 'requests' ? 'bg-[#1F6B7A] text-white shadow' : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            طلبات التوثيق والمراجعة
-          </button>
-
-          <button
-            onClick={() => setActiveTab('types')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition whitespace-nowrap ${
-              activeTab === 'types' ? 'bg-[#1F6B7A] text-white shadow' : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <BadgeCheck className="w-4 h-4" />
-            أنواع وشارات التوثيق ({typesData?.length ?? 0})
-          </button>
-
-          <button
-            onClick={() => setActiveTab('plans')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition whitespace-nowrap ${
-              activeTab === 'plans' ? 'bg-[#1F6B7A] text-white shadow' : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <Tag className="w-4 h-4" />
-            الباقات والعروض الخاصة ({plansData?.length ?? 0})
-          </button>
-
-          <button
-            onClick={() => setActiveTab('grants')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition whitespace-nowrap ${
-              activeTab === 'grants' ? 'bg-[#1F6B7A] text-white shadow' : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <Gift className="w-4 h-4" />
-            المنح المباشر والسحب والتمديد
-          </button>
-
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition whitespace-nowrap ${
-              activeTab === 'settings' ? 'bg-[#1F6B7A] text-white shadow' : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <Shield className="w-4 h-4" />
-            الأمان وقواعد العمل
-          </button>
+        <div className="admin-tab-rail">
+          {(
+            [
+              { id: 'requests' as const, label: 'الطلبات', full: 'طلبات التوثيق', icon: Clock },
+              {
+                id: 'types' as const,
+                label: 'الأنواع',
+                full: `أنواع التوثيق (${typesData?.length ?? 0})`,
+                icon: BadgeCheck,
+              },
+              {
+                id: 'plans' as const,
+                label: 'الباقات',
+                full: `الباقات (${plansData?.length ?? 0})`,
+                icon: Tag,
+              },
+              { id: 'grants' as const, label: 'المنح', full: 'المنح والسحب', icon: Gift },
+              { id: 'settings' as const, label: 'الأمان', full: 'الأمان والقواعد', icon: Shield },
+            ] as const
+          ).map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                data-active={active}
+                className="admin-tab-chip"
+                title={tab.full}
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.4} />
+                <span className="sm:hidden">{tab.label}</span>
+                <span className="hidden sm:inline">{tab.full}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* TAB 1: REQUESTS REVIEW CENTER */}
         {activeTab === 'requests' && (
           <div className="space-y-4">
             {/* Filter Bar */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-2 flex-1">
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="w-4 h-4 absolute right-3 top-3 text-gray-400" />
+            <div className="admin-card p-3 sm:p-4 flex flex-col gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto] gap-2 w-full">
+                <div className="relative min-w-0">
+                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="بحث برقم الهاتف أو الاسم أو المعرف..."
+                    placeholder="بحث بالهاتف أو الاسم..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pr-9 pl-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1F6B7A]"
+                    className="admin-input w-full pr-9 pl-3 py-2.5 text-sm rounded-xl"
                   />
                 </div>
 
@@ -542,7 +539,7 @@ export default function AdminVerificationPage() {
                     setStatusFilter(val === '' ? undefined : parseInt(val));
                     setPage(1);
                   }}
-                  className="px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1F6B7A]"
+                  className="admin-input w-full px-3 py-2.5 text-sm rounded-xl"
                 >
                   <option value="">جميع الحالات</option>
                   <option value="1">قيد الانتظار</option>
@@ -558,7 +555,7 @@ export default function AdminVerificationPage() {
                     setTypeFilter(e.target.value);
                     setPage(1);
                   }}
-                  className="px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1F6B7A]"
+                  className="admin-input w-full px-3 py-2.5 text-sm rounded-xl sm:col-span-2 lg:col-span-1"
                 >
                   <option value="">كافة أنواع التوثيق</option>
                   {typesData?.map((t) => (
@@ -577,29 +574,144 @@ export default function AdminVerificationPage() {
                     setSearchQuery('');
                     setPage(1);
                   }}
-                  className="text-xs text-rose-600 hover:underline font-semibold"
+                  className="self-start text-xs text-rose-600 hover:underline font-bold"
                 >
                   إلغاء الفلاتر
                 </button>
               )}
             </div>
 
-            {/* Requests Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* Mobile cards */}
+            <div className="admin-mobile-only space-y-3">
+              {requestsLoading ? (
+                <div className="admin-mobile-card py-10 text-center text-gray-400">
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#1F6B7A]" />
+                  جاري تحميل الطلبات...
+                </div>
+              ) : requestsData?.items?.length === 0 ? (
+                <div className="admin-mobile-card py-10 text-center text-gray-500 text-sm">
+                  لا توجد طلبات تطابق البحث.
+                </div>
+              ) : (
+                requestsData?.items?.map((r) => (
+                  <div key={r.id} className="admin-mobile-card space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-extrabold text-[var(--egypt-navy)] truncate">
+                          {r.userName || 'مستخدم بدون اسم'}
+                        </div>
+                        <div className="admin-cell-mono mt-0.5 truncate">{r.userPhoneNumber}</div>
+                      </div>
+                      {getStatusBadge(r.status, r.statusName)}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="inline-flex items-center gap-1 font-bold text-gray-800 bg-[rgba(196,163,90,0.12)] text-[#8A6A1F] px-2 py-1 rounded-lg">
+                        <BadgeCheck className="w-3.5 h-3.5" />
+                        {r.verificationTypeName}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 text-gray-700 font-semibold">
+                        <FileText className="w-3.5 h-3.5" />
+                        {r.documentsCount} مرفق
+                      </span>
+                      <span className="text-gray-500">
+                        {r.planName || `${r.requestedDurationDays} يوم`}
+                        {r.planPrice ? ` · ${r.planPrice} ج.م` : ''}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-gray-500">
+                      {new Date(r.requestedAt).toLocaleDateString('ar-EG', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 pt-1 border-t border-gray-100">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRequestId(r.id)}
+                        className="admin-touch-btn bg-[rgba(31,107,122,0.1)] text-[#1F6B7A] border border-[rgba(31,107,122,0.2)]"
+                      >
+                        <Eye className="w-4 h-4" />
+                        المستندات
+                      </button>
+                      {(r.status === 1 || r.status === 2) && (
+                        <>
+                          {r.status === 1 && (
+                            <button
+                              type="button"
+                              onClick={() => reviewMutation.mutate(r.id)}
+                              className="admin-touch-btn bg-sky-50 text-sky-700 border border-sky-200"
+                            >
+                              بدء المراجعة
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setApproveModalRequest(r);
+                              setApprovedDuration(r.requestedDurationDays || 30);
+                              setIsFreeApprove(false);
+                              setAdminNotes('');
+                            }}
+                            className="admin-touch-btn bg-emerald-600 text-white"
+                          >
+                            اعتماد
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRejectModalRequest(r);
+                              setRejectReason('');
+                            }}
+                            className="admin-touch-btn bg-rose-50 text-rose-600 border border-rose-200"
+                          >
+                            رفض
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `هل أنت متأكد من مسح طلب التوثيق للمستخدم (${r.userName || r.userPhoneNumber}) نهائياً؟`
+                            )
+                          ) {
+                            deleteRequestMutation.mutate(r.id);
+                          }
+                        }}
+                        className="admin-touch-btn text-rose-500 bg-rose-50/80 border border-rose-100"
+                        title="مسح"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop table */}
+            <div className="admin-desktop-only admin-data-grid overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-right text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold">
+                <table className="w-full text-right text-sm min-w-[720px]">
+                  <thead className="admin-thead">
                     <tr>
-                      <th className="py-3.5 px-4">المستخدم</th>
-                      <th className="py-3.5 px-4">نوع التوثيق</th>
-                      <th className="py-3.5 px-4">الخطة / السعر</th>
-                      <th className="py-3.5 px-4">تاريخ التقديم</th>
-                      <th className="py-3.5 px-4">الوثائق</th>
-                      <th className="py-3.5 px-4">الحالة</th>
-                      <th className="py-3.5 px-4 text-center">الإجراءات</th>
+                      <th>المستخدم</th>
+                      <th>نوع التوثيق</th>
+                      <th>الخطة / السعر</th>
+                      <th>تاريخ التقديم</th>
+                      <th>الوثائق</th>
+                      <th>الحالة</th>
+                      <th className="text-center">الإجراءات</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody>
                     {requestsLoading ? (
                       <tr>
                         <td colSpan={7} className="py-12 text-center text-gray-400">
@@ -615,25 +727,25 @@ export default function AdminVerificationPage() {
                       </tr>
                     ) : (
                       requestsData?.items?.map((r) => (
-                        <tr key={r.id} className="hover:bg-gray-50/80 transition">
-                          <td className="py-3.5 px-4">
-                            <div className="font-bold text-gray-900">{r.userName || 'مستخدم بدون اسم'}</div>
-                            <div className="text-xs text-gray-500 font-mono">{r.userPhoneNumber}</div>
+                        <tr key={r.id} className="admin-tr">
+                          <td>
+                            <div className="admin-cell-title">{r.userName || 'مستخدم بدون اسم'}</div>
+                            <div className="admin-cell-mono">{r.userPhoneNumber}</div>
                           </td>
-                          <td className="py-3.5 px-4">
+                          <td>
                             <div className="inline-flex items-center gap-1.5 font-semibold text-gray-800">
                               <BadgeCheck className="w-4 h-4 text-[#C4A35A]" />
                               {r.verificationTypeName}
                             </div>
                             <div className="text-xs text-gray-500">شارة: {r.badgeName}</div>
                           </td>
-                          <td className="py-3.5 px-4">
+                          <td>
                             <div className="font-medium text-gray-800">{r.planName || `${r.requestedDurationDays} يوم`}</div>
                             <div className="text-xs text-gray-500">
                               {r.planPrice ? `${r.planPrice} ج.م` : 'مجاني / حسب الطلب'}
                             </div>
                           </td>
-                          <td className="py-3.5 px-4 text-xs text-gray-500">
+                          <td className="text-xs text-gray-500 whitespace-nowrap">
                             {new Date(r.requestedAt).toLocaleDateString('ar-EG', {
                               year: 'numeric',
                               month: 'short',
@@ -642,36 +754,32 @@ export default function AdminVerificationPage() {
                               minute: '2-digit',
                             })}
                           </td>
-                          <td className="py-3.5 px-4">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 text-xs font-semibold text-gray-700">
+                          <td>
+                            <span className="admin-badge admin-badge-nile">
                               <FileText className="w-3.5 h-3.5" />
                               {r.documentsCount} مرفق
                             </span>
                           </td>
-                          <td className="py-3.5 px-4">{getStatusBadge(r.status, r.statusName)}</td>
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {/* View Details */}
+                          <td>{getStatusBadge(r.status, r.statusName)}</td>
+                          <td>
+                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               <button
                                 onClick={() => setSelectedRequestId(r.id)}
-                                className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-[#1F6B7A] transition"
+                                className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-[#1F6B7A] transition"
                                 title="عرض التفاصيل والمستندات"
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
-
-                              {/* Actions for Pending / UnderReview */}
                               {(r.status === 1 || r.status === 2) && (
                                 <>
                                   {r.status === 1 && (
                                     <button
                                       onClick={() => reviewMutation.mutate(r.id)}
-                                      className="px-2.5 py-1 text-xs rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold transition"
+                                      className="px-2.5 py-1.5 text-xs rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold transition"
                                     >
                                       بدء المراجعة
                                     </button>
                                   )}
-
                                   <button
                                     onClick={() => {
                                       setApproveModalRequest(r);
@@ -679,17 +787,16 @@ export default function AdminVerificationPage() {
                                       setIsFreeApprove(false);
                                       setAdminNotes('');
                                     }}
-                                    className="px-2.5 py-1 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-semibold transition shadow-sm"
+                                    className="px-2.5 py-1.5 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-semibold transition shadow-sm"
                                   >
                                     اعتماد
                                   </button>
-
                                   <button
                                     onClick={() => {
                                       setRejectModalRequest(r);
                                       setRejectReason('');
                                     }}
-                                    className="px-2.5 py-1 text-xs rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-semibold transition"
+                                    className="px-2.5 py-1.5 text-xs rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-semibold transition"
                                   >
                                     رفض
                                   </button>
@@ -697,11 +804,15 @@ export default function AdminVerificationPage() {
                               )}
                               <button
                                 onClick={() => {
-                                  if (confirm(`هل أنت متأكد من مسح طلب التوثيق للمستخدم (${r.userName || r.userPhoneNumber}) نهائياً من قاعدة البيانات؟`)) {
+                                  if (
+                                    confirm(
+                                      `هل أنت متأكد من مسح طلب التوثيق للمستخدم (${r.userName || r.userPhoneNumber}) نهائياً من قاعدة البيانات؟`
+                                    )
+                                  ) {
                                     deleteRequestMutation.mutate(r.id);
                                   }
                                 }}
-                                className="p-1.5 rounded-lg text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                                className="p-2 rounded-lg text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition"
                                 title="مسح طلب التوثيق نهائياً"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -714,43 +825,45 @@ export default function AdminVerificationPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
 
               {/* Pagination */}
               {requestsData && requestsData.totalPages > 1 && (
-                <div className="p-4 border-t border-gray-200 flex items-center justify-between text-sm">
-                  <div className="text-gray-500">
+                <div className="p-3 sm:p-4 admin-card flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-sm">
+                  <div className="text-gray-500 text-xs sm:text-sm text-center sm:text-right">
                     صفحة {requestsData.page} من {requestsData.totalPages} (إجمالي {requestsData.totalCount} طلب)
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-center gap-2">
                     <button
                       disabled={!requestsData.hasPreviousPage}
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      className="p-1.5 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition"
+                      className="admin-touch-btn border border-gray-300 disabled:opacity-40"
                     >
                       <ChevronRight className="w-4 h-4" />
+                      السابق
                     </button>
                     <button
                       disabled={!requestsData.hasNextPage}
                       onClick={() => setPage((p) => p + 1)}
-                      className="p-1.5 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50 transition"
+                      className="admin-touch-btn border border-gray-300 disabled:opacity-40"
                     >
+                      التالي
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               )}
-            </div>
           </div>
         )}
 
         {/* TAB 2: VERIFICATION TYPES */}
         {activeTab === 'types' && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-              <div>
-                <h2 className="font-bold text-gray-900">أنواع وشارات التوثيق المعرفة في النظام</h2>
-                <p className="text-xs text-gray-500">
-                  تحديد فئات الحسابات التي يمكن توثيقها (مثل: مواطن، مراسل صحفي، مؤسسة، جهة حكومية أو إعلامية).
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 admin-card p-4">
+              <div className="min-w-0">
+                <h2 className="font-bold text-gray-900 text-sm sm:text-base">أنواع وشارات التوثيق المعرفة في النظام</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  تحديد فئات الحسابات التي يمكن توثيقها (مواطن، مراسل، مؤسسة...).
                 </p>
               </div>
               <button
@@ -767,7 +880,7 @@ export default function AdminVerificationPage() {
                   });
                   setTypeModalOpen(true);
                 }}
-                className="px-4 py-2 rounded-xl bg-[#1F6B7A] text-white font-bold text-sm hover:bg-[#185561] transition flex items-center gap-1.5 shadow"
+                className="admin-touch-btn shrink-0 bg-[#1F6B7A] text-white shadow self-stretch sm:self-auto"
               >
                 <Plus className="w-4 h-4" />
                 إضافة نوع جديد
@@ -870,11 +983,11 @@ export default function AdminVerificationPage() {
         {/* TAB 3: PLANS & OFFERS */}
         {activeTab === 'plans' && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-              <div>
-                <h2 className="font-bold text-gray-900">باقات وخطط التوثيق والعروض الترويجية</h2>
-                <p className="text-xs text-gray-500">
-                  التحكم في مدد التوثيق، الأسعار، العروض والخصومات، وتعيين باقات مجانية لفئات معينة.
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 admin-card p-4">
+              <div className="min-w-0">
+                <h2 className="font-bold text-gray-900 text-sm sm:text-base">باقات وخطط التوثيق والعروض</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  مدد التوثيق، الأسعار، والعروض المجانية.
                 </p>
               </div>
               <button
@@ -893,10 +1006,10 @@ export default function AdminVerificationPage() {
                   });
                   setPlanModalOpen(true);
                 }}
-                className="px-4 py-2 rounded-xl bg-[#1F6B7A] text-white font-bold text-sm hover:bg-[#185561] transition flex items-center gap-1.5 shadow"
+                className="admin-touch-btn shrink-0 bg-[#1F6B7A] text-white shadow self-stretch sm:self-auto"
               >
                 <Plus className="w-4 h-4" />
-                إنشاء باقة أو عرض جديد
+                إنشاء باقة جديدة
               </button>
             </div>
 
@@ -1074,7 +1187,7 @@ export default function AdminVerificationPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">نوع وشارة التوثيق</label>
                     <select
@@ -1746,7 +1859,7 @@ export default function AdminVerificationPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
                     <input
                       type="checkbox"
@@ -1832,7 +1945,7 @@ export default function AdminVerificationPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">المدة (بالأيام) *</label>
                     <input

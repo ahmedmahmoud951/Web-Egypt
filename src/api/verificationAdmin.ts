@@ -6,11 +6,16 @@ export interface VerificationDashboardStats {
   underReviewRequests: number;
   approvedRequests: number;
   rejectedRequests: number;
+  totalRequests?: number;
   activeVerifications: number;
-  expiringSoon: number;
-  expired: number;
+  expiringSoonVerifications: number;
+  expiredVerifications: number;
+  revokedVerifications?: number;
   freeVerifications: number;
   totalRevenue?: number;
+  /** @deprecated aliases — prefer *Verifications fields */
+  expiringSoon?: number;
+  expired?: number;
 }
 
 export interface UserLookupItem {
