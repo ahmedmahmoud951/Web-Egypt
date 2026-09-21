@@ -58,7 +58,7 @@ function AdminReelsContent() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Queries
-  const { data: stats, isLoading: isStatsLoading } = useQuery({
+  const { data: stats, isLoading: isStatsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['admin', 'reels', 'stats'],
     queryFn: () => socialAdminApi.getReelStats(),
   });
@@ -72,27 +72,34 @@ function AdminReelsContent() {
   useEffect(() => {
     signalRService.start();
 
+    const refreshLive = () => {
+      refetch();
+      refetchStats();
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reels'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reels'], type: 'active' });
+    };
+
     const unsubs = [
       signalRService.onReelPublished(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reels'] });
+        refreshLive();
       }),
       signalRService.onReelHidden(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reels'] });
+        refreshLive();
       }),
       signalRService.onReelRestored(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reels'] });
+        refreshLive();
       }),
       signalRService.onReelDeleted(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reels'] });
+        refreshLive();
       }),
       signalRService.onReelReactionUpdated(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reels'] });
+        refreshLive();
       }),
       signalRService.onReelCommentAdded(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reels'] });
+        refreshLive();
       }),
       signalRService.onNewReelReport((msg) => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reels'] });
+        refreshLive();
         flash.info(`بلاغ جديد على ريلز: ${msg.reason}`);
       }),
     ];
@@ -100,7 +107,7 @@ function AdminReelsContent() {
     return () => {
       unsubs.forEach((u) => u());
     };
-  }, [queryClient, flash]);
+  }, [queryClient, flash, refetch, refetchStats]);
 
   // Mutations
   const hideMutation = useMutation({

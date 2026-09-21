@@ -59,7 +59,7 @@ function AdminStatusesContent() {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   // Queries
-  const { data: stats, isLoading: isStatsLoading } = useQuery({
+  const { data: stats, isLoading: isStatsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['admin', 'statuses', 'stats'],
     queryFn: () => socialAdminApi.getStatusStats(),
   });
@@ -73,21 +73,28 @@ function AdminStatusesContent() {
   useEffect(() => {
     signalRService.start();
 
+    const refreshLive = () => {
+      refetch();
+      refetchStats();
+      queryClient.invalidateQueries({ queryKey: ['admin', 'statuses'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'statuses'], type: 'active' });
+    };
+
     const unsubs = [
       signalRService.onStatusPublished(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'statuses'] });
+        refreshLive();
       }),
       signalRService.onStatusDeleted(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'statuses'] });
+        refreshLive();
       }),
       signalRService.onStatusHidden(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'statuses'] });
+        refreshLive();
       }),
       signalRService.onStatusRestored(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'statuses'] });
+        refreshLive();
       }),
       signalRService.onNewStatusReport((msg) => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'statuses'] });
+        refreshLive();
         flash.info(`بلاغ جديد على حالة: ${msg.reason}`);
       }),
     ];
@@ -95,7 +102,7 @@ function AdminStatusesContent() {
     return () => {
       unsubs.forEach((u) => u());
     };
-  }, [queryClient, flash]);
+  }, [queryClient, flash, refetch, refetchStats]);
 
   // Mutations
   const hideMutation = useMutation({
@@ -329,7 +336,7 @@ function AdminStatusesContent() {
                       {isVideo ? (
                         <video src={st.mediaUrl} muted className="pointer-events-none" />
                       ) : (
-                        <Image src={st.mediaUrl} alt="" fill className="object-cover" />
+                        <Image src={st.mediaUrl} alt="" fill className="object-cover" unoptimized />
                       )}
                     </div>
                   </button>

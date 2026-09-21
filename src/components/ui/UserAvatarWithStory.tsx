@@ -106,6 +106,7 @@ export function UserAvatarWithStory({
               fill
               sizes="(max-width: 768px) 48px, 64px"
               className="object-cover"
+              unoptimized
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-[#1F6B7A] via-[#15283C] to-[#0F1B2D] flex items-center justify-center text-[var(--egypt-gold)] font-bold shadow-inner">

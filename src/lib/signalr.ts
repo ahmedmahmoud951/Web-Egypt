@@ -148,10 +148,10 @@ class SignalRService {
           .withUrl(targetHubUrl, {
             accessTokenFactory: () => storage.getToken() || '',
             skipNegotiation: false,
-            transport: signalR.HttpTransportType.WebSockets,
-            // No LongPolling — on free IIS it holds HTTP slots and starves /api/* (timeouts).
+            transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.ServerSentEvents,
+            // Fallback to ServerSentEvents if WebSockets encounters proxy/firewall block
           })
-          .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+          .withAutomaticReconnect([0, 1000, 2000, 5000, 10000, 30000])
           .configureLogging(customLogger)
           .build();
 

@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { signalRService } from '@/lib/signalr';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { FlashBanner } from '@/components/ui/FlashBanner';
 import { useFlash } from '@/components/ui/FlashProvider';
@@ -50,6 +51,42 @@ export default function AdminEventsPage() {
     staleTime: 60_000,
     retry: 0,
   });
+
+  // Real-time synchronization
+  useEffect(() => {
+    signalRService.start();
+
+    const refreshLive = () => {
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ['admin', 'events'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'events'], type: 'active' });
+    };
+
+    const unsubs = [
+      signalRService.onEventCreated(() => {
+        refreshLive();
+      }),
+      signalRService.onEventUpdated(() => {
+        refreshLive();
+      }),
+      signalRService.onEventConfirmed(() => {
+        refreshLive();
+      }),
+      signalRService.onEventHidden(() => {
+        refreshLive();
+      }),
+      signalRService.onEventRestored(() => {
+        refreshLive();
+      }),
+      signalRService.onEventReported(() => {
+        refreshLive();
+      }),
+    ];
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, [queryClient, refetch]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminApi.deleteEvent(id),

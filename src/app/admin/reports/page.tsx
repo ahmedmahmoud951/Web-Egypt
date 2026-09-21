@@ -77,36 +77,42 @@ function AdminReportsContent() {
   useEffect(() => {
     signalRService.start();
 
+    const refreshLive = () => {
+      refetch();
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reports'], type: 'active' });
+    };
+
     const unsubs = [
       signalRService.onNewReelReport((msg) => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+        refreshLive();
         flash.info(`تم تلقي بلاغ جديد عن ريلز (${msg.reason})`);
       }),
       signalRService.onNewStatusReport((msg) => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+        refreshLive();
         flash.info(`تم تلقي بلاغ جديد عن حالة (${msg.reason})`);
       }),
       signalRService.onEventReported(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+        refreshLive();
       }),
       signalRService.onReelHidden(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+        refreshLive();
       }),
       signalRService.onReelDeleted(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+        refreshLive();
       }),
       signalRService.onStatusHidden(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+        refreshLive();
       }),
       signalRService.onStatusDeleted(() => {
-        queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+        refreshLive();
       }),
     ];
 
     return () => {
       unsubs.forEach((u) => u());
     };
-  }, [queryClient, flash]);
+  }, [queryClient, flash, refetch]);
 
   // Actions
   const hideMutation = useMutation({

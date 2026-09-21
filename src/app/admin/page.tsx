@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { AdminShell } from '@/components/admin/AdminShell';
@@ -9,6 +10,7 @@ import { BrandLogo } from '@/components/brand/BrandLogo';
 import { FlashBanner } from '@/components/ui/FlashBanner';
 import { useAdminQueryEnabled } from '@/hooks/useAdminQueryEnabled';
 import { adminApi } from '@/api/admin';
+import { signalRService } from '@/lib/signalr';
 import {
   EyeOff,
   Flag,
@@ -31,6 +33,36 @@ export default function AdminDashboardPage() {
     staleTime: 120_000,
     retry: 0,
   });
+
+  // Real-time synchronization for dashboard counters
+  useEffect(() => {
+    signalRService.start();
+
+    const refreshStats = () => {
+      refetch();
+    };
+
+    const unsubs = [
+      signalRService.onEventCreated(refreshStats),
+      signalRService.onEventUpdated(refreshStats),
+      signalRService.onEventHidden(refreshStats),
+      signalRService.onEventRestored(refreshStats),
+      signalRService.onEventReported(refreshStats),
+      signalRService.onLocationApproved(refreshStats),
+      signalRService.onReelPublished(refreshStats),
+      signalRService.onReelHidden(refreshStats),
+      signalRService.onReelDeleted(refreshStats),
+      signalRService.onStatusPublished(refreshStats),
+      signalRService.onStatusDeleted(refreshStats),
+      signalRService.onStatusHidden(refreshStats),
+      signalRService.onNewReelReport(refreshStats),
+      signalRService.onNewStatusReport(refreshStats),
+    ];
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, [refetch]);
 
   const cards = [
     { label: 'المستخدمون', value: stats?.usersCount, icon: Users, href: '/admin/users', tone: 'text-[#1F6B7A] bg-[rgba(31,107,122,0.12)]' },

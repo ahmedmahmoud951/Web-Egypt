@@ -57,6 +57,22 @@ export function StatusStoryViewerModal({
     }
   }, [isOpen, currentIndex, currentStatus]);
 
+  // Reset progress when index changes
+  useEffect(() => {
+    setProgress(0);
+  }, [currentIndex]);
+
+  // Sync video play/pause
+  useEffect(() => {
+    if (videoRef.current) {
+      if (isPaused) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play().catch(() => {});
+      }
+    }
+  }, [isPaused, currentIndex]);
+
   // Story progress timer
   useEffect(() => {
     if (!isOpen || isPaused || !currentStatus) return;
@@ -67,22 +83,25 @@ export function StatusStoryViewerModal({
 
     const timer = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 100) {
-          if (currentIndex < statuses.length - 1) {
-            setCurrentIndex((i) => i + 1);
-            return 0;
-          } else {
-            clearInterval(timer);
-            onClose();
-            return 100;
-          }
-        }
-        return prev + step;
+        const nextVal = prev + step;
+        return nextVal >= 100 ? 100 : nextVal;
       });
     }, intervalTime);
 
     return () => clearInterval(timer);
-  }, [isOpen, isPaused, currentIndex, currentStatus, statuses.length, onClose]);
+  }, [isOpen, isPaused, currentIndex, currentStatus]);
+
+  // Auto-advance or close cleanly when progress completes
+  useEffect(() => {
+    if (progress >= 100 && isOpen && !isPaused) {
+      if (currentIndex < statuses.length - 1) {
+        setCurrentIndex((i) => i + 1);
+        setProgress(0);
+      } else {
+        onClose();
+      }
+    }
+  }, [progress, isOpen, isPaused, currentIndex, statuses.length, onClose]);
 
   if (!isOpen || !currentStatus) return null;
 
@@ -183,6 +202,7 @@ export function StatusStoryViewerModal({
                   width={40}
                   height={40}
                   className="object-cover"
+                  unoptimized
                 />
               ) : (
                 <span>{(currentStatus.authorName || 'م').slice(0, 2)}</span>
@@ -249,6 +269,7 @@ export function StatusStoryViewerModal({
               fill
               className="object-contain"
               priority
+              unoptimized
             />
           )}
 
