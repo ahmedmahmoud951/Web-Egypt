@@ -7,6 +7,7 @@ import { AdminStatusDetailDto, AdminStatusFilter } from '@/types/social';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { UserAvatarWithStory } from '@/components/ui/UserAvatarWithStory';
 import { StatusStoryViewerModal } from '@/components/social/StatusStoryViewerModal';
+import { WhatsAppStoryRing } from '@/components/ui/WhatsAppStoryRing';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useFlash } from '@/components/ui/FlashProvider';
@@ -39,6 +40,7 @@ type UserStatusGroup = {
   items: AdminStatusDetailDto[];
   latest: AdminStatusDetailDto;
   hasActive: boolean;
+  hasUnseen: boolean;
   totalReports: number;
 };
 
@@ -158,8 +160,27 @@ function AdminStatusesContent() {
 
   const handleOpenViewer = (group: UserStatusGroup) => {
     setViewerStatuses(group.items);
-    setSelectedStatusIndex(0);
+    // Find the first unviewed active status in chronological order
+    const firstUnseenIndex = group.items.findIndex(
+      (s) => s.status === 'Active' && !s.isExpired && !s.isViewedByCurrentUser
+    );
+    setSelectedStatusIndex(firstUnseenIndex >= 0 ? firstUnseenIndex : 0);
     setIsViewerOpen(true);
+  };
+
+  const handleStatusViewed = (statusId: string) => {
+    queryClient.setQueryData(
+      ['admin', 'statuses', filter],
+      (oldData: any) => {
+        if (!oldData?.items) return oldData;
+        return {
+          ...oldData,
+          items: oldData.items.map((s: AdminStatusDetailDto) =>
+            s.id === statusId ? { ...s, isViewedByCurrentUser: true } : s
+          ),
+        };
+      }
+    );
   };
 
   const userGroups: UserStatusGroup[] = useMemo(() => {
@@ -172,10 +193,16 @@ function AdminStatusesContent() {
     }
     return Array.from(byUser.entries())
       .map(([userId, groupItems]) => {
+        // Chronological order: oldest status to newest status (like WhatsApp stories)
         const sorted = [...groupItems].sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
-        const latest = sorted[0];
+        const latest = sorted[sorted.length - 1];
+        const hasActive = sorted.some((s) => s.status === 'Active' && !s.isExpired);
+        const hasUnseen = sorted.some(
+          (s) => s.status === 'Active' && !s.isExpired && !s.isViewedByCurrentUser
+        );
+
         return {
           userId,
           authorName: latest.authorName,
@@ -183,14 +210,18 @@ function AdminStatusesContent() {
           authorVerificationBadge: latest.authorVerificationBadge,
           items: sorted,
           latest,
-          hasActive: sorted.some((s) => s.status === 'Active' && !s.isExpired),
+          hasActive,
+          hasUnseen,
           totalReports: sorted.reduce((n, s) => n + (s.reportsCount || 0), 0),
         };
       })
-      .sort(
-        (a, b) =>
+      .sort((a, b) => {
+        // Groups with unviewed active statuses appear first (like WhatsApp)
+        if (a.hasUnseen !== b.hasUnseen) return a.hasUnseen ? -1 : 1;
+        return (
           new Date(b.latest.createdAt).getTime() - new Date(a.latest.createdAt).getTime()
-      );
+        );
+      });
   }, [pagedStatuses?.items]);
 
   const totalPages = Math.ceil((pagedStatuses?.totalCount || 0) / (filter.pageSize || 15));
@@ -348,32 +379,41 @@ function AdminStatusesContent() {
         {!isStatusesLoading && userGroups.length > 0 && (
           <div className="stories-rail">
             {userGroups.map((group) => (
-              <button
+              <div
                 key={`bubble-${group.userId}`}
-                type="button"
                 className="wa-story-bubble"
-                onClick={() => handleOpenViewer(group)}
                 title={`${group.authorName} · ${group.items.length} حالة`}
               >
-                <div className="wa-story-ring" data-seen={group.hasActive ? 'false' : 'true'}>
-                  <div className="wa-story-ring-inner">
-                    {group.authorAvatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={group.authorAvatar} alt={group.authorName} />
-                    ) : (
-                      <div className="w-full h-full grid place-items-center text-white font-black text-sm bg-[#128C7E]">
-                        {group.authorName?.charAt(0) || '?'}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <WhatsAppStoryRing
+                  items={group.items}
+                  size={62}
+                  strokeWidth={3}
+                  onClick={() => handleOpenViewer(group)}
+                >
+                  {group.authorAvatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={group.authorAvatar}
+                      alt={group.authorName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full grid place-items-center text-white font-black text-sm bg-[#128C7E]">
+                      {group.authorName?.charAt(0) || '?'}
+                    </div>
+                  )}
+                </WhatsAppStoryRing>
                 <div className="wa-story-name">{group.authorName}</div>
                 {group.items.length > 1 && (
-                  <div className="text-[9px] font-black text-[#25d366] mt-0.5">
+                  <div
+                    className={`text-[9px] font-black mt-0.5 ${
+                      group.hasUnseen ? 'text-[#25d366]' : 'text-slate-400'
+                    }`}
+                  >
                     {group.items.length} حلقات
                   </div>
                 )}
-              </button>
+              </div>
             ))}
           </div>
         )}
@@ -398,24 +438,23 @@ function AdminStatusesContent() {
               const isVideo = st.mediaType === 'Video' || st.mediaUrl.endsWith('.mp4');
               return (
                 <div key={group.userId} className="wa-status-row">
-                  <button
-                    type="button"
-                    className="wa-story-ring shrink-0 !w-[3.6rem] !h-[3.6rem]"
-                    data-seen={group.hasActive ? 'false' : 'true'}
+                  <WhatsAppStoryRing
+                    items={group.items}
+                    size={58}
+                    strokeWidth={3}
+                    className="shrink-0"
                     onClick={() => handleOpenViewer(group)}
                   >
-                    <div className="wa-story-ring-inner relative">
-                      {isVideo ? (
-                        <video src={st.mediaUrl} muted className="pointer-events-none" />
-                      ) : st.mediaUrl && !st.mediaUrl.includes('00000000-0000-0000-0000-000000000000') ? (
-                        <Image src={st.mediaUrl} alt="" fill className="object-cover" unoptimized />
-                      ) : (
-                        <div className="w-full h-full grid place-items-center text-white font-black text-xs bg-gradient-to-br from-[#128C7E] to-[#075E54]">
-                          {group.authorName?.charAt(0) || 'ح'}
-                        </div>
-                      )}
-                    </div>
-                  </button>
+                    {isVideo ? (
+                      <video src={st.mediaUrl} muted className="w-full h-full object-cover pointer-events-none" />
+                    ) : st.mediaUrl && !st.mediaUrl.includes('00000000-0000-0000-0000-000000000000') ? (
+                      <Image src={st.mediaUrl} alt="" fill className="object-cover" unoptimized />
+                    ) : (
+                      <div className="w-full h-full grid place-items-center text-white font-black text-xs bg-gradient-to-br from-[#128C7E] to-[#075E54]">
+                        {group.authorName?.charAt(0) || 'ح'}
+                      </div>
+                    )}
+                  </WhatsAppStoryRing>
 
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -424,7 +463,7 @@ function AdminStatusesContent() {
                         avatarUrl={group.authorAvatar}
                         verificationBadge={group.authorVerificationBadge}
                         hasStory={group.hasActive}
-                        hasUnseenStory={group.hasActive}
+                        hasUnseenStory={group.hasUnseen}
                         onClickStory={() => handleOpenViewer(group)}
                         size="sm"
                         showName
@@ -565,6 +604,7 @@ function AdminStatusesContent() {
           statuses={viewerStatuses}
           initialIndex={selectedStatusIndex}
           onStatusUpdated={() => refetch()}
+          onStatusViewed={handleStatusViewed}
         />
       )}
     </AdminShell>

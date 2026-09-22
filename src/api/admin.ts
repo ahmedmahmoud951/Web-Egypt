@@ -11,6 +11,8 @@ import {
   AdminUserListItem,
   AdminUserReport,
   CreateAdminStaffRequest,
+  UpdateAdminUserRequest,
+  UpdateAdminStaffRequest,
 } from '@/types/admin';
 import { PostDto, ProfilePhotoDto } from '@/types/social';
 
@@ -108,6 +110,14 @@ export const adminApi = {
     await apiClient.post(`/admin/users/${id}/role`, { role });
   },
 
+  updateUser: async (id: string, body: UpdateAdminUserRequest): Promise<void> => {
+    await apiClient.put(`/admin/users/${id}`, body);
+  },
+
+  deleteUser: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/users/${id}`);
+  },
+
   getUserReports: async (userId: string, page = 1, pageSize = 20, signal?: AbortSignal): Promise<PagedResponse<AdminUserReport>> => {
     const res = await apiClient.get<ApiResponse<PagedResponse<AdminUserReport>>>(`/admin/users/${userId}/reports`, {
       params: { page, pageSize },
@@ -165,6 +175,14 @@ export const adminApi = {
   createStaff: async (body: CreateAdminStaffRequest): Promise<AdminStaffMember> => {
     const res = await apiClient.post<ApiResponse<AdminStaffMember>>('/admin/staff', body);
     return res.data.data!;
+  },
+
+  updateStaff: async (id: string, body: UpdateAdminStaffRequest): Promise<void> => {
+    await apiClient.put(`/admin/staff/${id}`, body);
+  },
+
+  deleteStaff: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/staff/${id}`);
   },
 
   getPendingLocations: async (): Promise<LocationSuggestionDto[]> => {

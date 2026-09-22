@@ -2779,6 +2779,13 @@ button.admin-btn-primary {
   color: #e9edef;
 }
 
+@media (max-width: 767px) {
+  .wa-monitor {
+    border-radius: 0.85rem;
+    margin: 0;
+  }
+}
+
 /* -- Reel Studio Preview Modal -- */
 .reel-studio {
   animation: reelStudioIn 0.28s ease-out;

@@ -37,19 +37,25 @@ import {
   Phone,
   Mail,
   Clock,
+  Edit3,
+  Trash2,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { EditUserModal } from '@/components/admin/EditUserModal';
 
 type TabType = 'posts' | 'reels' | 'photos' | 'events' | 'reports';
 
 export default function AdminUserDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const { isSuperAdmin } = useAuth();
+  const router = useRouter();
+  const { isSuperAdmin, user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const flash = useFlash();
 
   const [activeTab, setActiveTab] = useState<TabType>('posts');
   const [lightbox, setLightbox] = useState<{ items: ProfileLightboxItem[]; index: number } | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const { data: user, isLoading: isUserLoading } = useQuery({
     queryKey: ['admin', 'users', id],
@@ -167,6 +173,33 @@ export default function AdminUserDetailPage() {
     });
     if (!ok) return;
     await roleMutation.mutateAsync(next);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!user) return;
+    if (user.id === currentUser?.id) {
+      flash.error('لا يمكنك مسح حسابك الخاص.');
+      return;
+    }
+
+    const ok = await flash.confirm({
+      title: 'مسح المستخدم نهائياً؟',
+      message: `هل أنت متأكد من حذف «${user.name}» نهائياً؟ سيتم مسح حسابه وجميع بياناته ومنشوراته وتفاعلاته وسجلاته بالكامل من قاعدة البيانات. لا يمكن التراجع عن هذا الإجراء!`,
+      confirmLabel: 'مسح نهائي',
+      cancelLabel: 'إلغاء',
+      tone: 'danger',
+    });
+
+    if (!ok) return;
+
+    try {
+      await adminApi.deleteUser(user.id);
+      flash.success('تم مسح المستخدم بنجاح.');
+      router.push('/admin/users');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر مسح المستخدم';
+      flash.error(msg);
+    }
   };
 
   if (isUserLoading || !user) {
@@ -336,6 +369,24 @@ export default function AdminUserDetailPage() {
                   {user.role === 'Admin' ? 'تخفيض لـ User' : 'ترقية لـ Admin'}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(true)}
+                className="btn-glow btn-glow-secondary px-3 h-9 text-xs text-[#2AA9B9]"
+                title="تعديل المستخدم"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                تعديل الحساب
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteUser}
+                className="btn-glow btn-glow-danger px-3 h-9 text-xs"
+                title="مسح نهائي"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                مسح نهائي
+              </button>
             </div>
           </div>
         </div>
@@ -624,6 +675,14 @@ export default function AdminUserDetailPage() {
           onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
         />
       )}
+
+      <EditUserModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        user={user}
+        isActorSuperAdmin={isSuperAdmin}
+        onSuccess={() => invalidate()}
+      />
     </AdminShell>
   );
 }

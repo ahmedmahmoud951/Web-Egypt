@@ -23,6 +23,7 @@ import {
   Film,
   Sparkles,
   MessageCircle,
+  ChevronRight,
 } from 'lucide-react';
 
 const navItems = [
@@ -166,22 +167,45 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         <div className="admin-flag-stripe" />
-        <header className="sticky top-0 z-30 min-h-14 glass-card border-b border-[rgba(45,138,156,0.18)] px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 py-2">
-          <div className="md:hidden flex items-center gap-2 min-w-0">
-            <BrandLogo size={32} />
-            <div className="min-w-0">
-              <div className="text-sm font-black text-[#F2F6FA] truncate leading-tight">النهارده في مصر</div>
-              <div className="text-[10px] font-bold text-[#C4A35A] flex items-center gap-1">
-                <EgyptFlagMark className="w-4 h-3" />
-                مركز التحكم
+        <header className="sticky top-0 z-30 min-h-14 glass-card border-b border-[rgba(45,138,156,0.18)] px-2 sm:px-4 md:px-6 flex items-center justify-between gap-2 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {pathname !== '/admin' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined' && window.history.length > 1) {
+                    router.back();
+                  } else {
+                    router.push('/admin');
+                  }
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-[#F2F6FA] text-xs font-bold transition border border-white/15 shrink-0 shadow-sm"
+                title="الرجوع للصفحة السابقة"
+                aria-label="الرجوع للصفحة السابقة"
+              >
+                <ChevronRight className="w-4 h-4 rtl:rotate-0" />
+                <span>رجوع</span>
+              </button>
+            )}
+
+            <div className="md:hidden flex items-center gap-2 min-w-0">
+              <BrandLogo size={32} />
+              <div className="min-w-0">
+                <div className="text-sm font-black text-[#F2F6FA] truncate leading-tight">النهارده في مصر</div>
+                <div className="text-[10px] font-bold text-[#C4A35A] flex items-center gap-1">
+                  <EgyptFlagMark className="w-4 h-3" />
+                  مركز التحكم
+                </div>
               </div>
             </div>
           </div>
+
           <div className="text-xs text-[var(--egypt-muted)] hidden md:flex items-center gap-2 font-medium min-w-0">
             <BrandLogo size={28} className="rounded-lg shrink-0" />
             <EgyptFlagMark className="w-6 h-4 shrink-0" />
             <span className="truncate">مراقبة المنشورات والمستخدمين — بث لحظي</span>
           </div>
+
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <LiveStatusBadge />
             <button
@@ -241,7 +265,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <main className="flex-1 p-2 sm:p-4 md:p-6 lg:p-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {children}
         </main>
       </div>

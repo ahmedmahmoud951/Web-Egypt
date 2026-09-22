@@ -8,10 +8,12 @@ import { FlashBanner } from '@/components/ui/FlashBanner';
 import { useFlash } from '@/components/ui/FlashProvider';
 import { adminApi } from '@/api/admin';
 import { useAuth } from '@/hooks/useAuth';
-import { Crown, Shield, UserPlus, Phone, KeyRound, Sparkles } from 'lucide-react';
+import { Crown, Shield, UserPlus, Phone, KeyRound, Sparkles, Edit3, Trash2 } from 'lucide-react';
+import { EditStaffModal } from '@/components/admin/EditStaffModal';
+import { AdminStaffMember } from '@/types/admin';
 
 export default function AdminStaffPage() {
-  const { isSuperAdmin, isLoading } = useAuth();
+  const { isSuperAdmin, isLoading, user: currentUser } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const flash = useFlash();
@@ -19,6 +21,7 @@ export default function AdminStaffPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [editingStaff, setEditingStaff] = useState<AdminStaffMember | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isSuperAdmin) {
@@ -48,6 +51,32 @@ export default function AdminStaffPage() {
       flash.error(msg);
     },
   });
+
+  const handleDeleteStaff = async (member: AdminStaffMember) => {
+    if (member.id === currentUser?.id) {
+      flash.error('لا يمكنك مسح حسابك الخاص.');
+      return;
+    }
+
+    const ok = await flash.confirm({
+      title: 'مسح عضو الإدارة نهائياً؟',
+      message: `هل أنت متأكد من حذف «${member.name}» نهائياً من طاقم الإدارة والنظام؟ سيتم إزالة جميع بياناته بالكامل. لا يمكن التراجع!`,
+      confirmLabel: 'مسح نهائي',
+      cancelLabel: 'إلغاء',
+      tone: 'danger',
+    });
+
+    if (!ok) return;
+
+    try {
+      await adminApi.deleteStaff(member.id);
+      flash.success('تم مسح عضو الإدارة بنجاح.');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'staff'] });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر مسح عضو الإدارة';
+      flash.error(msg);
+    }
+  };
 
   if (!isSuperAdmin) {
     return (
@@ -140,12 +169,13 @@ export default function AdminStaffPage() {
                   <th className="text-right">الاسم</th>
                   <th className="text-right">الموبايل</th>
                   <th className="text-right">النوع</th>
+                  <th className="text-center">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
                 {staffLoading && (
                   <tr>
-                    <td colSpan={3} className="p-10 text-center text-[#8A9AAB]">
+                    <td colSpan={4} className="p-10 text-center text-[#8A9AAB]">
                       جاري التحميل...
                     </td>
                   </tr>
@@ -167,6 +197,28 @@ export default function AdminStaffPage() {
                         </span>
                       )}
                     </td>
+                    <td>
+                      <div className="flex items-center gap-1.5 justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setEditingStaff(m)}
+                          className="btn-glow btn-glow-secondary px-2.5 h-8 text-xs inline-flex text-[#2AA9B9]"
+                          title="تعديل"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          تعديل
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteStaff(m)}
+                          className="btn-glow btn-glow-danger px-2.5 h-8 text-xs inline-flex"
+                          title="مسح نهائي"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          مسح
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -174,6 +226,13 @@ export default function AdminStaffPage() {
           </div>
         </div>
       </div>
+
+      <EditStaffModal
+        isOpen={!!editingStaff}
+        onClose={() => setEditingStaff(null)}
+        staff={editingStaff}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin', 'staff'] })}
+      />
     </AdminShell>
   );
 }

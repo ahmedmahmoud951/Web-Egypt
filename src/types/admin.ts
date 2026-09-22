@@ -59,6 +59,24 @@ export interface CreateAdminStaffRequest {
   password: string;
 }
 
+export interface UpdateAdminUserRequest {
+  name: string;
+  phoneNumber: string;
+  username?: string | null;
+  email?: string | null;
+  bio?: string | null;
+  role?: string | null;
+  isBlocked?: boolean | null;
+  blockReason?: string | null;
+  password?: string | null;
+}
+
+export interface UpdateAdminStaffRequest {
+  name: string;
+  phoneNumber: string;
+  password?: string | null;
+}
+
 export interface AdminComplaint {
   id: string;
   eventId: string;

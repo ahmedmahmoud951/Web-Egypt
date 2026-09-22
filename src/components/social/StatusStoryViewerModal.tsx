@@ -30,6 +30,7 @@ export interface StatusStoryViewerModalProps {
   statuses: (StatusDto | AdminStatusDetailDto)[];
   initialIndex?: number;
   onStatusUpdated?: () => void;
+  onStatusViewed?: (statusId: string) => void;
 }
 
 export function StatusStoryViewerModal({
@@ -38,6 +39,7 @@ export function StatusStoryViewerModal({
   statuses,
   initialIndex = 0,
   onStatusUpdated,
+  onStatusViewed,
 }: StatusStoryViewerModalProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isPaused, setIsPaused] = useState(false);
@@ -61,11 +63,13 @@ export function StatusStoryViewerModal({
   useEffect(() => {
     if (isOpen && currentStatus && !viewedStatusIdsRef.current.has(currentStatus.id)) {
       viewedStatusIdsRef.current.add(currentStatus.id);
+      currentStatus.isViewedByCurrentUser = true;
+      onStatusViewed?.(currentStatus.id);
       socialAdminApi.viewStatus(currentStatus.id).catch(() => {});
       setProgress(0);
       setImageError(false);
     }
-  }, [isOpen, currentStatus]);
+  }, [isOpen, currentStatus, onStatusViewed]);
 
   // Reset progress when index changes
   useEffect(() => {

@@ -19,14 +19,22 @@ import {
   ExternalLink,
   UserCheck,
   Crown,
+  Edit3,
+  Trash2,
 } from 'lucide-react';
 import { AdminVerifiedBadge } from '@/components/ui/AdminVerifiedBadge';
+import { EditUserModal } from '@/components/admin/EditUserModal';
+import { useFlash } from '@/components/ui/FlashProvider';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function AdminUsersPage() {
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const debouncedQ = useDebouncedValue(q, 400);
   const adminReady = useAdminQueryEnabled();
+  const flash = useFlash();
+  const { isSuperAdmin, user: currentUser } = useAuth();
+  const [editingUser, setEditingUser] = useState<any>(null);
 
   const queryKey = useMemo(() => ['admin', 'users', { q: debouncedQ, page }], [debouncedQ, page]);
 
@@ -38,6 +46,32 @@ export default function AdminUsersPage() {
     staleTime: 60_000,
     retry: 0,
   });
+
+  const handleDeleteUser = async (user: any) => {
+    if (user.id === currentUser?.id) {
+      flash.error('لا يمكنك مسح حسابك الخاص.');
+      return;
+    }
+
+    const ok = await flash.confirm({
+      title: `مسح المستخدم نهائياً؟`,
+      message: `هل أنت متأكد من حذف «${user.name}» نهائياً؟ سيتم مسح حسابه وجميع بياناته ومنشوراته وسجلاته بالكامل من قاعدة البيانات. لا يمكن التراجع!`,
+      confirmLabel: 'مسح نهائي',
+      cancelLabel: 'إلغاء',
+      tone: 'danger',
+    });
+
+    if (!ok) return;
+
+    try {
+      await adminApi.deleteUser(user.id);
+      flash.success('تم مسح المستخدم بنجاح.');
+      refetch();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'تعذر مسح المستخدم';
+      flash.error(msg);
+    }
+  };
 
   return (
     <AdminShell>
@@ -89,7 +123,7 @@ export default function AdminUsersPage() {
                   <th className="text-right">الدور</th>
                   <th className="text-right">منشورات</th>
                   <th className="text-right">الحالة</th>
-                  <th className="text-right">تفاصيل</th>
+                  <th className="text-center">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,13 +182,34 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td>
-                      <Link
-                        href={`/admin/users/${user.id}`}
-                        className="btn-glow btn-glow-ghost px-2.5 h-8 text-xs inline-flex"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        فتح
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          href={`/admin/users/${user.id}`}
+                          className="btn-glow btn-glow-ghost px-2.5 h-8 text-xs inline-flex"
+                          title="عرض البروفايل"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          فتح
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setEditingUser(user)}
+                          className="btn-glow btn-glow-secondary px-2.5 h-8 text-xs inline-flex text-[#2AA9B9]"
+                          title="تعديل المستخدم"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          تعديل
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(user)}
+                          className="btn-glow btn-glow-danger px-2.5 h-8 text-xs inline-flex"
+                          title="مسح نهائي"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          مسح
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -188,6 +243,14 @@ export default function AdminUsersPage() {
           )}
         </div>
       </div>
+
+      <EditUserModal
+        isOpen={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        user={editingUser}
+        isActorSuperAdmin={isSuperAdmin}
+        onSuccess={() => refetch()}
+      />
     </AdminShell>
   );
 }
