@@ -183,6 +183,33 @@ export interface ConversationDto {
   members?: ConversationMemberDto[];
 }
 
+/** Best available profile/group avatar URL for a conversation row. */
+export function getConversationAvatarUrl(conv: {
+  avatarUrl?: string | null;
+  otherMember?: { avatarUrl?: string | null; userId?: string } | null;
+  members?: { userId?: string; avatarUrl?: string | null }[] | null;
+  otherUserId?: string | null;
+}): string | null {
+  const direct = (conv.avatarUrl || '').trim();
+  if (direct) return direct;
+
+  const fromOther = (conv.otherMember?.avatarUrl || '').trim();
+  if (fromOther) return fromOther;
+
+  if (conv.members?.length) {
+    const peer = conv.otherUserId
+      ? conv.members.find((m) => m.userId?.toLowerCase() === conv.otherUserId?.toLowerCase())
+      : null;
+    const peerAvatar = (peer?.avatarUrl || '').trim();
+    if (peerAvatar) return peerAvatar;
+
+    const any = conv.members.map((m) => (m.avatarUrl || '').trim()).find(Boolean);
+    if (any) return any;
+  }
+
+  return null;
+}
+
 /** Full display name for a conversation list/header row. */
 export function getConversationDisplayName(conv: {
   name?: string | null;

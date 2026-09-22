@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import { ApiResponse, PagedResponse } from '@/types/api';
+import { resolveMediaUrl } from '@/lib/media';
 import {
   ConversationDto,
   ChatMessageDto,
@@ -26,27 +27,59 @@ import {
   ChatBackupDto,
 } from '@/types/chat';
 
+function resolveAvatar(url?: string | null): string | null {
+  if (!url) return null;
+  const resolved = resolveMediaUrl(url);
+  return resolved || null;
+}
+
+function mapConversation(c: ConversationDto): ConversationDto {
+  return {
+    ...c,
+    avatarUrl: resolveAvatar(c.avatarUrl),
+    otherMember: c.otherMember
+      ? { ...c.otherMember, avatarUrl: resolveAvatar(c.otherMember.avatarUrl) }
+      : c.otherMember,
+    members: c.members?.map((m) => ({ ...m, avatarUrl: resolveAvatar(m.avatarUrl) })),
+  };
+}
+
+function mapAdminConversation(c: AdminConversationListDto): AdminConversationListDto {
+  return {
+    ...c,
+    avatarUrl: resolveAvatar(c.avatarUrl),
+    participants: c.participants?.map((p) => ({
+      ...p,
+      avatarUrl: resolveAvatar(p.avatarUrl),
+    })),
+  };
+}
+
 export const chatApi = {
   async getConversations(page: number = 1, pageSize: number = 30, isArchived?: boolean): Promise<PagedResponse<ConversationDto>> {
     const res = await apiClient.get<ApiResponse<PagedResponse<ConversationDto>>>('/chat/conversations', {
       params: { page, pageSize, isArchived },
     });
-    return res.data.data!;
+    const data = res.data.data!;
+    return {
+      ...data,
+      items: (data.items || []).map(mapConversation),
+    };
   },
 
   async getConversation(id: string): Promise<ConversationDto> {
     const res = await apiClient.get<ApiResponse<ConversationDto>>(`/chat/conversations/${id}`);
-    return res.data.data!;
+    return mapConversation(res.data.data!);
   },
 
   async createDirectConversation(request: CreateDirectConversationRequest): Promise<ConversationDto> {
     const res = await apiClient.post<ApiResponse<ConversationDto>>('/chat/conversations/direct', request);
-    return res.data.data!;
+    return mapConversation(res.data.data!);
   },
 
   async createGroupConversation(request: CreateGroupConversationRequest): Promise<ConversationDto> {
     const res = await apiClient.post<ApiResponse<ConversationDto>>('/chat/conversations/group', request);
-    return res.data.data!;
+    return mapConversation(res.data.data!);
   },
 
   async getMessages(conversationId: string, before?: string, limit: number = 50): Promise<ChatMessageDto[]> {
@@ -66,7 +99,15 @@ export const chatApi = {
     const map = new Map<string, ChatMessageDto>();
     for (const item of items) {
       if (item && item.id) {
-        map.set(item.id.toLowerCase(), item);
+        map.set(item.id.toLowerCase(), {
+          ...item,
+          senderAvatarUrl: resolveAvatar(item.senderAvatarUrl),
+          attachments: item.attachments?.map((a) => ({
+            ...a,
+            fileUrl: a.fileUrl ? resolveMediaUrl(a.fileUrl) : a.fileUrl,
+            thumbnailUrl: a.thumbnailUrl ? resolveMediaUrl(a.thumbnailUrl) : a.thumbnailUrl,
+          })),
+        });
       }
     }
     return Array.from(map.values()).sort(
@@ -250,7 +291,11 @@ export const adminChatApi = {
     const res = await apiClient.get<ApiResponse<PagedResponse<AdminConversationListDto>>>('/admin/chat/conversations', {
       params: filter,
     });
-    return res.data.data!;
+    const data = res.data.data!;
+    return {
+      ...data,
+      items: (data.items || []).map(mapAdminConversation),
+    };
   },
 
   async getAdminConversationMessages(

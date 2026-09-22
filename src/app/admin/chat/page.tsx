@@ -7,7 +7,7 @@ import { chatApi, adminChatApi } from '@/api/chat';
 import { adminApi } from '@/api/admin';
 import { useChatHub } from '@/hooks/useChatHub';
 import { AdminUserListItem } from '@/types/admin';
-import { resolveMediaUrl } from '@/lib/media';
+import { ChatUserAvatar } from '@/components/chat/ChatUserAvatar';
 import { devLog } from '@/lib/devLog';
 import { formatChatListTime, formatLastSeenArabic, parseApiUtcDate } from '@/lib/utils';
 import { enableWebChatPush, showChatMessageNotification } from '@/lib/webChatPush';
@@ -39,6 +39,7 @@ import {
   MessageSearchResultDto,
   ChatBackupDto,
   getConversationDisplayName,
+  getConversationAvatarUrl,
   getConversationLastPreview,
   getAdminConversationPeople,
 } from '@/types/chat';
@@ -108,6 +109,7 @@ import {
   Sparkles,
   Camera,
   UserPlus,
+  ChevronRight,
 } from 'lucide-react';
 
 const EMOJI_LIST = ['❤️', '👍', '😂', '😮', '😢', '🙏', '🔥', '👏'];
@@ -1569,7 +1571,7 @@ export default function AdminChatPage() {
     const name = getConversationDisplayName(activeConversation);
     const userId = activeConversation.otherUserId || activeConversation.otherMember?.userId || '';
     const userIdKey = userId.toLowerCase();
-    const avatarUrl = activeConversation.avatarUrl || activeConversation.otherMember?.avatarUrl || null;
+    const avatarUrl = getConversationAvatarUrl(activeConversation);
     const isOnline =
       !!activeConversation.isOtherUserOnline ||
       (userId
@@ -1588,6 +1590,7 @@ export default function AdminChatPage() {
       isOnline,
       lastSeen,
       isVerified: activeConversation.otherMember?.isVerified ?? false,
+      isGroup: activeConversation.type === ConversationType.Group,
     };
   }, [activeConversation, onlineUserIds, lastSeenByUserId]);
 
@@ -1596,83 +1599,85 @@ export default function AdminChatPage() {
       {/* Invisible element for remote audio stream */}
       <audio ref={remoteAudioRef} autoPlay />
 
-      <div className="wa-monitor flex flex-col h-[calc(100vh-80px)] overflow-hidden rounded-2xl border border-[#1a3c34] shadow-2xl">
+      <div className="wa-monitor flex flex-col h-[calc(100dvh-125px)] md:h-[calc(100vh-80px)] overflow-hidden rounded-xl md:rounded-2xl border border-[#1a3c34] shadow-2xl">
         {/* Top Mode Bar — WhatsApp monitoring first */}
-        <header className="flex flex-wrap items-center justify-between px-5 py-3.5 bg-[#0b141a] border-b border-[#1f2c34] shrink-0 gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#25d366] to-[#128c7e] flex items-center justify-center shadow-lg shadow-emerald-500/25">
-              <MessageSquare className="w-5 h-5 text-[#0b141a]" strokeWidth={2.5} />
+        <header className="flex flex-wrap items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3.5 bg-[#0b141a] border-b border-[#1f2c34] shrink-0 gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#25d366] to-[#128c7e] flex items-center justify-center shadow-lg shadow-emerald-500/25 shrink-0">
+              <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-[#0b141a]" strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="text-lg font-black tracking-tight text-white flex items-center gap-2 flex-wrap">
+              <h1 className="text-sm sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 مراقبة محادثات المستخدمين
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#25d366]/15 text-[#25d366] font-bold border border-[#25d366]/30">
+                <span className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full bg-[#25d366]/15 text-[#25d366] font-bold border border-[#25d366]/30">
                   بدون Seen
                 </span>
               </h1>
-              <p className="text-xs text-slate-400 font-semibold">
+              <p className="text-[10px] sm:text-xs text-slate-400 font-semibold line-clamp-1">
                 شوف مين بيكلم مين فقط — فتح المحادثة لا يُعلِم أحداً أن الأدمن اطّلع عليها
               </p>
             </div>
           </div>
 
-          <div className="flex items-center bg-[#111b21] p-1 rounded-xl border border-[#1f2c34]">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center bg-[#111b21] p-0.5 sm:p-1 rounded-xl border border-[#1f2c34]">
+              <button
+                onClick={() => setViewMode('monitoring')}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${
+                  viewMode === 'monitoring'
+                    ? 'bg-[#25d366] text-[#0b141a] shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>مين بيكلم مين</span>
+              </button>
+              <button
+                onClick={() => setViewMode('live')}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${
+                  viewMode === 'live'
+                    ? 'bg-[#25d366] text-[#0b141a] shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>محادثاتي</span>
+              </button>
+              <button
+                onClick={() => setViewMode('graph')}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all ${
+                  viewMode === 'graph'
+                    ? 'bg-[#128c7e] text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Network className="w-3.5 h-3.5" />
+                <span>الشبكة</span>
+              </button>
+            </div>
+
             <button
-              onClick={() => setViewMode('monitoring')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'monitoring'
-                  ? 'bg-[#25d366] text-[#0b141a] shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              type="button"
+              onClick={() => {
+                setShowNewChatModal(true);
+                setUserPickerQuery('');
+              }}
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#25d366] hover:bg-[#1ebe57] text-[11px] sm:text-xs font-black text-[#0b141a] transition-colors shrink-0"
+              title="ابدأ محادثة مع مستخدم"
             >
-              <ShieldAlert className="w-3.5 h-3.5" />
-              مين بيكلم مين
+              <UserPlus className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">كلم مستخدم</span>
             </button>
+
             <button
-              onClick={() => setViewMode('live')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'live'
-                  ? 'bg-[#25d366] text-[#0b141a] shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
+              onClick={loadAdminConversations}
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#1f2c34] hover:bg-[#2a3942] text-[11px] sm:text-xs font-bold text-[#25d366] border border-[#2a3942] transition-colors shrink-0"
+              title="تحديث القائمة"
             >
-              <MessageCircle className="w-3.5 h-3.5" />
-              محادثاتي
-            </button>
-            <button
-              onClick={() => setViewMode('graph')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'graph'
-                  ? 'bg-[#128c7e] text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Network className="w-3.5 h-3.5" />
-              الشبكة
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">تحديث</span>
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setShowNewChatModal(true);
-              setUserPickerQuery('');
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25d366] hover:bg-[#1ebe57] text-xs font-black text-[#0b141a] transition-colors"
-            title="ابدأ محادثة مع مستخدم"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            كلم مستخدم
-          </button>
-
-          <button
-            onClick={loadAdminConversations}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1f2c34] hover:bg-[#2a3942] text-xs font-bold text-[#25d366] border border-[#2a3942] transition-colors"
-            title="تحديث القائمة"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            تحديث
-          </button>
         </header>
 
         {/* ========================================================================= */}
@@ -1681,29 +1686,29 @@ export default function AdminChatPage() {
         {viewMode === 'live' && (
           <div className="flex flex-1 overflow-hidden">
             {/* Left Sidebar - Conversations List */}
-            <aside className="w-80 md:w-96 flex flex-col bg-slate-900 border-l border-slate-800">
-              <div className="p-3 border-b border-slate-800 space-y-2">
+            <aside className={`${activeConversationId ? 'hidden md:flex' : 'flex'} w-full md:w-[26rem] flex-col bg-[#111b21] border-l border-[#1f2c34] shrink-0`}>
+              <div className="p-3 border-b border-[#1f2c34] space-y-2.5 bg-[#111b21]">
                 <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <Search className="w-4 h-4 absolute right-3 top-2.5 text-slate-400" />
+                    <Search className="w-4 h-4 absolute right-3 top-2.5 text-[#8696a0]" />
                     <input
                       type="text"
                       placeholder="بحث في المحادثات..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-3 pr-9 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                      className="w-full pl-3 pr-9 py-2 rounded-xl bg-[#202c33] border-0 text-xs text-[#e9edef] placeholder-[#8696a0] focus:outline-none focus:ring-1 focus:ring-[#25d366]/40"
                     />
                   </div>
                   <button
                     onClick={() => setShowCreateGroupModal(true)}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700"
+                    className="p-2 rounded-xl bg-[#202c33] hover:bg-[#2a3942] text-[#25d366]"
                     title="إنشاء مجموعة جديدة"
                   >
                     <Users className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setShowNewChatModal(true)}
-                    className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold"
+                    className="p-2 rounded-xl bg-[#25d366] hover:bg-[#1fb855] text-[#0b141a] font-bold"
                     title="محادثة جديدة"
                   >
                     <Plus className="w-4 h-4" />
@@ -1726,8 +1731,8 @@ export default function AdminChatPage() {
                     }}
                     className={`p-2 rounded-xl border ${
                       webPushEnabled
-                        ? 'bg-emerald-600/20 border-emerald-500/40 text-emerald-300'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                        ? 'bg-[#25d366]/15 border-[#25d366]/40 text-[#25d366]'
+                        : 'bg-[#202c33] hover:bg-[#2a3942] text-[#8696a0] border-transparent'
                     }`}
                     title={webPushEnabled ? 'إشعارات الويب مفعّلة' : 'تفعيل إشعارات الويب'}
                   >
@@ -1736,43 +1741,43 @@ export default function AdminChatPage() {
                 </div>
 
                 {/* Filter Tabs (CHAT-16) */}
-                <div className="flex items-center gap-1 pt-1 bg-slate-950/40 p-1 rounded-xl border border-slate-800/80">
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-[#0b141a]">
                   <button
                     onClick={() => setConvFilter('all')}
-                    className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
                       convFilter === 'all'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-[#25d366] text-[#0b141a] shadow-sm'
+                        : 'text-[#8696a0] hover:text-[#e9edef]'
                     }`}
                   >
                     الكل
                   </button>
                   <button
                     onClick={() => setConvFilter('unread')}
-                    className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
                       convFilter === 'unread'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-[#25d366] text-[#0b141a] shadow-sm'
+                        : 'text-[#8696a0] hover:text-[#e9edef]'
                     }`}
                   >
                     غير مقروءة
                   </button>
                   <button
                     onClick={() => setConvFilter('pinned')}
-                    className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
                       convFilter === 'pinned'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-[#25d366] text-[#0b141a] shadow-sm'
+                        : 'text-[#8696a0] hover:text-[#e9edef]'
                     }`}
                   >
                     المثبتة
                   </button>
                   <button
                     onClick={() => setConvFilter('archived')}
-                    className={`flex-1 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
                       convFilter === 'archived'
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'bg-[#25d366] text-[#0b141a] shadow-sm'
+                        : 'text-[#8696a0] hover:text-[#e9edef]'
                     }`}
                   >
                     المؤرشفة
@@ -1781,10 +1786,11 @@ export default function AdminChatPage() {
               </div>
 
               {/* Conversations Scrollable List */}
-              <div className="flex-1 overflow-y-auto divide-y divide-slate-800/40">
+              <div className="flex-1 overflow-y-auto">
                 {conversations.length === 0 ? (
-                  <div className="p-8 text-center text-slate-500 text-xs">
-                    لا توجد محادثات تطابق الفلتر المحدد.
+                  <div className="p-10 text-center text-[#8696a0] text-xs space-y-2">
+                    <MessageSquare className="w-10 h-10 mx-auto text-[#2a3942]" />
+                    <p className="font-bold">لا توجد محادثات تطابق الفلتر المحدد.</p>
                   </div>
                 ) : (
                   conversations
@@ -1802,7 +1808,8 @@ export default function AdminChatPage() {
                       const isOnline =
                         !!conv.isOtherUserOnline || (peerId ? onlineUserIds.has(peerId) : false);
                       const convTitle = getConversationDisplayName(conv);
-                      const convAvatar = conv.avatarUrl || conv.otherMember?.avatarUrl;
+                      const convAvatar = getConversationAvatarUrl(conv);
+                      const hasUnread = conv.unreadCount > 0;
                       const lastTime = conv.lastMessageAt
                         ? formatChatListTime(conv.lastMessageAt)
                         : typeof conv.lastMessage === 'object' && conv.lastMessage?.createdAt
@@ -1818,47 +1825,63 @@ export default function AdminChatPage() {
                         <div
                           key={conv.id}
                           onClick={() => setActiveConversationId(conv.id)}
-                          className={`flex items-center gap-3 p-3 cursor-pointer transition-colors group relative ${
-                            isActive ? 'bg-slate-800/80 border-r-4 border-emerald-500' : 'hover:bg-slate-800/40'
+                          className={`flex items-center gap-3 px-3 py-3 cursor-pointer transition-colors group relative border-b border-[#1f2c34]/50 ${
+                            isActive
+                              ? 'bg-[#2a3942]'
+                              : hasUnread
+                                ? 'bg-[#102a20]/40 hover:bg-[#143528]/50'
+                                : 'hover:bg-[#202c33]'
                           }`}
                         >
-                          <div className="relative shrink-0">
-                            {convAvatar ? (
-                              <img src={convAvatar} alt="" className="w-12 h-12 rounded-full object-cover" />
-                            ) : (
-                              <div className="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-300">
-                                {conv.type === ConversationType.Group ? <Users className="w-5 h-5" /> : (convTitle[0] || 'م')}
-                              </div>
-                            )}
-                            {isOnline && (
-                              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-slate-900 rounded-full" />
-                            )}
-                          </div>
+                          <ChatUserAvatar
+                            src={convAvatar}
+                            alt={convTitle}
+                            size="lg"
+                            isGroup={conv.type === ConversationType.Group}
+                            online={isOnline}
+                            ringClassName={isActive ? 'border-[#2a3942]' : 'border-[#111b21]'}
+                          />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-1.5 min-w-0">
-                                <h3 className="text-sm font-semibold text-slate-200 truncate">{convTitle}</h3>
-                                {conv.isPinned && <Pin className="w-3 h-3 text-emerald-400 shrink-0 fill-emerald-400" />}
-                                {conv.isMuted && <BellOff className="w-3 h-3 text-slate-500 shrink-0" />}
+                                <h3
+                                  className={`text-[13px] truncate ${
+                                    hasUnread ? 'font-black text-white' : 'font-bold text-[#e9edef]'
+                                  }`}
+                                >
+                                  {convTitle}
+                                </h3>
+                                {conv.isPinned && (
+                                  <Pin className="w-3 h-3 text-[#8696a0] shrink-0 fill-[#8696a0]" />
+                                )}
+                                {conv.isMuted && <BellOff className="w-3 h-3 text-[#667781] shrink-0" />}
                               </div>
-                              <span className="text-[10px] text-slate-400">
+                              <span
+                                className={`text-[10px] shrink-0 font-bold ${
+                                  hasUnread ? 'text-[#25d366]' : 'text-[#8696a0]'
+                                }`}
+                              >
                                 {lastTime}
                               </span>
                             </div>
-                            <div className="flex items-center justify-between mt-1 gap-2">
-                              <p className="text-xs text-slate-400 truncate max-w-[170px] flex items-center gap-1 min-w-0">
+                            <div className="flex items-center justify-between mt-0.5 gap-2">
+                              <p
+                                className={`text-[12px] truncate flex items-center gap-1 min-w-0 ${
+                                  hasUnread ? 'text-[#d1d7db] font-semibold' : 'text-[#8696a0]'
+                                }`}
+                              >
                                 {typingUsers[conv.id] ? (
-                                  <span className="text-emerald-400 italic">يكتب الآن...</span>
+                                  <span className="text-[#25d366] italic font-semibold">يكتب الآن...</span>
                                 ) : (
                                   <>
                                     {lastFromMe && (
                                       <span className="shrink-0 inline-flex items-center" title="حالة الرسالة">
                                         {isMessageRead(conv.lastMessageDeliveryStatus) ? (
-                                          <CheckCheck className="w-3.5 h-3.5 text-sky-400" />
+                                          <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
                                         ) : isMessageDelivered(conv.lastMessageDeliveryStatus) ? (
-                                          <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
+                                          <CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" />
                                         ) : (
-                                          <Check className="w-3.5 h-3.5 text-slate-400" />
+                                          <Check className="w-3.5 h-3.5 text-[#8696a0]" />
                                         )}
                                       </span>
                                     )}
@@ -1866,9 +1889,9 @@ export default function AdminChatPage() {
                                   </>
                                 )}
                               </p>
-                              {conv.unreadCount > 0 && (
-                                <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-[10px] font-bold text-slate-950 shrink-0">
-                                  {conv.unreadCount}
+                              {hasUnread && (
+                                <span className="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-[#25d366] text-[10px] font-black text-[#0b141a] shrink-0 grid place-items-center">
+                                  {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
                                 </span>
                               )}
                             </div>
@@ -1881,7 +1904,7 @@ export default function AdminChatPage() {
                                 e.stopPropagation();
                                 setActiveConvMenuId(activeConvMenuId === conv.id ? null : conv.id);
                               }}
-                              className="p-1 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="p-1.5 rounded-lg text-[#667781] hover:text-[#e9edef] hover:bg-[#111b21]/60 opacity-0 group-hover:opacity-100 transition-opacity"
                               title="خيارات المحادثة"
                             >
                               <MoreVertical className="w-4 h-4" />
@@ -1889,39 +1912,39 @@ export default function AdminChatPage() {
                             {activeConvMenuId === conv.id && (
                               <div
                                 onClick={(e) => e.stopPropagation()}
-                                className="absolute left-0 top-8 z-30 w-44 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl py-1 text-xs text-slate-200"
+                                className="absolute left-0 top-8 z-30 w-44 rounded-xl bg-[#233138] border border-[#3b4a54] shadow-2xl py-1 text-xs text-[#e9edef]"
                               >
                                 <button
                                   onClick={() => handleTogglePin(conv.id, conv.isPinned)}
-                                  className="w-full text-right px-3 py-2 hover:bg-slate-800 flex items-center gap-2"
+                                  className="w-full text-right px-3 py-2 hover:bg-[#182229] flex items-center gap-2"
                                 >
-                                  {conv.isPinned ? <PinOff className="w-3.5 h-3.5 text-amber-400" /> : <Pin className="w-3.5 h-3.5 text-emerald-400" />}
+                                  {conv.isPinned ? <PinOff className="w-3.5 h-3.5 text-amber-400" /> : <Pin className="w-3.5 h-3.5 text-[#25d366]" />}
                                   {conv.isPinned ? 'إلغاء التثبيت' : 'تثبيت المحادثة'}
                                 </button>
                                 <button
                                   onClick={() => handleToggleMute(conv.id, conv.isMuted)}
-                                  className="w-full text-right px-3 py-2 hover:bg-slate-800 flex items-center gap-2"
+                                  className="w-full text-right px-3 py-2 hover:bg-[#182229] flex items-center gap-2"
                                 >
-                                  {conv.isMuted ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5 text-amber-400" />}
+                                  {conv.isMuted ? <Volume2 className="w-3.5 h-3.5 text-[#25d366]" /> : <VolumeX className="w-3.5 h-3.5 text-amber-400" />}
                                   {conv.isMuted ? 'إلغاء الكتم' : 'كتم الإشعارات'}
                                 </button>
                                 <button
                                   onClick={() => handleToggleArchive(conv.id, conv.isArchived)}
-                                  className="w-full text-right px-3 py-2 hover:bg-slate-800 flex items-center gap-2"
+                                  className="w-full text-right px-3 py-2 hover:bg-[#182229] flex items-center gap-2"
                                 >
-                                  {conv.isArchived ? <ArchiveRestore className="w-3.5 h-3.5 text-emerald-400" /> : <Archive className="w-3.5 h-3.5 text-indigo-400" />}
+                                  {conv.isArchived ? <ArchiveRestore className="w-3.5 h-3.5 text-[#25d366]" /> : <Archive className="w-3.5 h-3.5 text-indigo-400" />}
                                   {conv.isArchived ? 'إلغاء الأرشفة' : 'أرشفة المحادثة'}
                                 </button>
                                 <button
                                   onClick={() => handleMarkAsUnread(conv.id)}
-                                  className="w-full text-right px-3 py-2 hover:bg-slate-800 flex items-center gap-2"
+                                  className="w-full text-right px-3 py-2 hover:bg-[#182229] flex items-center gap-2"
                                 >
                                   <Check className="w-3.5 h-3.5 text-cyan-400" />
                                   تحديد كغير مقروءة
                                 </button>
                                 <button
                                   onClick={() => handleClearConversation(conv.id)}
-                                  className="w-full text-right px-3 py-2 hover:bg-red-950/50 text-red-400 flex items-center gap-2 border-t border-slate-800"
+                                  className="w-full text-right px-3 py-2 hover:bg-red-950/50 text-red-400 flex items-center gap-2 border-t border-[#3b4a54]"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                   مسح الرسائل
@@ -1937,38 +1960,47 @@ export default function AdminChatPage() {
             </aside>
 
             {/* Right Chat Viewer */}
-            <main className="flex-1 flex flex-col bg-slate-950">
+            <main className={`${activeConversationId ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-[#0b141a] w-full min-w-0`}>
               {activeConversation && activeContact ? (
                 <>
                   {/* Chat Header */}
-                  <div className="flex items-center justify-between px-6 py-3.5 bg-slate-900/80 border-b border-slate-800">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        {activeContact.avatarUrl ? (
-                          <img src={activeContact.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center font-bold text-slate-300">
-                            {activeContact.name[0]}
-                          </div>
-                        )}
-                        {activeContact.isOnline && (
-                          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-900 rounded-full" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h2 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
-                            {activeContact.name}
-                            <BadgeCheck className="w-4 h-4 text-emerald-400" />
+                  <div className="flex items-center justify-between px-3 sm:px-5 py-2.5 sm:py-3 bg-[#202c33] border-b border-[#1f2c34] gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      {/* Mobile Back Button to return to list */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveConversationId(null)}
+                        className="md:hidden p-1.5 -mr-1 rounded-xl text-[#e9edef] hover:text-white hover:bg-[#2a3942] active:scale-95 transition shrink-0"
+                        title="رجوع للمحادثات"
+                        aria-label="رجوع للمحادثات"
+                      >
+                        <ChevronRight className="w-5 h-5 rtl:rotate-0" />
+                      </button>
+
+                      <ChatUserAvatar
+                        src={activeContact.avatarUrl}
+                        alt={activeContact.name}
+                        size="md"
+                        isGroup={activeContact.isGroup}
+                        online={activeContact.isOnline}
+                        ringClassName="border-[#202c33]"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1 sm:gap-1.5">
+                          <h2 className="text-xs sm:text-sm font-bold text-[#e9edef] flex items-center gap-1 truncate">
+                            <span className="truncate">{activeContact.name}</span>
+                            {activeContact.isVerified && (
+                              <BadgeCheck className="w-3.5 h-3.5 text-[#53bdeb] shrink-0" />
+                            )}
                           </h2>
-                          {activeConversation.isPinned && <Pin className="w-3 h-3 text-emerald-400 fill-emerald-400" />}
-                          {activeConversation.isMuted && <BellOff className="w-3 h-3 text-slate-500" />}
+                          {activeConversation.isPinned && <Pin className="w-3 h-3 text-[#8696a0] fill-[#8696a0] shrink-0" />}
+                          {activeConversation.isMuted && <BellOff className="w-3 h-3 text-[#667781] shrink-0" />}
                         </div>
-                        <p className="text-[11px] text-slate-400">
+                        <p className="text-[10px] sm:text-[11px] text-[#8696a0] truncate">
                           {typingUsers[activeConversationId!] ? (
-                            <span className="text-emerald-400 font-medium">يكتب الآن...</span>
+                            <span className="text-[#25d366] font-medium">يكتب الآن...</span>
                           ) : activeContact.isOnline ? (
-                            <span className="text-emerald-400">متصل الآن</span>
+                            <span className="text-[#25d366]">متصل الآن</span>
                           ) : (
                             formatLastSeenArabic(activeContact.lastSeen)
                           )}
@@ -1977,17 +2009,17 @@ export default function AdminChatPage() {
                     </div>
 
                     {/* Calling & Actions */}
-                    <div className="flex items-center gap-2 relative">
+                    <div className="flex items-center gap-1.5 sm:gap-2 relative">
                       <button
                         onClick={() => handleStartCall(CallType.Voice)}
-                        className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 transition-colors"
+                        className="p-2 sm:p-2.5 rounded-xl bg-[#2a3942] hover:bg-[#3b4a54] text-[#25d366] transition-colors"
                         title="مكالمة صوتية"
                       >
                         <Phone className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleStartCall(CallType.Video)}
-                        className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-400 transition-colors"
+                        className="p-2 sm:p-2.5 rounded-xl bg-[#2a3942] hover:bg-[#3b4a54] text-[#53bdeb] transition-colors"
                         title="مكالمة فيديو"
                       >
                         <Video className="w-4 h-4" />
@@ -1997,7 +2029,7 @@ export default function AdminChatPage() {
                       <div className="relative">
                         <button
                           onClick={() => setShowHeaderMenu(!showHeaderMenu)}
-                          className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                          className="p-2 sm:p-2.5 rounded-xl bg-[#2a3942] hover:bg-[#3b4a54] text-[#e9edef] transition-colors"
                           title="خيارات الدردشة"
                         >
                           <MoreVertical className="w-4 h-4" />
@@ -2344,7 +2376,7 @@ export default function AdminChatPage() {
         {viewMode === 'monitoring' && (
           <div className="flex flex-1 overflow-hidden bg-[#0b141a]">
             {/* WhatsApp-style conversation list */}
-            <aside className="w-full max-w-md flex flex-col bg-[#111b21] border-l border-[#1f2c34]">
+            <aside className={`${selectedAdminConv ? 'hidden md:flex' : 'flex'} w-full md:max-w-md flex-col bg-[#111b21] border-l border-[#1f2c34] shrink-0`}>
               <div className="p-3 border-b border-[#1f2c34] space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-black text-[#e9edef] flex items-center gap-2">
@@ -2404,27 +2436,19 @@ export default function AdminChatPage() {
                         <div className="relative shrink-0 w-12 h-12">
                           {avatars.length >= 2 ? (
                             <>
-                              <div className="absolute top-0 right-0 w-8 h-8 rounded-full overflow-hidden border-2 border-[#111b21] bg-[#25d366] text-[#0b141a] text-[11px] font-black grid place-items-center">
-                                {avatars[0].avatarUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={avatars[0].avatarUrl} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                  avatars[0].name?.charAt(0) || '?'
-                                )}
+                              <div className="absolute top-0 right-0 rounded-full overflow-hidden border-2 border-[#111b21]">
+                                <ChatUserAvatar src={avatars[0].avatarUrl} size="sm" />
                               </div>
-                              <div className="absolute bottom-0 left-0 w-8 h-8 rounded-full overflow-hidden border-2 border-[#111b21] bg-[#128c7e] text-white text-[11px] font-black grid place-items-center">
-                                {avatars[1].avatarUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={avatars[1].avatarUrl} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                  avatars[1].name?.charAt(0) || '?'
-                                )}
+                              <div className="absolute bottom-0 left-0 rounded-full overflow-hidden border-2 border-[#111b21]">
+                                <ChatUserAvatar src={avatars[1].avatarUrl} size="sm" />
                               </div>
                             </>
                           ) : (
-                            <div className="w-12 h-12 rounded-full bg-[#25d366] text-[#0b141a] font-black grid place-items-center text-lg">
-                              {people.charAt(0)}
-                            </div>
+                            <ChatUserAvatar
+                              src={avatars[0]?.avatarUrl || conv.avatarUrl}
+                              size="lg"
+                              isGroup={conv.type === ConversationType.Group}
+                            />
                           )}
                           {hasUnread && (
                             <span className="absolute -bottom-0.5 -left-0.5 min-w-[1.15rem] h-[1.15rem] px-1 rounded-full bg-[#25d366] text-[#0b141a] text-[10px] font-black grid place-items-center shadow-[0_0_0_2px_#111b21]">
@@ -2485,7 +2509,7 @@ export default function AdminChatPage() {
 
             {/* Chat thread — silent inspect */}
             <main
-              className="flex-1 flex flex-col"
+              className={`${selectedAdminConv ? 'flex' : 'hidden md:flex'} flex-1 flex-col w-full min-w-0`}
               style={{
                 backgroundColor: '#0b141a',
                 backgroundImage:
@@ -2494,16 +2518,28 @@ export default function AdminChatPage() {
             >
               {selectedAdminConv ? (
                 <>
-                  <div className="bg-[#202c33] border-b border-[#1f2c34] px-4 py-3 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-black text-[#e9edef] truncate">
-                        {getAdminConversationPeople(selectedAdminConv)}
-                      </h3>
-                      <p className="text-[11px] text-[#25d366] font-bold mt-0.5">
-                        معاينة صامتة · لن يحصل Seen لأي طرف
-                      </p>
+                  <div className="bg-[#202c33] border-b border-[#1f2c34] px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {/* Mobile Back Button for monitoring */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAdminConv(null)}
+                        className="md:hidden p-1.5 -mr-1 rounded-xl text-slate-300 hover:text-white hover:bg-[#2a3942] active:scale-95 transition shrink-0"
+                        title="رجوع للمحادثات"
+                        aria-label="رجوع للمحادثات"
+                      >
+                        <ChevronRight className="w-5 h-5 rtl:rotate-0" />
+                      </button>
+                      <div className="min-w-0">
+                        <h3 className="text-xs sm:text-sm font-black text-[#e9edef] truncate">
+                          {getAdminConversationPeople(selectedAdminConv)}
+                        </h3>
+                        <p className="text-[10px] sm:text-[11px] text-[#25d366] font-bold mt-0.5 truncate">
+                          معاينة صامتة · لن يحصل Seen لأي طرف
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-[10px] px-2 py-1 rounded-full bg-[#25d366]/10 text-[#25d366] border border-[#25d366]/25 font-bold shrink-0">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#25d366]/10 text-[#25d366] border border-[#25d366]/25 font-bold shrink-0">
                       مراقبة فقط
                     </span>
                   </div>
@@ -3040,9 +3076,12 @@ export default function AdminChatPage() {
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0">
-                          {convTitle[0] || 'م'}
-                        </div>
+                        <ChatUserAvatar
+                          src={getConversationAvatarUrl(conv)}
+                          alt={convTitle}
+                          size="sm"
+                          isGroup={conv.type === ConversationType.Group}
+                        />
                         <span className="text-xs font-semibold text-slate-200 truncate">{convTitle}</span>
                       </div>
                       <input
@@ -3579,17 +3618,8 @@ export default function AdminChatPage() {
                     onClick={() => handleCreateDirectChat(u.id)}
                     className="w-full flex items-center gap-3 px-4 py-3 text-right hover:bg-[#202c33] border-b border-[#1f2c34]/50 disabled:opacity-40 transition-colors"
                   >
-                    <div className="w-10 h-10 rounded-full bg-[#25d366]/20 text-[#25d366] font-black grid place-items-center overflow-hidden shrink-0">
-                      {u.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={resolveMediaUrl(u.avatarUrl)}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        u.name?.charAt(0) || '?'
-                      )}
+                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
+                      <ChatUserAvatar src={u.avatarUrl} alt={u.name || ''} size="md" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-bold text-[#e9edef] truncate flex items-center gap-1.5">
