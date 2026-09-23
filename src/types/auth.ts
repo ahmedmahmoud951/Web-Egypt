@@ -5,12 +5,25 @@ export interface UserDto {
   firstName?: string;
   lastName?: string;
   username?: string;
-  email?: string;
+  bio?: string;
+  avatarUrl?: string;
+  isVerified?: boolean;
+  verificationType?: string;
   isPhoneVerified: boolean;
   role: 'User' | 'Admin';
   isBlocked: boolean;
   isSuperAdmin?: boolean;
   createdAt: string;
+  followersCount?: number;
+  followingCount?: number;
+  postsCount?: number;
+  reelsCount?: number;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 export interface AuthResponseDto {

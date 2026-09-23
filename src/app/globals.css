@@ -1453,14 +1453,13 @@ button.admin-btn-primary {
   position: relative;
   overflow: hidden;
   border-radius: 1.35rem;
-  padding: 1rem 1rem 0.95rem;
-  border: 1px solid rgba(31, 107, 122, 0.16);
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.97), rgba(236, 246, 250, 0.92));
+  padding: 1.1rem 1.1rem 1rem;
+  border: 1px solid rgba(94, 196, 212, 0.25);
+  background: linear-gradient(155deg, rgba(26, 40, 56, 0.98) 0%, rgba(18, 28, 42, 0.99) 100%);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 16px 32px -24px rgba(15, 27, 45, 0.5);
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 16px 32px -24px rgba(0, 0, 0, 0.7);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 
 .verif-active-card::before {
@@ -1474,9 +1473,10 @@ button.admin-btn-primary {
 
 .verif-active-card:hover {
   transform: translateY(-3px);
+  border-color: rgba(196, 163, 90, 0.5);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 22px 36px -20px rgba(31, 107, 122, 0.45);
+    0 1px 0 rgba(255, 255, 255, 0.12) inset,
+    0 22px 36px -20px rgba(0, 0, 0, 0.8);
 }
 
 .verif-active-top {
@@ -1510,7 +1510,7 @@ button.admin-btn-primary {
 .verif-active-identity .name {
   font-weight: 900;
   font-size: 0.98rem;
-  color: var(--egypt-navy);
+  color: #F8FBFF !important;
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1520,9 +1520,9 @@ button.admin-btn-primary {
 .verif-active-identity .phone {
   margin-top: 0.15rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: var(--egypt-muted);
+  color: #94A3B8;
   direction: ltr;
   text-align: right;
 }
@@ -1553,13 +1553,13 @@ button.admin-btn-primary {
   display: block;
   font-size: 0.95rem;
   font-weight: 900;
-  color: var(--egypt-navy);
+  color: #F8FBFF;
 }
 
 .verif-day-ring .label span {
   font-size: 0.55rem;
   font-weight: 800;
-  color: var(--egypt-muted);
+  color: #94A3B8;
   text-transform: uppercase;
 }
 
@@ -1582,21 +1582,21 @@ button.admin-btn-primary {
 }
 
 .verif-chip-gold {
-  color: #6b5214;
-  background: linear-gradient(135deg, rgba(232, 213, 163, 0.55), rgba(196, 163, 90, 0.28));
+  color: #F6E5B8;
+  background: linear-gradient(135deg, rgba(196, 163, 90, 0.3), rgba(196, 163, 90, 0.15));
   border-color: rgba(196, 163, 90, 0.45);
 }
 
 .verif-chip-live {
-  color: #0f766e;
-  background: rgba(15, 118, 110, 0.1);
-  border-color: rgba(15, 118, 110, 0.28);
+  color: #5EEAD4;
+  background: rgba(15, 118, 110, 0.35);
+  border-color: rgba(94, 234, 212, 0.4);
 }
 
 .verif-chip-free {
-  color: #7a3e0c;
-  background: rgba(180, 83, 9, 0.1);
-  border-color: rgba(180, 83, 9, 0.28);
+  color: #FDBA74;
+  background: rgba(180, 83, 9, 0.3);
+  border-color: rgba(253, 186, 116, 0.4);
 }
 
 .verif-meta {
@@ -1604,14 +1604,14 @@ button.admin-btn-primary {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem 1rem;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: var(--egypt-muted);
+  color: #94A3B8;
 }
 
 .verif-meta em {
   font-style: normal;
-  color: var(--egypt-nile);
+  color: #5EEAD4;
   font-weight: 800;
 }
 
@@ -1621,19 +1621,24 @@ button.admin-btn-primary {
   gap: 0.45rem;
   margin-top: 0.85rem;
   padding-top: 0.75rem;
-  border-top: 1px dashed rgba(31, 107, 122, 0.18);
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
 }
 
 .verif-btn-docs {
-  background: linear-gradient(135deg, rgba(31, 107, 122, 0.12), rgba(45, 138, 156, 0.18));
-  color: #14515c;
-  border: 1px solid rgba(31, 107, 122, 0.28);
+  background: linear-gradient(135deg, rgba(31, 107, 122, 0.35), rgba(45, 138, 156, 0.45));
+  color: #E0F2FE;
+  border: 1px solid rgba(94, 196, 212, 0.4);
+}
+
+.verif-btn-docs:hover {
+  background: linear-gradient(135deg, rgba(31, 107, 122, 0.55), rgba(45, 138, 156, 0.65));
+  color: #FFFFFF;
 }
 
 .verif-btn-revoke {
   background: linear-gradient(135deg, #c23a4d, #9e1b2c);
   color: #fff;
-  border: 1px solid rgba(158, 27, 44, 0.35);
+  border: 1px solid rgba(158, 27, 44, 0.5);
   box-shadow: 0 10px 18px -12px rgba(158, 27, 44, 0.75);
 }
 
@@ -1641,9 +1646,9 @@ button.admin-btn-primary {
   padding: 2.25rem 1rem;
   text-align: center;
   border-radius: 1.15rem;
-  border: 1px dashed rgba(31, 107, 122, 0.28);
-  background: rgba(255, 255, 255, 0.55);
-  color: var(--egypt-muted);
+  border: 1px dashed rgba(94, 196, 212, 0.3);
+  background: rgba(18, 28, 42, 0.75);
+  color: #94A3B8;
   font-size: 0.85rem;
   font-weight: 700;
 }
@@ -1652,10 +1657,10 @@ button.admin-btn-primary {
   position: relative;
   overflow: hidden;
   border-radius: 1.4rem;
-  padding: 1.25rem 1.2rem;
-  border: 1px solid rgba(31, 107, 122, 0.14);
-  background: linear-gradient(160deg, #fff, #f3f8fb);
-  box-shadow: 0 18px 34px -26px rgba(15, 27, 45, 0.4);
+  padding: 1.35rem 1.3rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(160deg, #182638, #111B28);
+  box-shadow: 0 18px 34px -26px rgba(0, 0, 0, 0.7);
 }
 
 .verif-ops-card[data-tone="grant"]::before {
@@ -1666,7 +1671,7 @@ button.admin-btn-primary {
   width: 10rem;
   height: 10rem;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(196, 163, 90, 0.28), transparent 70%);
+  background: radial-gradient(circle, rgba(196, 163, 90, 0.22), transparent 70%);
   pointer-events: none;
 }
 
@@ -1678,7 +1683,7 @@ button.admin-btn-primary {
   width: 10rem;
   height: 10rem;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(158, 27, 44, 0.18), transparent 70%);
+  background: radial-gradient(circle, rgba(158, 27, 44, 0.22), transparent 70%);
   pointer-events: none;
 }
 
@@ -1712,13 +1717,13 @@ button.admin-btn-primary {
   margin: 0;
   font-size: 1rem;
   font-weight: 900;
-  color: var(--egypt-navy);
+  color: #F8FBFF !important;
 }
 
 .verif-ops-card p.lead {
   margin: 0 0 1rem;
-  font-size: 0.72rem;
-  color: var(--egypt-muted);
+  font-size: 0.75rem;
+  color: #94A3B8 !important;
   line-height: 1.45;
 }
 

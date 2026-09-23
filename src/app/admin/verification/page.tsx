@@ -986,48 +986,50 @@ export default function AdminVerificationPage() {
               {typesData?.map((t) => (
                 <div
                   key={t.id}
-                  className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                  className="admin-card rounded-2xl p-5 border border-white/15 text-white transition flex flex-col justify-between shadow-lg hover:border-[#C4A35A]/50"
                 >
                   <div>
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-xl bg-[#C4A35A]/15 text-[#C4A35A] flex items-center justify-center font-bold">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-[#C4A35A]/20 text-[#C4A35A] flex items-center justify-center font-bold shadow-sm">
                           <BadgeCheck className="w-6 h-6" />
                         </div>
                         <div>
-                          <h3 className="font-bold text-gray-900">{t.name}</h3>
-                          <div className="text-xs text-[#1F6B7A] font-semibold">شارة: {t.badgeName}</div>
+                          <h3 className="font-bold text-white text-base">{t.name}</h3>
+                          <div className="text-xs text-cyan-400 font-semibold">شارة: {t.badgeName}</div>
                         </div>
                       </div>
 
                       <span
-                        className={`px-2 py-0.5 text-xs rounded-full font-bold ${
-                          t.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                        className={`px-2.5 py-0.5 text-xs rounded-full font-bold ${
+                          t.isActive
+                            ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/40'
+                            : 'bg-white/10 text-gray-400 border border-white/10'
                         }`}
                       >
                         {t.isActive ? 'مفعل' : 'معطل'}
                       </span>
                     </div>
 
-                    <p className="text-xs text-gray-600 mt-3 line-clamp-2">{t.description || 'لا يوجد وصف متاح لهذا النوع.'}</p>
+                    <p className="text-xs text-gray-300 mt-3 line-clamp-2 leading-relaxed">{t.description || 'لا يوجد وصف متاح لهذا النوع.'}</p>
 
-                    <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs text-gray-600">
+                    <div className="mt-4 pt-3 border-t border-white/10 grid grid-cols-2 gap-2 text-xs text-gray-300">
                       <div>
-                        الوثائق: <span className="font-bold">{t.requiresDocuments ? 'مطلوبة 📄' : 'اختيارية'}</span>
+                        الوثائق: <span className="font-bold text-white">{t.requiresDocuments ? 'مطلوبة 📄' : 'اختيارية'}</span>
                       </div>
                       <div>
-                        التقديم من التطبيق: <span className="font-bold">{t.allowUserRequest ? 'متاح ✅' : 'إدارة فقط 🔒'}</span>
+                        التقديم من التطبيق: <span className="font-bold text-white">{t.allowUserRequest ? 'متاح ✅' : 'إدارة فقط 🔒'}</span>
                       </div>
                       <div>
-                        الخطط الفعالة: <span className="font-bold">{t.activePlansCount} باقة</span>
+                        الخطط الفعالة: <span className="font-bold text-cyan-400">{t.activePlansCount} باقة</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between">
                     <button
                       onClick={() => verificationAdminApi.toggleTypeStatus(t.id, !t.isActive).then(() => refetchTypes())}
-                      className="text-xs text-gray-600 hover:text-gray-900 font-semibold underline"
+                      className="text-xs text-gray-300 hover:text-white font-semibold underline transition"
                     >
                       {t.isActive ? 'تعطيل النوع' : 'تفعيل النوع'}
                     </button>
@@ -1047,7 +1049,7 @@ export default function AdminVerificationPage() {
                           });
                           setTypeModalOpen(true);
                         }}
-                        className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-[#1F6B7A] transition"
+                        className="p-1.5 rounded-lg text-gray-400 hover:bg-white/10 hover:text-cyan-400 transition"
                         title="تعديل"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -1062,7 +1064,7 @@ export default function AdminVerificationPage() {
                             });
                           }
                         }}
-                        className="p-1.5 rounded-lg text-gray-500 hover:bg-rose-50 hover:text-rose-600 transition"
+                        className="p-1.5 rounded-lg text-gray-400 hover:bg-rose-950/60 hover:text-rose-400 transition"
                         title="حذف"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1112,12 +1114,14 @@ export default function AdminVerificationPage() {
               {plansData?.map((p) => (
                 <div
                   key={p.id}
-                  className={`bg-white rounded-2xl border p-5 shadow-sm hover:shadow-md transition relative flex flex-col justify-between ${
-                    p.isFree ? 'border-[#C4A35A]/50 bg-gradient-to-b from-[#C4A35A]/5 to-white' : 'border-gray-200'
+                  className={`admin-card rounded-2xl p-5 border text-white transition relative flex flex-col justify-between shadow-lg ${
+                    p.isFree
+                      ? 'border-[#C4A35A]/60 bg-gradient-to-b from-[#C4A35A]/15 to-[#162232]'
+                      : 'border-white/15'
                   }`}
                 >
                   {p.isFree && (
-                    <div className="absolute -top-3 left-4 px-3 py-0.5 rounded-full bg-[#C4A35A] text-[#F2F6FA] text-xs font-black shadow flex items-center gap-1">
+                    <div className="absolute -top-3 left-4 px-3 py-0.5 rounded-full bg-[#C4A35A] text-[#0F1B2D] text-xs font-black shadow-lg flex items-center gap-1">
                       <Gift className="w-3.5 h-3.5" />
                       عرض مجاني
                     </div>
@@ -1126,12 +1130,14 @@ export default function AdminVerificationPage() {
                   <div>
                     <div className="flex items-start justify-between">
                       <div>
-                        <span className="text-xs font-bold text-[#1F6B7A]">{p.verificationTypeName || 'نوع عام'}</span>
-                        <h3 className="text-lg font-bold text-gray-900 mt-0.5">{p.name}</h3>
+                        <span className="text-xs font-bold text-cyan-400">{p.verificationTypeName || 'نوع عام'}</span>
+                        <h3 className="text-lg font-bold text-white mt-0.5">{p.name}</h3>
                       </div>
                       <span
-                        className={`px-2 py-0.5 text-xs rounded-full font-bold ${
-                          p.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                        className={`px-2.5 py-0.5 text-xs rounded-full font-bold ${
+                          p.isActive
+                            ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/40'
+                            : 'bg-white/10 text-gray-400 border border-white/10'
                         }`}
                       >
                         {p.isActive ? 'نشطة' : 'معطلة'}
@@ -1139,18 +1145,18 @@ export default function AdminVerificationPage() {
                     </div>
 
                     <div className="my-4 flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-gray-900">{p.isFree ? 'مجاناً' : p.price}</span>
-                      {!p.isFree && <span className="text-xs text-gray-500 font-bold">{p.currency}</span>}
+                      <span className="text-3xl font-black text-white">{p.isFree ? 'مجاناً' : p.price}</span>
+                      {!p.isFree && <span className="text-xs text-gray-300 font-bold">{p.currency}</span>}
                       <span className="text-xs text-gray-400 mr-2">/ لمدة {p.durationDays} يوم</span>
                     </div>
 
-                    <p className="text-xs text-gray-600 line-clamp-2">{p.description || 'باقة توثيق معتمدة.'}</p>
+                    <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed">{p.description || 'باقة توثيق معتمدة.'}</p>
                   </div>
 
-                  <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between">
                     <button
                       onClick={() => verificationAdminApi.togglePlanStatus(p.id, !p.isActive).then(() => refetchPlans())}
-                      className="text-xs text-gray-600 hover:text-gray-900 font-semibold underline"
+                      className="text-xs text-gray-300 hover:text-white font-semibold underline transition"
                     >
                       {p.isActive ? 'تعطيل الباقة' : 'تفعيل الباقة'}
                     </button>
@@ -1172,7 +1178,7 @@ export default function AdminVerificationPage() {
                           });
                           setPlanModalOpen(true);
                         }}
-                        className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-[#1F6B7A] transition"
+                        className="p-1.5 rounded-lg text-gray-400 hover:bg-white/10 hover:text-cyan-400 transition"
                         title="تعديل السعر أو المدة"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -1187,7 +1193,7 @@ export default function AdminVerificationPage() {
                             });
                           }
                         }}
-                        className="p-1.5 rounded-lg text-gray-500 hover:bg-rose-50 hover:text-rose-600 transition"
+                        className="p-1.5 rounded-lg text-gray-400 hover:bg-rose-950/60 hover:text-rose-400 transition"
                         title="حذف الباقة"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1392,7 +1398,7 @@ export default function AdminVerificationPage() {
 
               <div className="space-y-4">
                 <div className="relative">
-                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                  <label className="block text-xs font-bold text-gray-200 mb-1">
                     اسم المستخدم أو رقم الموبايل (Username or Phone Number)
                   </label>
                   <div className="relative">
@@ -1404,14 +1410,14 @@ export default function AdminVerificationPage() {
                         setGrantUserIdentifier(e.target.value);
                         setGrantMatchedUser(null);
                       }}
-                      className="w-full px-3.5 py-2.5 pl-8 text-sm rounded-lg border border-gray-300 font-medium focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                      className="w-full px-3.5 py-2.5 pl-8 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 font-medium focus:ring-2 focus:ring-[#1F6B7A] outline-none"
                     />
                     <User className="w-4 h-4 text-gray-400 absolute left-2.5 top-3" />
                   </div>
 
                   {/* Live Suggestions Dropdown */}
                   {grantSuggestions && grantSuggestions.length > 0 && !grantMatchedUser && (
-                    <div className="mt-1.5 p-1.5 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto space-y-1 z-20 relative">
+                    <div className="mt-1.5 p-1.5 bg-[#0F1724] border border-white/20 rounded-xl shadow-2xl max-h-48 overflow-y-auto space-y-1 z-20 relative">
                       <div className="text-[11px] font-bold text-gray-400 px-2 py-0.5">اختر المستخدم من نتائج البحث:</div>
                       {grantSuggestions.map((u) => (
                         <div
@@ -1420,19 +1426,19 @@ export default function AdminVerificationPage() {
                             setGrantUserIdentifier(u.phoneNumber || u.username || u.id);
                             setGrantMatchedUser(u);
                           }}
-                          className="p-2 rounded-lg hover:bg-[#1F6B7A]/5 border border-transparent hover:border-[#1F6B7A]/20 cursor-pointer transition flex items-center justify-between text-xs"
+                          className="p-2 rounded-lg hover:bg-white/10 border border-transparent hover:border-white/10 cursor-pointer transition flex items-center justify-between text-xs"
                         >
                           <div>
-                            <span className="font-bold text-gray-900">{u.name}</span>
+                            <span className="font-bold text-white">{u.name}</span>
                             {u.username && <span className="text-gray-400 mr-1.5">(@{u.username})</span>}
-                            <span className="text-gray-500 mr-2 font-mono">📱 {u.phoneNumber}</span>
+                            <span className="text-cyan-400 mr-2 font-mono">📱 {u.phoneNumber}</span>
                           </div>
                           {u.hasActiveVerification ? (
-                            <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                            <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-950/80 text-emerald-300 font-bold border border-emerald-500/40">
                               موثق: {u.badgeName}
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 text-[10px] rounded-full bg-gray-100 text-gray-600 font-bold">
+                            <span className="px-2 py-0.5 text-[10px] rounded-full bg-white/10 text-gray-400 font-bold">
                               غير موثق
                             </span>
                           )}
@@ -1442,16 +1448,16 @@ export default function AdminVerificationPage() {
                   )}
 
                   {grantMatchedUser && (
-                    <div className="mt-2 p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 flex items-center justify-between text-xs text-emerald-900">
+                    <div className="mt-2 p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-between text-xs text-emerald-200">
                       <div>
-                        تم تحديد: <span className="font-black">{grantMatchedUser.name}</span> ({grantMatchedUser.phoneNumber})
+                        تم تحديد: <span className="font-black text-white">{grantMatchedUser.name}</span> ({grantMatchedUser.phoneNumber})
                       </div>
                       <button
                         onClick={() => {
                           setGrantMatchedUser(null);
                           setGrantUserIdentifier('');
                         }}
-                        className="text-emerald-700 hover:text-emerald-900 font-bold"
+                        className="text-emerald-400 hover:text-emerald-300 font-bold"
                       >
                         تغيير
                       </button>
@@ -1461,15 +1467,15 @@ export default function AdminVerificationPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">نوع وشارة التوثيق</label>
+                    <label className="block text-xs font-bold text-gray-200 mb-1">نوع وشارة التوثيق</label>
                     <select
                       value={grantTypeId}
                       onChange={(e) => setGrantTypeId(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                      className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-[#1F6B7A] outline-none"
                     >
-                      <option value="">-- اختر نوع التوثيق --</option>
+                      <option value="" className="bg-[#0F1724] text-gray-400">-- اختر نوع التوثيق --</option>
                       {typesData?.map((t) => (
-                        <option key={t.id} value={t.id}>
+                        <option key={t.id} value={t.id} className="bg-[#0F1724] text-white">
                           {t.name} ({t.badgeName})
                         </option>
                       ))}
@@ -1477,13 +1483,13 @@ export default function AdminVerificationPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">المدة الممنوحة (بالأيام)</label>
+                    <label className="block text-xs font-bold text-gray-200 mb-1">المدة الممنوحة (بالأيام)</label>
                     <input
                       type="number"
                       min={1}
                       value={grantDays}
                       onChange={(e) => setGrantDays(parseInt(e.target.value) || 30)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                      className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold text-center"
                     />
                   </div>
                 </div>
@@ -1494,21 +1500,21 @@ export default function AdminVerificationPage() {
                     id="grantIsFree"
                     checked={grantIsFree}
                     onChange={(e) => setGrantIsFree(e.target.checked)}
-                    className="rounded text-[#1F6B7A] focus:ring-[#1F6B7A]"
+                    className="rounded text-[#1F6B7A] focus:ring-[#1F6B7A] bg-[#0F1724] border-white/20"
                   />
-                  <label htmlFor="grantIsFree" className="text-xs font-bold text-gray-800 cursor-pointer">
+                  <label htmlFor="grantIsFree" className="text-xs font-bold text-gray-200 cursor-pointer">
                     منح مجاني بالكامل (بدون رسوم أو مدفوعات)
                   </label>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">ملاحظات الإدارة وسبب المنح</label>
+                  <label className="block text-xs font-bold text-gray-200 mb-1">ملاحظات الإدارة وسبب المنح</label>
                   <textarea
                     rows={2}
                     placeholder="شخصية عامة، دعوة شرفية، مراسل رسمي..."
                     value={grantNotes}
                     onChange={(e) => setGrantNotes(e.target.value)}
-                    className="w-full px-3.5 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                    className="w-full px-3.5 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
                   />
                 </div>
 
@@ -1537,7 +1543,7 @@ export default function AdminVerificationPage() {
 
                 <div className="space-y-4">
                   <div className="relative">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                    <label className="block text-xs font-bold text-gray-200 mb-1">
                       اسم المستخدم أو رقم الموبايل أو المعرف
                     </label>
                     <div className="relative">
@@ -1549,14 +1555,14 @@ export default function AdminVerificationPage() {
                           setActionIdentifier(e.target.value);
                           setActionMatchedUser(null);
                         }}
-                        className="w-full px-3.5 py-2.5 pl-8 text-sm rounded-lg border border-gray-300 font-medium focus:ring-2 focus:ring-rose-500 outline-none"
+                        className="w-full px-3.5 py-2.5 pl-8 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 font-medium focus:ring-2 focus:ring-rose-500 outline-none"
                       />
                       <Phone className="w-4 h-4 text-gray-400 absolute left-2.5 top-3" />
                     </div>
 
                     {/* Suggestions for Revoke / Extend */}
                     {actionSuggestions && actionSuggestions.length > 0 && !actionMatchedUser && (
-                      <div className="mt-1.5 p-1.5 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto space-y-1 z-20 relative">
+                      <div className="mt-1.5 p-1.5 bg-[#0F1724] border border-white/20 rounded-xl shadow-2xl max-h-48 overflow-y-auto space-y-1 z-20 relative">
                         <div className="text-[11px] font-bold text-gray-400 px-2 py-0.5">المستخدمون المطابقون:</div>
                         {actionSuggestions.map((u) => (
                           <div
@@ -1565,19 +1571,19 @@ export default function AdminVerificationPage() {
                               setActionIdentifier(u.phoneNumber || u.username || u.id);
                               setActionMatchedUser(u);
                             }}
-                            className="p-2 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-200 cursor-pointer transition flex items-center justify-between text-xs"
+                            className="p-2 rounded-lg hover:bg-rose-950/40 border border-transparent hover:border-rose-500/30 cursor-pointer transition flex items-center justify-between text-xs"
                           >
                             <div>
-                              <span className="font-bold text-gray-900">{u.name}</span>
+                              <span className="font-bold text-white">{u.name}</span>
                               {u.username && <span className="text-gray-400 mr-1.5">(@{u.username})</span>}
-                              <span className="text-gray-500 mr-2 font-mono">📱 {u.phoneNumber}</span>
+                              <span className="text-cyan-400 mr-2 font-mono">📱 {u.phoneNumber}</span>
                             </div>
                             {u.hasActiveVerification ? (
-                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-950/80 text-emerald-300 font-bold border border-emerald-500/40">
                                 سارٍ: {u.badgeName} ({u.daysRemaining} يوم)
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-gray-100 text-gray-500 font-medium">
+                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-white/10 text-gray-400 font-medium">
                                 لا يوجد توثيق سارٍ
                               </span>
                             )}
@@ -1587,9 +1593,9 @@ export default function AdminVerificationPage() {
                     )}
 
                     {actionMatchedUser && (
-                      <div className="mt-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-between text-xs text-rose-900">
+                      <div className="mt-2 p-2.5 rounded-lg bg-rose-950/60 border border-rose-500/40 flex items-center justify-between text-xs text-rose-200">
                         <div>
-                          الحساب المحدد: <span className="font-black">{actionMatchedUser.name}</span> (
+                          الحساب المحدد: <span className="font-black text-white">{actionMatchedUser.name}</span> (
                           {actionMatchedUser.hasActiveVerification ? `شارة: ${actionMatchedUser.badgeName}` : 'غير موثق'}
                           )
                         </div>
@@ -1598,7 +1604,7 @@ export default function AdminVerificationPage() {
                             setActionMatchedUser(null);
                             setActionIdentifier('');
                           }}
-                          className="text-rose-700 hover:text-rose-900 font-bold"
+                          className="text-rose-400 hover:text-rose-300 font-bold"
                         >
                           تغيير
                         </button>
@@ -1607,13 +1613,13 @@ export default function AdminVerificationPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">السبب / الملاحظات (إلزامي للسحب)</label>
+                    <label className="block text-xs font-bold text-gray-200 mb-1">السبب / الملاحظات (إلزامي للسحب)</label>
                     <input
                       type="text"
                       placeholder="مخالفة معايير المجتمع، انتحال صفة، أو رغبة المستخدم..."
                       value={actionReason}
                       onChange={(e) => setActionReason(e.target.value)}
-                      className="w-full px-3.5 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-rose-500 outline-none"
+                      className="w-full px-3.5 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-rose-500 outline-none"
                     />
                   </div>
 
@@ -1636,7 +1642,7 @@ export default function AdminVerificationPage() {
                         min={1}
                         value={extendDays}
                         onChange={(e) => setExtendDays(parseInt(e.target.value) || 30)}
-                        className="w-20 px-2.5 py-2 text-sm rounded-lg border border-gray-300 outline-none text-center"
+                        className="w-20 px-2.5 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white outline-none text-center font-bold"
                         title="عدد الأيام الإضافية"
                       />
                       <button
@@ -1650,7 +1656,7 @@ export default function AdminVerificationPage() {
                   </div>
                 </div>
 
-              <div className="mt-6 bg-[rgba(31,107,122,0.06)] p-3 rounded-xl border border-[rgba(31,107,122,0.14)] text-xs font-bold text-[var(--egypt-muted)]">
+              <div className="mt-6 bg-[rgba(31,107,122,0.15)] p-3 rounded-xl border border-[rgba(31,107,122,0.3)] text-xs font-bold text-gray-300">
                 يمكنك كتابة رقم الموبايل أو اسم المستخدم وسيتعرف النظام على الحساب فوراً.
               </div>
             </div>
@@ -1660,74 +1666,74 @@ export default function AdminVerificationPage() {
 
         {/* TAB 5: SECURITY POLICIES & ENGINE STATUS */}
         {activeTab === 'settings' && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm space-y-6">
+          <div className="admin-card rounded-2xl border border-white/15 p-6 shadow-xl space-y-6 text-white">
             <div>
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-[#1F6B7A]" />
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Shield className="w-5 h-5 text-[#5EEAD4]" />
                 سياسات أمان منظومة التوثيق والخدمات الخلفية
               </h2>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-gray-400 mt-0.5">
                 قواعد الحماية الصارمة المحققة 100% على مستوى خادم الـ API وقاعدة البيانات.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/70">
-                <div className="font-bold text-sm text-gray-800 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
+                <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   حماية الأسعار والمدد
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
                   لا يثق الخادم بأي سعر أو مدة أو حالة مرسلة من جانب العميل أو التطبيق، وتُحدد الأسعار من قاعدة البيانات فقط.
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/70">
-                <div className="font-bold text-sm text-gray-800 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
+                <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   خدمة انتهاء الصلاحية الخلفية
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
                   محرك خلفي دوري يتفقد انتهاء الصلاحية ويرسل تذكيراً واحداً قبل الانتهاء بـ 7 أيام مع منع التكرار.
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/70">
-                <div className="font-bold text-sm text-gray-800 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
+                <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   التوثيق ببطاقة الرقم القومي
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
                   يتم رفع صورة البطاقة (وش وضهر) في أول مرة فقط، وتُستعار تلقائياً في التجديدات اللاحقة دون إرهاق المستخدم.
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/70">
-                <div className="font-bold text-sm text-gray-800 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
+                <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   بث SignalR اللحظي
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
                   تحديث فوري لجميع الأحداث (تقديم، مراجعة، اعتماد، رفض، سحب، تمديد) لجميع شاشات الإدارة والتطبيق.
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/70">
-                <div className="font-bold text-sm text-gray-800 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
+                <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   سرية المستندات
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
                   مفاتيح Backblaze B2 ووسائط التوثيق لا تخرج أبداً من الخادم ولا يمكن لأي مستخدم آخر الوصول لمستندات غيره.
                 </p>
               </div>
 
-              <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/70">
-                <div className="font-bold text-sm text-gray-800 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
+                <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   سجل تدقيق زمني غير قابل للمحو
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
                   تسجيل هوية المسؤول وتاريخ كل إجراء بدقة لمنع التلاعب وحفظ حقوق المستخدمين والإدارة.
                 </p>
               </div>
@@ -1737,19 +1743,19 @@ export default function AdminVerificationPage() {
 
         {/* DETAILS & DOCUMENT PREVIEW MODAL */}
         {selectedRequestId && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 text-right animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#162232] border border-white/15 text-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 text-right animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <div className="flex items-center gap-2">
                   <BadgeCheck className="w-6 h-6 text-[#C4A35A]" />
-                  <h3 className="font-bold text-lg text-gray-900">تفاصيل طلب التوثيق وفحص الوثائق</h3>
+                  <h3 className="font-bold text-lg text-white">تفاصيل طلب التوثيق وفحص الوثائق</h3>
                 </div>
                 <button
                   onClick={() => {
                     setSelectedRequestId(null);
                     setPreviewDocUrl(null);
                   }}
-                  className="p-1 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
                 >
                   <XCircle className="w-6 h-6" />
                 </button>
@@ -1757,42 +1763,42 @@ export default function AdminVerificationPage() {
 
               {detailsLoading || !selectedRequestDetail ? (
                 <div className="py-16 text-center text-gray-400">
-                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#1F6B7A]" />
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#5EEAD4]" />
                   جاري تحميل التفاصيل والمستندات...
                 </div>
               ) : (
                 <div className="space-y-6 mt-4">
                   {/* User Snapshot */}
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="bg-[#0F1724] p-4 rounded-xl border border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                     <div>
-                      <span className="text-gray-500 block">المستخدم:</span>
-                      <span className="font-bold text-gray-900 text-sm">{selectedRequestDetail.userName}</span>
+                      <span className="text-gray-400 block mb-0.5">المستخدم:</span>
+                      <span className="font-bold text-white text-sm">{selectedRequestDetail.userName}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block">رقم الهاتف:</span>
-                      <span className="font-bold font-mono text-gray-900 text-sm">{selectedRequestDetail.userPhoneNumber}</span>
+                      <span className="text-gray-400 block mb-0.5">رقم الهاتف:</span>
+                      <span className="font-bold font-mono text-cyan-400 text-sm">{selectedRequestDetail.userPhoneNumber}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block">نوع وشارة التوثيق:</span>
-                      <span className="font-bold text-[#1F6B7A] text-sm">
+                      <span className="text-gray-400 block mb-0.5">نوع وشارة التوثيق:</span>
+                      <span className="font-bold text-[#5EEAD4] text-sm">
                         {selectedRequestDetail.verificationTypeName} ({selectedRequestDetail.badgeName})
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block">الحالة الحالية:</span>
+                      <span className="text-gray-400 block mb-0.5">الحالة الحالية:</span>
                       {getStatusBadge(selectedRequestDetail.status, selectedRequestDetail.statusName)}
                     </div>
                   </div>
 
                   {/* Documents Section */}
                   <div>
-                    <h4 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
-                      <FileText className="w-4 h-4 text-[#1F6B7A]" />
+                    <h4 className="font-bold text-sm text-white mb-2.5 flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-[#5EEAD4]" />
                       الوثائق والمستندات المرفقة بالطلب ({selectedRequestDetail.documents?.length ?? 0})
                     </h4>
 
                     {!selectedRequestDetail.documents?.length ? (
-                      <div className="p-4 rounded-xl bg-gray-50 text-center text-xs text-gray-500">
+                      <div className="p-4 rounded-xl bg-[#0F1724] border border-white/10 text-center text-xs text-gray-400">
                         لم يتم إرفاق أي وثائق في هذا الطلب.
                       </div>
                     ) : (
@@ -1806,7 +1812,7 @@ export default function AdminVerificationPage() {
                           return (
                             <div
                               key={doc.id}
-                              className="border border-gray-200 rounded-xl overflow-hidden bg-white hover:border-[#1F6B7A] transition flex flex-col"
+                              className="border border-white/10 rounded-xl overflow-hidden bg-[#0F1724] hover:border-[#1F6B7A] transition flex flex-col shadow-md"
                             >
                               {imageUrl ? (
                                 <button
@@ -1815,41 +1821,41 @@ export default function AdminVerificationPage() {
                                     setPreviewDocUrl(imageUrl);
                                     setPreviewDocTitle(title);
                                   }}
-                                  className="relative group bg-white/10 aspect-[4/3] w-full overflow-hidden text-left"
+                                  className="relative group bg-black/30 aspect-[4/3] w-full overflow-hidden text-left"
                                   title="اضغط للتكبير"
                                 >
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={imageUrl}
                                     alt={title}
-                                    className="w-full h-full object-contain bg-slate-50"
+                                    className="w-full h-full object-contain"
                                     loading="lazy"
                                   />
-                                  <span className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition flex items-center justify-center">
-                                    <span className="opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-1.5 rounded-full bg-white/95 text-[#1F6B7A] text-xs font-bold px-3 py-1.5 shadow">
-                                      <ZoomIn className="w-3.5 h-3.5" />
+                                  <span className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center">
+                                    <span className="opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-1.5 rounded-full bg-[#162232] text-white text-xs font-bold px-3 py-1.5 shadow-lg border border-white/20">
+                                      <ZoomIn className="w-3.5 h-3.5 text-[#C4A35A]" />
                                       تكبير المعاينة
                                     </span>
                                   </span>
                                 </button>
                               ) : (
-                                <div className="aspect-[4/3] w-full bg-gray-50 flex flex-col items-center justify-center text-gray-400 gap-2">
-                                  <ImageIcon className="w-8 h-8" />
+                                <div className="aspect-[4/3] w-full bg-[#121D2C] flex flex-col items-center justify-center text-gray-400 gap-2">
+                                  <ImageIcon className="w-8 h-8 opacity-60" />
                                   <span className="text-xs">لا تتوفر معاينة للصورة</span>
                                 </div>
                               )}
 
                               <div className="p-3 flex flex-col gap-2">
                                 <div className="flex items-start justify-between gap-2">
-                                  <span className="text-xs font-bold text-gray-800">{title}</span>
+                                  <span className="text-xs font-bold text-white">{title}</span>
                                   {fileLabel && (
                                     <span className="text-[10px] text-gray-400 truncate max-w-[40%]" title={fileLabel}>
                                       {fileLabel}
                                     </span>
                                   )}
                                 </div>
-                                {doc.notes && <p className="text-xs text-gray-500">{doc.notes}</p>}
-                                <div className="pt-1 border-t border-gray-100 flex items-center justify-between">
+                                {doc.notes && <p className="text-xs text-gray-300">{doc.notes}</p>}
+                                <div className="pt-2 border-t border-white/10 flex items-center justify-between">
                                   <span className="text-[10px] text-gray-400">
                                     {new Date(doc.createdAt).toLocaleDateString('ar-EG')}
                                   </span>
@@ -1858,7 +1864,7 @@ export default function AdminVerificationPage() {
                                       href={imageUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-xs text-[#1F6B7A] hover:underline font-semibold"
+                                      className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 hover:underline font-semibold"
                                     >
                                       <ExternalLink className="w-3.5 h-3.5" />
                                       فتح في تبويب جديد
@@ -1875,24 +1881,24 @@ export default function AdminVerificationPage() {
 
                   {/* Audit Logs Timeline */}
                   <div>
-                    <h4 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-1.5">
+                    <h4 className="font-bold text-sm text-white mb-2 flex items-center gap-1.5">
                       <Clock className="w-4 h-4 text-[#C4A35A]" />
                       سجل المراجعة والتدقيق الزمني (Audit Timeline)
                     </h4>
 
-                    <div className="space-y-2 border-r-2 border-gray-200 pr-4 mr-2 text-xs">
+                    <div className="space-y-2.5 border-r-2 border-white/15 pr-4 mr-2 text-xs">
                       {selectedRequestDetail.auditLogs?.map((log) => (
                         <div key={log.id} className="relative">
-                          <div className="absolute -right-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#1F6B7A]" />
-                          <div className="flex items-center justify-between font-bold text-gray-800">
+                          <div className="absolute -right-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#5EEAD4]" />
+                          <div className="flex items-center justify-between font-bold text-white">
                             <span>{log.actionName}</span>
                             <span className="text-[10px] text-gray-400 font-normal">
                               {new Date(log.createdAt).toLocaleString('ar-EG')}
                             </span>
                           </div>
-                          {log.notes && <p className="text-gray-600 mt-0.5">{log.notes}</p>}
+                          {log.notes && <p className="text-gray-300 mt-0.5">{log.notes}</p>}
                           {log.performedByUserName && (
-                            <span className="text-[10px] text-[#1F6B7A]">بواسطة: {log.performedByUserName}</span>
+                            <span className="text-[10px] text-cyan-400 block mt-0.5">بواسطة: {log.performedByUserName}</span>
                           )}
                         </div>
                       ))}
@@ -1900,14 +1906,14 @@ export default function AdminVerificationPage() {
                   </div>
 
                   {/* Modal Action Footer */}
-                  <div className="pt-4 mt-6 border-t border-gray-100 flex items-center justify-between">
+                  <div className="pt-4 mt-6 border-t border-white/10 flex items-center justify-between">
                     <button
                       onClick={() => {
                         if (confirm(`هل أنت متأكد من مسح طلب التوثيق هذا نهائياً من النظام؟ سيتم حذف جميع المستندات وسجلات التدقيق المرتبطة به.`)) {
                           deleteRequestMutation.mutate(selectedRequestId!);
                         }
                       }}
-                      className="px-3.5 py-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 text-xs font-bold transition flex items-center gap-1.5"
+                      className="px-3.5 py-2 rounded-xl bg-rose-950/50 text-rose-300 hover:bg-rose-900/60 border border-rose-800/60 text-xs font-bold transition flex items-center gap-1.5"
                     >
                       <Trash2 className="w-4 h-4" />
                       مسح الطلب نهائياً
@@ -1915,10 +1921,10 @@ export default function AdminVerificationPage() {
 
                     <button
                       onClick={() => {
-                    setSelectedRequestId(null);
-                    setPreviewDocUrl(null);
-                  }}
-                      className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold transition"
+                        setSelectedRequestId(null);
+                        setPreviewDocUrl(null);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white text-xs font-bold transition"
                     >
                       إغلاق
                     </button>
@@ -1931,74 +1937,74 @@ export default function AdminVerificationPage() {
 
         {/* APPROVAL DIALOG */}
         {approveModalRequest && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 text-right shadow-2xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <h3 className="font-bold text-lg text-emerald-800 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#162232] border border-emerald-500/35 text-white rounded-2xl max-w-md w-full p-6 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 className="font-bold text-lg text-emerald-400 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   اعتماد طلب التوثيق
                 </h3>
                 <button
                   onClick={() => setApproveModalRequest(null)}
-                  className="p-1 rounded text-gray-400 hover:text-gray-700"
+                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
                 >
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="bg-emerald-50/60 p-3 rounded-xl text-xs text-emerald-900 space-y-1">
+              <div className="bg-emerald-950/60 border border-emerald-500/30 p-3.5 rounded-xl text-xs text-emerald-200 space-y-1.5">
                 <div>
-                  المستخدم: <span className="font-bold">{approveModalRequest.userName}</span>
+                  المستخدم: <span className="font-bold text-white text-sm">{approveModalRequest.userName}</span>
                 </div>
                 <div>
-                  نوع التوثيق: <span className="font-bold">{approveModalRequest.verificationTypeName}</span>
+                  نوع التوثيق: <span className="font-bold text-cyan-300">{approveModalRequest.verificationTypeName}</span>
                 </div>
                 <div>
-                  الخطة المقترحة: <span className="font-bold">{approveModalRequest.planName || 'افتراضية'}</span>
+                  الخطة المقترحة: <span className="font-bold text-[#F6E5B8]">{approveModalRequest.planName || 'افتراضية'}</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">مدة الصلاحية المعتمدة (بالأيام)</label>
+                  <label className="block text-xs font-bold text-gray-200 mb-1.5">مدة الصلاحية المعتمدة (بالأيام)</label>
                   <input
                     type="number"
                     min={1}
                     value={approvedDuration}
                     onChange={(e) => setApprovedDuration(parseInt(e.target.value) || 30)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-center"
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-center"
                   />
                 </div>
 
-                <div className="flex items-center gap-2 bg-gray-50 p-2.5 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2.5 bg-[#0F1724] p-3 rounded-lg border border-white/10">
                   <input
                     type="checkbox"
                     id="freeGrantApprove"
                     checked={isFreeApprove}
                     onChange={(e) => setIsFreeApprove(e.target.checked)}
-                    className="rounded text-emerald-600 focus:ring-emerald-500"
+                    className="rounded text-emerald-500 focus:ring-emerald-500 bg-[#162232] border-white/20"
                   />
-                  <label htmlFor="freeGrantApprove" className="text-xs font-bold text-gray-800 cursor-pointer">
+                  <label htmlFor="freeGrantApprove" className="text-xs font-bold text-gray-200 cursor-pointer">
                     اعتماد مجاني بدون دفع رسوم (Grant Free Verification)
                   </label>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">ملاحظات الإدارة (اختياري)</label>
+                  <label className="block text-xs font-bold text-gray-200 mb-1.5">ملاحظات الإدارة (اختياري)</label>
                   <input
                     type="text"
                     placeholder="ملاحظات توثيق، استثناء مدة..."
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-gray-100">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-white/10">
                 <button
                   onClick={() => setApproveModalRequest(null)}
-                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition"
                 >
                   إلغاء
                 </button>
@@ -2014,7 +2020,7 @@ export default function AdminVerificationPage() {
                       },
                     })
                   }
-                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-lg disabled:opacity-50 transition"
                 >
                   {approveMutation.isPending ? 'جاري الاعتماد...' : 'تأكيد الاعتماد والتفعيل'}
                 </button>
@@ -2025,27 +2031,27 @@ export default function AdminVerificationPage() {
 
         {/* REJECT DIALOG */}
         {rejectModalRequest && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 text-right shadow-2xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <h3 className="font-bold text-lg text-rose-700 flex items-center gap-2">
-                  <XCircle className="w-5 h-5" />
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#162232] border border-rose-500/35 text-white rounded-2xl max-w-md w-full p-6 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 className="font-bold text-lg text-rose-400 flex items-center gap-2">
+                  <XCircle className="w-5 h-5 text-rose-400" />
                   رفض طلب التوثيق
                 </h3>
                 <button
                   onClick={() => setRejectModalRequest(null)}
-                  className="p-1 rounded text-gray-400 hover:text-gray-700"
+                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
                 >
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
 
-              <p className="text-xs text-gray-600">
-                المستخدم: <span className="font-bold">{rejectModalRequest.userName}</span>
+              <p className="text-xs text-gray-300">
+                المستخدم: <span className="font-bold text-white">{rejectModalRequest.userName}</span>
               </p>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
+                <label className="block text-xs font-bold text-gray-200 mb-1.5">
                   سبب الرفض (إلزامي — يظهر للمستخدم في الإشعار) *
                 </label>
                 <textarea
@@ -2053,14 +2059,14 @@ export default function AdminVerificationPage() {
                   placeholder="مثال: صورة البطاقة غير واضحة، انتهاء صلاحية الرقم القومي، المستندات ناقصة..."
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-rose-500 outline-none"
+                  className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-rose-500 outline-none"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-gray-100">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-white/10">
                 <button
                   onClick={() => setRejectModalRequest(null)}
-                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition"
                 >
                   تراجع
                 </button>
@@ -2072,7 +2078,7 @@ export default function AdminVerificationPage() {
                       reason: rejectReason.trim(),
                     })
                   }
-                  className="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-lg shadow-lg disabled:opacity-50 transition"
                 >
                   {rejectMutation.isPending ? 'جاري الرفض...' : 'تأكيد الرفض'}
                 </button>
@@ -2083,89 +2089,89 @@ export default function AdminVerificationPage() {
 
         {/* CREATE / EDIT TYPE MODAL */}
         {typeModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 text-right shadow-2xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
-                  <BadgeCheck className="w-5 h-5 text-[#1F6B7A]" />
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#162232] border border-white/15 text-white rounded-2xl max-w-lg w-full p-6 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 className="font-bold text-lg text-white flex items-center gap-2">
+                  <BadgeCheck className="w-5 h-5 text-[#5EEAD4]" />
                   {editingType ? 'تعديل نوع التوثيق' : 'إضافة نوع توثيق جديد'}
                 </h3>
                 <button
                   onClick={() => setTypeModalOpen(false)}
-                  className="p-1 rounded text-gray-400 hover:text-gray-700"
+                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
                 >
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">اسم النوع *</label>
+                  <label className="block text-xs font-bold text-gray-200 mb-1.5">اسم النوع *</label>
                   <input
                     type="text"
                     placeholder="مثال: مواطن موثق، مراسل صحفي معتمد..."
                     value={typeFormData.name}
                     onChange={(e) => setTypeFormData({ ...typeFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold"
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">اسم الشارة الظاهرة بجانب الاسم *</label>
+                  <label className="block text-xs font-bold text-gray-200 mb-1.5">اسم الشارة الظاهرة بجانب الاسم *</label>
                   <input
                     type="text"
                     placeholder="مثال: موثق، صحفي، جهة رسمية..."
                     value={typeFormData.badgeName}
                     onChange={(e) => setTypeFormData({ ...typeFormData, badgeName: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">الوصف</label>
+                  <label className="block text-xs font-bold text-gray-200 mb-1.5">الوصف</label>
                   <textarea
                     rows={2}
                     placeholder="شروط ومزايا هذا النوع من التوثيق..."
                     value={typeFormData.description}
                     onChange={(e) => setTypeFormData({ ...typeFormData, description: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+                  <label className="flex items-center gap-2 text-xs font-bold text-gray-200 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={typeFormData.requiresDocuments}
                       onChange={(e) => setTypeFormData({ ...typeFormData, requiresDocuments: e.target.checked })}
-                      className="rounded text-[#1F6B7A] focus:ring-[#1F6B7A]"
+                      className="rounded text-[#1F6B7A] focus:ring-[#1F6B7A] bg-[#0F1724] border-white/20"
                     />
                     يتطلب وثائق ثبوتية
                   </label>
 
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+                  <label className="flex items-center gap-2 text-xs font-bold text-gray-200 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={typeFormData.allowUserRequest}
                       onChange={(e) => setTypeFormData({ ...typeFormData, allowUserRequest: e.target.checked })}
-                      className="rounded text-[#1F6B7A] focus:ring-[#1F6B7A]"
+                      className="rounded text-[#1F6B7A] focus:ring-[#1F6B7A] bg-[#0F1724] border-white/20"
                     />
                     متاح للتقديم من التطبيق
                   </label>
                 </div>
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-2 border-t border-gray-100">
+              <div className="pt-4 flex items-center justify-end gap-2 border-t border-white/10">
                 <button
                   onClick={() => setTypeModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition"
                 >
                   إلغاء
                 </button>
                 <button
                   disabled={!typeFormData.name.trim() || !typeFormData.badgeName.trim() || saveTypeMutation.isPending}
                   onClick={() => saveTypeMutation.mutate()}
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#1F6B7A] hover:bg-[#185561] rounded-lg shadow disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-bold text-white bg-[#1F6B7A] hover:bg-[#258294] rounded-lg shadow-lg disabled:opacity-50 transition"
                 >
                   {saveTypeMutation.isPending ? 'جاري الحفظ...' : 'حفظ'}
                 </button>
@@ -2176,31 +2182,31 @@ export default function AdminVerificationPage() {
 
         {/* CREATE / EDIT PLAN MODAL */}
         {planModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 text-right shadow-2xl space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#162232] border border-white/15 text-white rounded-2xl max-w-lg w-full p-6 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 className="font-bold text-lg text-white flex items-center gap-2">
                   <Tag className="w-5 h-5 text-[#C4A35A]" />
                   {editingPlan ? 'تعديل الباقة أو العرض' : 'إنشاء باقة / عرض ترويجي جديد'}
                 </h3>
                 <button
                   onClick={() => setPlanModalOpen(false)}
-                  className="p-1 rounded text-gray-400 hover:text-gray-700"
+                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
                 >
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">نوع التوثيق المرتبط بالباقة *</label>
+                  <label className="block text-xs font-bold text-gray-200 mb-1.5">نوع التوثيق المرتبط بالباقة *</label>
                   <select
                     value={planFormData.verificationTypeId}
                     onChange={(e) => setPlanFormData({ ...planFormData, verificationTypeId: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-[#1F6B7A] outline-none"
                   >
                     {typesData?.map((t) => (
-                      <option key={t.id} value={t.id}>
+                      <option key={t.id} value={t.id} className="bg-[#0F1724] text-white">
                         {t.name}
                       </option>
                     ))}
@@ -2208,42 +2214,42 @@ export default function AdminVerificationPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">اسم الباقة أو العرض *</label>
+                  <label className="block text-xs font-bold text-gray-200 mb-1.5">اسم الباقة أو العرض *</label>
                   <input
                     type="text"
                     placeholder="مثال: باقة 30 يوم، عرض السنة الذهبي..."
                     value={planFormData.name}
                     onChange={(e) => setPlanFormData({ ...planFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold"
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">المدة (بالأيام) *</label>
+                    <label className="block text-xs font-bold text-gray-200 mb-1.5">المدة (بالأيام) *</label>
                     <input
                       type="number"
                       min={1}
                       value={planFormData.durationDays}
                       onChange={(e) => setPlanFormData({ ...planFormData, durationDays: parseInt(e.target.value) || 30 })}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold"
+                      className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">السعر (ج.م) *</label>
+                    <label className="block text-xs font-bold text-gray-200 mb-1.5">السعر (ج.م) *</label>
                     <input
                       type="number"
                       min={0}
                       value={planFormData.isFree ? 0 : planFormData.price}
                       disabled={planFormData.isFree}
                       onChange={(e) => setPlanFormData({ ...planFormData, price: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold disabled:bg-gray-100"
+                      className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold disabled:bg-white/5 disabled:text-gray-500 disabled:border-white/10"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2">
+                <div className="flex items-center gap-2 pt-1">
                   <input
                     type="checkbox"
                     id="planIsFree"
@@ -2255,36 +2261,36 @@ export default function AdminVerificationPage() {
                         price: e.target.checked ? 0 : planFormData.price,
                       })
                     }
-                    className="rounded text-[#C4A35A] focus:ring-[#C4A35A]"
+                    className="rounded text-[#C4A35A] focus:ring-[#C4A35A] bg-[#0F1724] border-white/20"
                   />
-                  <label htmlFor="planIsFree" className="text-xs font-bold text-gray-800 cursor-pointer">
+                  <label htmlFor="planIsFree" className="text-xs font-bold text-gray-200 cursor-pointer">
                     عرض مجاني بالكامل (0 جنيه)
                   </label>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">الوصف</label>
+                  <label className="block text-xs font-bold text-gray-200 mb-1.5">الوصف</label>
                   <textarea
                     rows={2}
                     placeholder="وصف الباقة وشروطها..."
                     value={planFormData.description}
                     onChange={(e) => setPlanFormData({ ...planFormData, description: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
                   />
                 </div>
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-2 border-t border-gray-100">
+              <div className="pt-4 flex items-center justify-end gap-2 border-t border-white/10">
                 <button
                   onClick={() => setPlanModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-lg"
+                  className="px-4 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition"
                 >
                   إلغاء
                 </button>
                 <button
                   disabled={!planFormData.name.trim() || !planFormData.verificationTypeId || savePlanMutation.isPending}
                   onClick={() => savePlanMutation.mutate()}
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#1F6B7A] hover:bg-[#185561] rounded-lg shadow disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-bold text-white bg-[#1F6B7A] hover:bg-[#258294] rounded-lg shadow-lg disabled:opacity-50 transition"
                 >
                   {savePlanMutation.isPending ? 'جاري الحفظ...' : 'حفظ الباقة'}
                 </button>
