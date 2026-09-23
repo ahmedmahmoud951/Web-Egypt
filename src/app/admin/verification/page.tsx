@@ -391,24 +391,84 @@ export default function AdminVerificationPage() {
     onError: (err: any) => showToast(err?.response?.data?.message || 'فشل حفظ الباقة', 'error'),
   });
 
-  const getStatusBadge = (status: number, name: string) => {
-    switch (status) {
+  const normalizeStatus = (status: any, name?: string): number => {
+    if (typeof status === 'number') return status;
+    const num = parseInt(status, 10);
+    if (!isNaN(num)) return num;
+    const str = String(status || name || '').toLowerCase().trim();
+    if (str === 'pending' || str.includes('انتظار')) return 1;
+    if (str === 'underreview' || str.includes('مراجعة') || str === 'under_review') return 2;
+    if (str === 'approved' || str.includes('معتمد') || str.includes('موثق')) return 3;
+    if (str === 'rejected' || str.includes('مرفوض')) return 4;
+    if (str === 'cancelled' || str === 'canceled' || str.includes('ملغي')) return 5;
+    if (str === 'expired' || str.includes('منتهي')) return 6;
+    if (str === 'revoked' || str.includes('سحب')) return 7;
+    return 1;
+  };
+
+  const isActionableStatus = (status: any, name?: string): boolean => {
+    const code = normalizeStatus(status, name);
+    return code === 1 || code === 2;
+  };
+
+  const getStatusBadge = (status: any, name: string) => {
+    const s = normalizeStatus(status, name);
+    switch (s) {
       case 1:
-        return <span className="px-2.5 py-1 text-xs rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 font-medium">قيد الانتظار</span>;
+        return (
+          <span className="px-2.5 py-1 text-xs rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold inline-flex items-center gap-1">
+            <Hourglass className="w-3 h-3" />
+            قيد الانتظار
+          </span>
+        );
       case 2:
-        return <span className="px-2.5 py-1 text-xs rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 font-medium">قيد المراجعة</span>;
+        return (
+          <span className="px-2.5 py-1 text-xs rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 font-bold inline-flex items-center gap-1">
+            <ScanSearch className="w-3 h-3" />
+            قيد المراجعة
+          </span>
+        );
       case 3:
-        return <span className="px-2.5 py-1 text-xs rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-medium">معتمد وموثق</span>;
+        return (
+          <span className="px-2.5 py-1 text-xs rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold inline-flex items-center gap-1">
+            <ShieldCheck className="w-3 h-3" />
+            معتمد وموثق
+          </span>
+        );
       case 4:
-        return <span className="px-2.5 py-1 text-xs rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20 font-medium">مرفوض</span>;
+        return (
+          <span className="px-2.5 py-1 text-xs rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold inline-flex items-center gap-1">
+            <Ban className="w-3 h-3" />
+            مرفوض
+          </span>
+        );
       case 5:
-        return <span className="px-2.5 py-1 text-xs rounded-full bg-gray-500/10 text-gray-600 border border-gray-500/20 font-medium">ملغي</span>;
+        return (
+          <span className="px-2.5 py-1 text-xs rounded-full bg-gray-500/15 text-gray-300 border border-gray-500/30 font-bold inline-flex items-center gap-1">
+            <CircleSlash className="w-3 h-3" />
+            ملغي
+          </span>
+        );
       case 6:
-        return <span className="px-2.5 py-1 text-xs rounded-full bg-slate-500/10 text-slate-600 border border-slate-500/20 font-medium">منتهي الصلاحية</span>;
+        return (
+          <span className="px-2.5 py-1 text-xs rounded-full bg-slate-500/15 text-slate-300 border border-slate-500/30 font-bold inline-flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            منتهي الصلاحية
+          </span>
+        );
       case 7:
-        return <span className="px-2.5 py-1 text-xs rounded-full bg-orange-500/10 text-orange-700 border border-orange-500/25 font-medium">تم سحب التوثيق</span>;
+        return (
+          <span className="px-2.5 py-1 text-xs rounded-full bg-orange-500/15 text-orange-300 border border-orange-500/30 font-bold inline-flex items-center gap-1">
+            <ShieldOff className="w-3 h-3" />
+            تم سحب التوثيق
+          </span>
+        );
       default:
-        return <span className="px-2.5 py-1 text-xs rounded-full bg-gray-100 text-gray-700">{name}</span>;
+        return (
+          <span className="px-2.5 py-1 text-xs rounded-full bg-white/10 text-gray-300 border border-white/15 font-bold">
+            {name || 'غير محدد'}
+          </span>
+        );
     }
   };
 
@@ -725,50 +785,60 @@ export default function AdminVerificationPage() {
                       })}
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 pt-1 border-t border-gray-100">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRequestId(r.id)}
-                        className="admin-touch-btn bg-[rgba(31,107,122,0.1)] text-[#1F6B7A] border border-[rgba(31,107,122,0.2)]"
-                      >
-                        <Eye className="w-4 h-4" />
-                        المستندات
-                      </button>
-                      {(r.status === 1 || r.status === 2) && (
-                        <>
-                          {r.status === 1 && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-white/10">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRequestId(r.id)}
+                          className="admin-touch-btn bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 text-xs font-bold"
+                          title="عرض تفاصيل الطلب والمستندات"
+                        >
+                          <Eye className="w-4 h-4" />
+                          المعاينة
+                        </button>
+                        {normalizeStatus(r.status, r.statusName) === 1 && (
+                          <button
+                            type="button"
+                            onClick={() => reviewMutation.mutate(r.id)}
+                            disabled={reviewMutation.isPending}
+                            className="admin-touch-btn bg-sky-950/70 text-sky-300 border border-sky-500/40 flex items-center gap-1 text-xs font-bold"
+                            title="بدء المراجعة"
+                          >
+                            <ScanSearch className="w-4 h-4" />
+                            مراجعة
+                          </button>
+                        )}
+                        {isActionableStatus(r.status, r.statusName) && (
+                          <>
                             <button
                               type="button"
-                              onClick={() => reviewMutation.mutate(r.id)}
-                              className="admin-touch-btn bg-sky-50 text-sky-700 border border-sky-200"
+                              onClick={() => {
+                                setApproveModalRequest(r);
+                                setApprovedDuration(r.requestedDurationDays || 30);
+                                setIsFreeApprove(false);
+                                setAdminNotes('');
+                              }}
+                              className="admin-touch-btn bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 text-xs font-bold shadow-md"
+                              title="قبول واعتماد التوثيق"
                             >
-                              بدء المراجعة
+                              <CheckCircle2 className="w-4 h-4" />
+                              قبول واعتماد
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setApproveModalRequest(r);
-                              setApprovedDuration(r.requestedDurationDays || 30);
-                              setIsFreeApprove(false);
-                              setAdminNotes('');
-                            }}
-                            className="admin-touch-btn bg-emerald-600 text-white"
-                          >
-                            اعتماد
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRejectModalRequest(r);
-                              setRejectReason('');
-                            }}
-                            className="admin-touch-btn bg-rose-50 text-rose-600 border border-rose-200"
-                          >
-                            رفض
-                          </button>
-                        </>
-                      )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRejectModalRequest(r);
+                                setRejectReason('');
+                              }}
+                              className="admin-touch-btn bg-rose-950/60 text-rose-300 border border-rose-500/40 flex items-center gap-1 text-xs font-bold"
+                              title="رفض الطلب"
+                            >
+                              <XCircle className="w-4 h-4" />
+                              رفض
+                            </button>
+                          </>
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
@@ -780,8 +850,8 @@ export default function AdminVerificationPage() {
                             deleteRequestMutation.mutate(r.id);
                           }
                         }}
-                        className="admin-touch-btn text-rose-500 bg-rose-50/80 border border-rose-100"
-                        title="مسح"
+                        className="admin-touch-btn text-rose-400 bg-rose-950/50 border border-rose-800/40"
+                        title="مسح الطلب"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -859,45 +929,58 @@ export default function AdminVerificationPage() {
                           <td>
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               <button
+                                type="button"
                                 onClick={() => setSelectedRequestId(r.id)}
-                                className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-[#1F6B7A] transition"
+                                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-cyan-950/60 text-cyan-300 hover:bg-cyan-900/60 border border-cyan-500/30 text-xs font-bold transition inline-flex items-center gap-1"
                                 title="عرض التفاصيل والمستندات"
                               >
                                 <Eye className="w-4 h-4" />
+                                <span className="hidden xl:inline">المعاينة</span>
                               </button>
-                              {(r.status === 1 || r.status === 2) && (
+                              {normalizeStatus(r.status, r.statusName) === 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => reviewMutation.mutate(r.id)}
+                                  disabled={reviewMutation.isPending}
+                                  className="px-2.5 py-1.5 text-xs rounded-lg bg-sky-950/70 text-sky-300 hover:bg-sky-900/80 border border-sky-500/40 font-bold transition inline-flex items-center gap-1"
+                                  title="نقل الطلب لقيد المراجعة"
+                                >
+                                  <ScanSearch className="w-3.5 h-3.5" />
+                                  <span>مراجعة</span>
+                                </button>
+                              )}
+                              {isActionableStatus(r.status, r.statusName) && (
                                 <>
-                                  {r.status === 1 && (
-                                    <button
-                                      onClick={() => reviewMutation.mutate(r.id)}
-                                      className="px-2.5 py-1.5 text-xs rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold transition"
-                                    >
-                                      بدء المراجعة
-                                    </button>
-                                  )}
                                   <button
+                                    type="button"
                                     onClick={() => {
                                       setApproveModalRequest(r);
                                       setApprovedDuration(r.requestedDurationDays || 30);
                                       setIsFreeApprove(false);
                                       setAdminNotes('');
                                     }}
-                                    className="px-2.5 py-1.5 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 font-semibold transition shadow-sm"
+                                    className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow-md inline-flex items-center gap-1"
+                                    title="قبول واعتماد التوثيق"
                                   >
-                                    اعتماد
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>قبول واعتماد</span>
                                   </button>
                                   <button
+                                    type="button"
                                     onClick={() => {
                                       setRejectModalRequest(r);
                                       setRejectReason('');
                                     }}
-                                    className="px-2.5 py-1.5 text-xs rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 font-semibold transition"
+                                    className="px-2.5 py-1.5 text-xs rounded-lg bg-rose-950/60 text-rose-300 hover:bg-rose-900/60 border border-rose-500/40 font-bold transition inline-flex items-center gap-1"
+                                    title="رفض الطلب"
                                   >
-                                    رفض
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    <span>رفض</span>
                                   </button>
                                 </>
                               )}
                               <button
+                                type="button"
                                 onClick={() => {
                                   if (
                                     confirm(
@@ -907,7 +990,7 @@ export default function AdminVerificationPage() {
                                     deleteRequestMutation.mutate(r.id);
                                   }
                                 }}
-                                className="p-2 rounded-lg text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition"
+                                className="p-1.5 rounded-lg text-gray-400 hover:bg-rose-950/60 hover:text-rose-400 border border-transparent hover:border-rose-500/30 transition"
                                 title="مسح طلب التوثيق نهائياً"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1906,18 +1989,62 @@ export default function AdminVerificationPage() {
                   </div>
 
                   {/* Modal Action Footer */}
-                  <div className="pt-4 mt-6 border-t border-white/10 flex items-center justify-between">
-                    <button
-                      onClick={() => {
-                        if (confirm(`هل أنت متأكد من مسح طلب التوثيق هذا نهائياً من النظام؟ سيتم حذف جميع المستندات وسجلات التدقيق المرتبطة به.`)) {
-                          deleteRequestMutation.mutate(selectedRequestId!);
-                        }
-                      }}
-                      className="px-3.5 py-2 rounded-xl bg-rose-950/50 text-rose-300 hover:bg-rose-900/60 border border-rose-800/60 text-xs font-bold transition flex items-center gap-1.5"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      مسح الطلب نهائياً
-                    </button>
+                  <div className="pt-4 mt-6 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {isActionableStatus(selectedRequestDetail.status, selectedRequestDetail.statusName) && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setApproveModalRequest(selectedRequestDetail as any);
+                              setApprovedDuration(selectedRequestDetail.requestedDurationDays || 30);
+                              setIsFreeApprove(false);
+                              setAdminNotes('');
+                            }}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-lg flex items-center gap-1.5"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            قبول واعتماد التوثيق
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRejectModalRequest(selectedRequestDetail as any);
+                              setRejectReason('');
+                            }}
+                            className="px-4 py-2 rounded-xl bg-rose-950/70 text-rose-300 hover:bg-rose-900/80 border border-rose-500/40 text-xs font-bold transition flex items-center gap-1.5"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            رفض الطلب
+                          </button>
+
+                          {normalizeStatus(selectedRequestDetail.status, selectedRequestDetail.statusName) === 1 && (
+                            <button
+                              type="button"
+                              onClick={() => reviewMutation.mutate(selectedRequestDetail.id)}
+                              disabled={reviewMutation.isPending}
+                              className="px-3.5 py-2 rounded-xl bg-sky-950/70 text-sky-300 hover:bg-sky-900/80 border border-sky-500/40 text-xs font-bold transition flex items-center gap-1.5"
+                            >
+                              <ScanSearch className="w-4 h-4" />
+                              بدء المراجعة
+                            </button>
+                          )}
+                        </>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          if (confirm(`هل أنت متأكد من مسح طلب التوثيق هذا نهائياً من النظام؟ سيتم حذف جميع المستندات وسجلات التدقيق المرتبطة به.`)) {
+                            deleteRequestMutation.mutate(selectedRequestId!);
+                          }
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-rose-950/50 text-rose-400 hover:bg-rose-900/60 border border-rose-800/40 text-xs font-bold transition flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        مسح الطلب نهائياً
+                      </button>
+                    </div>
 
                     <button
                       onClick={() => {
