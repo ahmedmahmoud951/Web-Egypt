@@ -247,7 +247,7 @@ export default function AdminUserDetailPage() {
         </div>
 
         {/* Cover + identity (Facebook-style) */}
-        <div className="profile-fb-cover-wrap bg-white">
+        <div className="profile-fb-cover-wrap">
           <div className="profile-fb-cover">
             {coverUrl && <img src={coverUrl} alt="" className="profile-fb-cover-img" />}
             <div className="profile-fb-cover-scrim" />
@@ -479,7 +479,7 @@ export default function AdminUserDetailPage() {
                         ))}
                       </div>
                     )}
-                    <div className="flex items-center gap-4 text-xs text-[#8B9CB0] pt-2 border-t border-[rgba(15,27,45,0.06)]">
+                    <div className="flex items-center gap-4 text-xs text-[#8B9CB0] pt-2 border-t border-slate-700/60">
                       <span className="inline-flex items-center gap-1 font-bold">
                         <Heart className="w-3.5 h-3.5 text-[#DC2626]" />
                         {post.reactionsCount}
@@ -529,7 +529,7 @@ export default function AdminUserDetailPage() {
                   </div>
                   <div className="p-3 space-y-2">
                     <p className="text-xs text-[#F2F6FA] font-bold line-clamp-2">{reel.caption}</p>
-                    <div className="flex items-center justify-between text-[11px] text-[#8B9CB0] pt-1 border-t border-[rgba(15,27,45,0.06)] font-bold">
+                    <div className="flex items-center justify-between text-[11px] text-[#8B9CB0] pt-1 border-t border-slate-700/60 font-bold">
                       <span className="inline-flex items-center gap-0.5">
                         <Eye className="w-3 h-3" /> {reel.viewsCount}
                       </span>
@@ -598,7 +598,7 @@ export default function AdminUserDetailPage() {
                         className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                           ev.status === 'Published'
                             ? 'bg-[rgba(22,163,74,0.1)] text-[#16A34A]'
-                            : 'bg-[#F0F4F8] text-[#8B9CB0]'
+                            : 'bg-[#1E293B] text-[#94A3B8]'
                         }`}
                       >
                         {ev.status}
@@ -643,7 +643,7 @@ export default function AdminUserDetailPage() {
                     </span>
                   </div>
                   {rep.contentTitle && (
-                    <div className="text-xs text-[#8B9CB0] bg-[#F8FAFC] p-2 rounded-lg font-semibold">
+                    <div className="text-xs text-[#CBD5E1] bg-[#0F1724] border border-slate-700/60 p-2 rounded-lg font-semibold">
                       {rep.contentTitle}
                     </div>
                   )}
@@ -656,7 +656,7 @@ export default function AdminUserDetailPage() {
                     </span>
                   </div>
                   {rep.adminNotes && (
-                    <div className="text-xs text-[#1F6B7A] bg-[rgba(31,107,122,0.05)] p-2 rounded-lg font-semibold">
+                    <div className="text-xs text-[#38BDF8] bg-[rgba(14,165,233,0.12)] border border-[#0284C7]/30 p-2 rounded-lg font-semibold">
                       ملاحظات الإشراف: {rep.adminNotes}
                     </div>
                   )}
