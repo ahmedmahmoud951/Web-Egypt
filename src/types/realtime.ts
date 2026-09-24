@@ -134,3 +134,29 @@ export interface NewStatusReportMessage {
   createdAt: string;
 }
 
+// User Management Events
+export interface UserCreatedMessage {
+  userId: string;
+  name: string;
+  phoneNumber: string;
+  username?: string | null;
+  role: string;
+  createdAt: string;
+}
+
+export interface UserUpdatedMessage {
+  userId: string;
+  name: string;
+  phoneNumber: string;
+  username?: string | null;
+  role: string;
+  isBlocked: boolean;
+  updatedAt: string;
+}
+
+export interface UserDeletedMessage {
+  userId: string;
+  deletedAt: string;
+}
+
+

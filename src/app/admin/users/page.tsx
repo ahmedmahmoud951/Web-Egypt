@@ -43,7 +43,7 @@ export default function AdminUsersPage() {
     queryFn: ({ signal }) =>
       adminApi.getUsers({ q: debouncedQ.trim() || undefined, page, pageSize: 20, signal }),
     enabled: adminReady,
-    staleTime: 60_000,
+    staleTime: 5_000,
     retry: 0,
   });
 

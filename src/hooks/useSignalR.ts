@@ -215,6 +215,37 @@ export function useSignalRSubscriptions() {
       liveRefresh(queryClient, [['admin', 'reports'], ['admin', 'statuses'], ['admin', 'dashboard']], 'NewStatusReport');
     });
 
+    // Social - User Lifecycle Subscriptions
+    const unsubUserCreated = signalRService.onUserCreated((msg) => {
+      devLog.info('realtime', 'UserCreated', msg);
+      liveRefresh(
+        queryClient,
+        [['admin', 'users'], ['admin', 'staff'], ['admin', 'dashboard']],
+        'UserCreated',
+        50
+      );
+    });
+
+    const unsubUserUpdated = signalRService.onUserUpdated((msg) => {
+      devLog.info('realtime', 'UserUpdated', msg);
+      liveRefresh(
+        queryClient,
+        [['admin', 'users'], ['admin', 'staff'], ['admin', 'dashboard'], ['admin', 'users', msg?.userId]],
+        'UserUpdated',
+        50
+      );
+    });
+
+    const unsubUserDeleted = signalRService.onUserDeleted((msg) => {
+      devLog.info('realtime', 'UserDeleted', msg);
+      liveRefresh(
+        queryClient,
+        [['admin', 'users'], ['admin', 'staff'], ['admin', 'dashboard']],
+        'UserDeleted',
+        50
+      );
+    });
+
     let hasConnectedOnce = signalRService.getStatus() === 'connected';
     const unsubStatus = signalRService.onStatusChange((status) => {
       if (status === 'connected') {
@@ -224,6 +255,8 @@ export function useSignalRSubscriptions() {
         // Catch anything missed while the hub was down / negotiating.
         if (wasReconnect) {
           liveRefresh(queryClient, [
+            ['admin', 'users'],
+            ['admin', 'staff'],
             ['admin', 'verification'],
             ['admin', 'reels'],
             ['admin', 'statuses'],
@@ -268,6 +301,9 @@ export function useSignalRSubscriptions() {
       unsubStatusRestored();
       unsubNewReelReport();
       unsubNewStatusReport();
+      unsubUserCreated();
+      unsubUserUpdated();
+      unsubUserDeleted();
       unsubStatus();
     };
   }, [queryClient]);

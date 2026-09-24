@@ -21,6 +21,9 @@ import {
   StatusRestoredMessage,
   NewReelReportMessage,
   NewStatusReportMessage,
+  UserCreatedMessage,
+  UserUpdatedMessage,
+  UserDeletedMessage,
 } from '@/types/realtime';
 
 export type SignalRConnectionStatus =
@@ -317,6 +320,19 @@ class SignalRService {
 
   public onNewStatusReport(callback: (msg: NewStatusReportMessage) => void): () => void {
     return this.registerHandler('NewStatusReport', callback);
+  }
+
+  // User Management Events
+  public onUserCreated(callback: (msg: UserCreatedMessage) => void): () => void {
+    return this.registerHandler('UserCreated', callback);
+  }
+
+  public onUserUpdated(callback: (msg: UserUpdatedMessage) => void): () => void {
+    return this.registerHandler('UserUpdated', callback);
+  }
+
+  public onUserDeleted(callback: (msg: UserDeletedMessage) => void): () => void {
+    return this.registerHandler('UserDeleted', callback);
   }
 
   public async joinLocationGroup(locationId: number): Promise<void> {
