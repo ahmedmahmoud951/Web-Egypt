@@ -13,6 +13,38 @@ export interface AdvertisingDashboardStats {
   totalVideoViews?: number;
   totalVideoStarts?: number;
   totalVideoCompletes?: number;
+  totalLikes?: number;
+}
+
+export interface CampaignPlacementStats {
+  placement: string;
+  placementNameAr: string;
+  impressions: number;
+  clicks: number;
+  likes: number;
+  videoStarts: number;
+  videoCompletes: number;
+  reach: number;
+  ctr: number;
+}
+
+export interface AdvertisingCampaignStats {
+  impressionsCount?: number;
+  clicksCount?: number;
+  videoStartsCount?: number;
+  videoCompletesCount?: number;
+  lastTrackedAt?: string;
+  likesCount?: number;
+  reachCount?: number;
+  videoCompletionRate?: number;
+  ctr?: number;
+  placements?: CampaignPlacementStats[];
+  impressions?: number;
+  clicks?: number;
+  videoStarts?: number;
+  videoCompletes?: number;
+  likes?: number;
+  spend?: number;
 }
 
 export interface AdvertisingPlan {
@@ -54,14 +86,7 @@ export interface AdvertisingCampaignSummary {
   rejectedReason?: string;
   firstMediaUrl?: string;
   media?: AdvertisingMediaItem[];
-  stats?: {
-    impressionsCount?: number;
-    clicksCount?: number;
-    videoStartsCount?: number;
-    videoCompletesCount?: number;
-    impressions?: number;
-    clicks?: number;
-  };
+  stats?: AdvertisingCampaignStats;
   totalImpressions?: number;
   totalClicks?: number;
   remainingDays?: number;
@@ -150,17 +175,7 @@ export interface AdvertisingCampaignDetails {
   media: AdvertisingMediaItem[];
   targeting?: AdvertisingTargeting;
   payments?: AdvertisingPaymentSummary[];
-  stats?: {
-    impressions?: number;
-    clicks?: number;
-    videoStarts?: number;
-    videoCompletes?: number;
-    impressionsCount?: number;
-    clicksCount?: number;
-    videoStartsCount?: number;
-    videoCompletesCount?: number;
-    spend?: number;
-  };
+  stats?: AdvertisingCampaignStats;
   remainingDays?: number;
   remainingHours?: number;
   remainingTimeText?: string;
