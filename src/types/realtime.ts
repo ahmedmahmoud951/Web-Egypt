@@ -159,4 +159,26 @@ export interface UserDeletedMessage {
   deletedAt: string;
 }
 
+// Advertising Events
+export interface AdvertisingCampaignRealTimeMessage {
+  campaignId: string;
+  advertiserUserId: string;
+  title: string;
+  status: string;
+  reason?: string | null;
+  updatedAt: string;
+}
+
+export interface AdvertisingPaymentRealTimeMessage {
+  paymentId: string;
+  campaignId: string;
+  advertiserUserId: string;
+  status: string;
+  amount: number;
+  currency: string;
+  reason?: string | null;
+  updatedAt: string;
+}
+
+
 

@@ -24,6 +24,8 @@ import {
   UserCreatedMessage,
   UserUpdatedMessage,
   UserDeletedMessage,
+  AdvertisingCampaignRealTimeMessage,
+  AdvertisingPaymentRealTimeMessage,
 } from '@/types/realtime';
 
 export type SignalRConnectionStatus =
@@ -333,6 +335,15 @@ class SignalRService {
 
   public onUserDeleted(callback: (msg: UserDeletedMessage) => void): () => void {
     return this.registerHandler('UserDeleted', callback);
+  }
+
+  // Advertising Real-Time Events
+  public onAdvertisingCampaignUpdated(callback: (msg: AdvertisingCampaignRealTimeMessage) => void): () => void {
+    return this.registerHandler('AdvertisingCampaignUpdated', callback);
+  }
+
+  public onAdvertisingPaymentUpdated(callback: (msg: AdvertisingPaymentRealTimeMessage) => void): () => void {
+    return this.registerHandler('AdvertisingPaymentUpdated', callback);
   }
 
   public async joinLocationGroup(locationId: number): Promise<void> {

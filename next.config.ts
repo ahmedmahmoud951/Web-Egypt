@@ -4,7 +4,14 @@ const nextConfig: NextConfig = {
   // SiteASP / IIS deploy via Web Deploy (Publish-Web.ps1)
   output: "standalone",
   // Allow local network IP access during development
-  allowedDevOrigins: ['192.168.224.1', '192.168.224.1:3000', 'localhost:3000', '127.0.0.1:3000'],
+  allowedDevOrigins: [
+    '192.168.1.229',
+    '192.168.1.229:3000',
+    '192.168.224.1',
+    '192.168.224.1:3000',
+    'localhost:3000',
+    '127.0.0.1:3000',
+  ],
   images: {
     unoptimized: true,
     remotePatterns: [

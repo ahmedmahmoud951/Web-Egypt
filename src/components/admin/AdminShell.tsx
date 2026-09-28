@@ -23,11 +23,13 @@ import {
   Film,
   Sparkles,
   MessageCircle,
+  Megaphone,
   ChevronRight,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'لوحة القيادة', shortLabel: 'لوحة', icon: LayoutDashboard, exact: true },
+  { href: '/admin/advertising', label: 'منصة الإعلانات', shortLabel: 'إعلانات', icon: Megaphone },
   { href: '/admin/chat', label: 'مراقبة المحادثات', shortLabel: 'محادثات', icon: MessageCircle },
   { href: '/admin/verification', label: 'توثيق الحسابات', shortLabel: 'توثيق', icon: BadgeCheck },
   { href: '/admin/events', label: 'المنشورات', shortLabel: 'منشورات', icon: Newspaper },

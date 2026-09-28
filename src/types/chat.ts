@@ -118,10 +118,13 @@ export interface MessageAttachmentDto {
   thumbnailUrl?: string | null;
   fileName: string;
   contentType: string;
+  mimeType?: string | null;
   sizeBytes: number;
+  fileSize?: number | null;
   width?: number | null;
   height?: number | null;
   durationSeconds?: number | null;
+  duration?: number | null;
 }
 
 export interface MessageReactionDto {

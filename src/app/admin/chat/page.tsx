@@ -2132,50 +2132,67 @@ export default function AdminChatPage() {
                               </div>
                             )}
 
-                            {/* Voice Message Player */}
-                            {isTypeVoice(msg.type) && msg.attachments?.[0] && (
-                              <VoiceMessagePlayer
-                                audioUrl={msg.attachments[0].fileUrl}
-                                durationSeconds={msg.attachments[0].durationSeconds || 0}
-                              />
-                            )}
+                            {/* Attachments rendering */}
+                            {msg.attachments && msg.attachments.length > 0 && (
+                              <div className="space-y-2 mb-2">
+                                {msg.attachments.map((att) => {
+                                  const isVoice = isTypeVoice(msg.type) || att.mimeType?.startsWith('audio/') || att.fileName?.toLowerCase().endsWith('.m4a') || att.fileName?.toLowerCase().endsWith('.mp3');
+                                  const isImg = isTypeImage(msg.type) || att.mimeType?.startsWith('image/');
+                                  const isVid = isTypeVideo(msg.type) || att.mimeType?.startsWith('video/');
 
-                            {/* Image Attachment */}
-                            {isTypeImage(msg.type) && msg.attachments?.[0] && (
-                              <img
-                                src={msg.attachments[0].fileUrl}
-                                alt=""
-                                onClick={() => setSelectedImageModal(msg.attachments[0].fileUrl)}
-                                className="rounded-xl max-h-60 object-cover cursor-pointer hover:opacity-95 mb-2"
-                              />
-                            )}
+                                  if (isVoice) {
+                                    return (
+                                      <VoiceMessagePlayer
+                                        key={att.id || att.mediaFileId}
+                                        audioUrl={att.fileUrl}
+                                        durationSeconds={att.durationSeconds || 0}
+                                      />
+                                    );
+                                  }
 
-                            {/* Video Attachment */}
-                            {isTypeVideo(msg.type) && msg.attachments?.[0] && (
-                              <video
-                                src={msg.attachments[0].fileUrl}
-                                controls
-                                className="rounded-xl max-h-60 mb-2 w-full"
-                              />
-                            )}
+                                  if (isImg) {
+                                    return (
+                                      <img
+                                        key={att.id || att.mediaFileId}
+                                        src={att.fileUrl}
+                                        alt={att.fileName || ''}
+                                        onClick={() => setSelectedImageModal(att.fileUrl)}
+                                        className="rounded-xl max-h-60 object-cover cursor-pointer hover:opacity-95 mb-1"
+                                      />
+                                    );
+                                  }
 
-                            {/* File Attachment */}
-                            {isTypeFile(msg.type) && msg.attachments?.[0] && (
-                              <a
-                                href={msg.attachments[0].fileUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex items-center gap-2 p-2.5 rounded-xl bg-black/20 hover:bg-black/30 text-xs mb-2 transition-colors"
-                              >
-                                <FileText className="w-5 h-5 text-emerald-300" />
-                                <div className="truncate flex-1">
-                                  <p className="font-semibold truncate">{msg.attachments[0].fileName}</p>
-                                  <span className="text-[10px] text-slate-300">
-                                    {(msg.attachments[0].sizeBytes / 1024).toFixed(1)} KB
-                                  </span>
-                                </div>
-                                <Download className="w-4 h-4 text-slate-400" />
-                              </a>
+                                  if (isVid) {
+                                    return (
+                                      <video
+                                        key={att.id || att.mediaFileId}
+                                        src={att.fileUrl}
+                                        controls
+                                        className="rounded-xl max-h-60 mb-1 w-full"
+                                      />
+                                    );
+                                  }
+
+                                  return (
+                                    <a
+                                      key={att.id || att.mediaFileId}
+                                      href={att.fileUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="flex items-center gap-2 p-2.5 rounded-xl bg-black/20 hover:bg-black/30 text-xs mb-1 transition-colors"
+                                    >
+                                      <FileText className="w-5 h-5 text-emerald-300" />
+                                      <div className="truncate flex-1">
+                                        <p className="font-semibold truncate">{att.fileName}</p>
+                                        <span className="text-[10px] text-slate-300">
+                                          {(att.sizeBytes / 1024).toFixed(1)} KB
+                                        </span>
+                                      </div>
+                                      <Download className="w-4 h-4 text-slate-400" />
+                                    </a>
+                                  );
+                                })}
+                              </div>
                             )}
 
                             {/* Text message */}
@@ -2553,13 +2570,31 @@ export default function AdminChatPage() {
                       displayAdminMessages.map((msg) => {
                         const firstUserId = selectedAdminConv.participants?.[0]?.userId;
                         const isSideA = firstUserId ? msg.senderId === firstUserId : true;
+                        const isCall = isTypeCall(msg.type);
+
+                        if (isCall) {
+                          return (
+                            <div key={msg.id} className="flex justify-center my-2">
+                              <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-[#202c33] border border-[#2a3942] text-xs text-slate-300">
+                                <PhoneCall className="w-4 h-4 text-[#25d366]" />
+                                <span>{msg.text || 'مكالمة مكتملة'}</span>
+                                <span className="text-[10px] text-slate-500">
+                                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        const tickStatus = msg.deliveryStatus;
+
                         return (
                           <div
                             key={msg.id}
                             className={`flex ${isSideA ? 'justify-start' : 'justify-end'}`}
                           >
                             <div
-                              className={`max-w-[75%] rounded-xl px-3 py-2 shadow-sm ${
+                              className={`max-w-[80%] rounded-xl px-3 py-2 shadow-sm ${
                                 isSideA
                                   ? 'bg-[#202c33] border border-[#2a3942] rounded-tl-sm'
                                   : 'bg-[#005c4b] border border-[#005c4b] rounded-tr-sm'
@@ -2574,55 +2609,122 @@ export default function AdminChatPage() {
                                 {msg.senderName || 'مستخدم'}
                               </div>
 
-                              {isTypeVoice(msg.type) && msg.attachments?.[0] && (
-                                <VoiceMessagePlayer
-                                  audioUrl={msg.attachments[0].fileUrl}
-                                  durationSeconds={msg.attachments[0].durationSeconds || 0}
-                                />
+                              {/* Replied Message Preview */}
+                              {msg.replyToMessageText && (
+                                <div className="mb-2 p-2 rounded-lg bg-black/25 text-xs border-r-2 border-[#25d366] text-slate-200">
+                                  <span className="font-bold block text-[11px] text-[#25d366]">
+                                    {msg.replyToSenderName || 'رسالة سابقة'}
+                                  </span>
+                                  <span className="truncate block text-slate-300">{msg.replyToMessageText}</span>
+                                </div>
                               )}
 
-                              {isTypeImage(msg.type) && msg.attachments?.[0] && (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={msg.attachments[0].fileUrl}
-                                  alt=""
-                                  className="rounded-lg max-h-56 object-cover mb-1"
-                                />
+                              {/* Attachments (Voice, Audio, Image, Video, Files) */}
+                              {msg.attachments && msg.attachments.length > 0 && (
+                                <div className="space-y-2 mb-2">
+                                  {msg.attachments.map((att) => {
+                                    const isVoice = isTypeVoice(msg.type) || att.mimeType?.startsWith('audio/') || att.fileName?.toLowerCase().endsWith('.m4a') || att.fileName?.toLowerCase().endsWith('.mp3');
+                                    const isImg = isTypeImage(msg.type) || att.mimeType?.startsWith('image/');
+                                    const isVid = isTypeVideo(msg.type) || att.mimeType?.startsWith('video/');
+
+                                    if (isVoice) {
+                                      return (
+                                        <VoiceMessagePlayer
+                                          key={att.id || att.mediaFileId}
+                                          audioUrl={att.fileUrl}
+                                          durationSeconds={att.durationSeconds || 0}
+                                        />
+                                      );
+                                    }
+
+                                    if (isImg) {
+                                      return (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                          key={att.id || att.mediaFileId}
+                                          src={att.fileUrl}
+                                          alt={att.fileName || ''}
+                                          onClick={() => setSelectedImageModal(att.fileUrl)}
+                                          className="rounded-lg max-h-60 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                        />
+                                      );
+                                    }
+
+                                    if (isVid) {
+                                      return (
+                                        <video
+                                          key={att.id || att.mediaFileId}
+                                          src={att.fileUrl}
+                                          controls
+                                          className="rounded-lg max-h-60 w-full"
+                                        />
+                                      );
+                                    }
+
+                                    return (
+                                      <a
+                                        key={att.id || att.mediaFileId}
+                                        href={att.fileUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex items-center gap-2 p-2 rounded-lg bg-[#111b21] hover:bg-[#182229] text-xs text-[#e9edef] transition-colors"
+                                      >
+                                        <FileText className="w-4 h-4 text-[#25d366]" />
+                                        <span className="truncate flex-1 font-medium">{att.fileName}</span>
+                                        <span className="text-[10px] text-[#8696a0]">
+                                          {(att.sizeBytes / 1024).toFixed(1)} KB
+                                        </span>
+                                        <Download className="w-3.5 h-3.5 text-[#8696a0]" />
+                                      </a>
+                                    );
+                                  })}
+                                </div>
                               )}
 
-                              {isTypeVideo(msg.type) && msg.attachments?.[0] && (
-                                <video
-                                  src={msg.attachments[0].fileUrl}
-                                  controls
-                                  className="rounded-lg max-h-56 mb-1 w-full"
-                                />
-                              )}
-
-                              {isTypeFile(msg.type) && msg.attachments?.[0] && (
-                                <a
-                                  href={msg.attachments[0].fileUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="flex items-center gap-2 p-2 rounded-lg bg-[#111b21] text-xs text-[#e9edef]"
-                                >
-                                  <FileText className="w-4 h-4 text-[#25d366]" />
-                                  <span className="truncate flex-1">{msg.attachments[0].fileName}</span>
-                                  <Download className="w-3.5 h-3.5" />
-                                </a>
-                              )}
-
+                              {/* Text message */}
                               {msg.text && (
                                 <p className="text-[13px] text-[#e9edef] whitespace-pre-wrap leading-relaxed">
                                   {msg.text}
                                 </p>
                               )}
-                              <div className="text-[10px] text-[#8696a0] text-left mt-1 dir-ltr">
-                                {new Date(msg.createdAt).toLocaleString('ar-EG')}
+
+                              {/* Reactions */}
+                              {msg.reactions && msg.reactions.length > 0 && (
+                                <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                                  {msg.reactions.map((r) => (
+                                    <span
+                                      key={r.id}
+                                      className="px-1.5 py-0.5 rounded-full bg-[#111b21] text-xs border border-[#2a3942] shadow text-[#e9edef]"
+                                      title={r.userName}
+                                    >
+                                      {r.reaction}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Footer Timestamp & Delivery Status */}
+                              <div className="flex items-center justify-between gap-2 mt-1 text-[10px] text-[#8696a0]">
+                                <span className="dir-ltr">
+                                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                {tickStatus && (
+                                  <span className="inline-flex items-center">
+                                    {isMessageRead(tickStatus) ? (
+                                      <span title="تمت القراءة"><CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" /></span>
+                                    ) : isMessageDelivered(tickStatus) ? (
+                                      <span title="تم الاستلام"><CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" /></span>
+                                    ) : (
+                                      <span title="تم الإرسال"><Check className="w-3.5 h-3.5 text-[#8696a0]" /></span>
+                                    )}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
                         );
                       })
+
                     )}
                     <div ref={messagesEndRef} />
                   </div>
