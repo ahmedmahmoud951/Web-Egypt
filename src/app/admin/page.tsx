@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { adminApi } from '@/api/admin';
 import { socialAdminApi } from '@/api/socialAdmin';
 import { verificationAdminApi } from '@/api/verificationAdmin';
+import { advertisingAdminApi } from '@/api/advertisingAdmin';
 import { signalRService } from '@/lib/signalr';
 import {
   EyeOff,
@@ -28,6 +29,7 @@ import {
   Film,
   BadgeCheck,
   MessageCircle,
+  Megaphone,
   UserCog,
   type LucideIcon,
 } from 'lucide-react';
@@ -88,6 +90,14 @@ export default function AdminDashboardPage() {
     retry: 0,
   });
 
+  const { data: adStats, isLoading: adsLoading, refetch: refetchAds } = useQuery({
+    queryKey: ['admin', 'advertising', 'dashboard'],
+    queryFn: () => advertisingAdminApi.getDashboardStats(),
+    enabled: adminReady,
+    staleTime: 120_000,
+    retry: 0,
+  });
+
   useEffect(() => {
     signalRService.start();
 
@@ -96,6 +106,7 @@ export default function AdminDashboardPage() {
       refetchReels();
       refetchStatuses();
       refetchVerify();
+      refetchAds();
     };
 
     const unsubs = [
@@ -113,14 +124,16 @@ export default function AdminDashboardPage() {
       signalRService.onStatusHidden(refreshStats),
       signalRService.onNewReelReport(refreshStats),
       signalRService.onNewStatusReport(refreshStats),
+      signalRService.onAdvertisingCampaignUpdated(refreshStats),
+      signalRService.onAdvertisingPaymentUpdated(refreshStats),
     ];
 
     return () => {
       unsubs.forEach((u) => u());
     };
-  }, [refetch, refetchReels, refetchStatuses, refetchVerify]);
+  }, [refetch, refetchReels, refetchStatuses, refetchVerify, refetchAds]);
 
-  const anyLoading = isLoading || reelsLoading || statusesLoading || verifyLoading;
+  const anyLoading = isLoading || reelsLoading || statusesLoading || verifyLoading || adsLoading;
 
   const cards: DashCard[] = [
     {
@@ -130,6 +143,16 @@ export default function AdminDashboardPage() {
       icon: Users,
       href: '/admin/users',
       tone: 'nile',
+    },
+    {
+      label: 'منصة الإعلانات',
+      value: adStats?.activeCampaigns ?? (adsLoading ? '...' : 0),
+      hint: adStats
+        ? `${adStats.activeCampaigns} نشطة · ${adStats.pendingReviewCampaigns} معلقة`
+        : 'حملات وترويج',
+      icon: Megaphone,
+      href: '/admin/advertising',
+      tone: 'gold',
     },
     {
       label: 'توثيق الحسابات',
