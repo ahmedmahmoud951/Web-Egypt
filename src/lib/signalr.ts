@@ -26,6 +26,9 @@ import {
   UserDeletedMessage,
   AdvertisingCampaignRealTimeMessage,
   AdvertisingPaymentRealTimeMessage,
+  CommunitySosAlertRealTimeMessage,
+  CommunityCarpoolRideRealTimeMessage,
+  CommunityLostAndFoundRealTimeMessage,
 } from '@/types/realtime';
 
 export type SignalRConnectionStatus =
@@ -345,6 +348,24 @@ class SignalRService {
   public onAdvertisingPaymentUpdated(callback: (msg: AdvertisingPaymentRealTimeMessage) => void): () => void {
     return this.registerHandler('AdvertisingPaymentUpdated', callback);
   }
+
+  // Community Events (SOS, Carpooling, Lost & Found)
+  public onCommunitySosAlertCreated(callback: (msg: CommunitySosAlertRealTimeMessage) => void): () => void {
+    return this.registerHandler('CommunitySosAlertCreated', callback);
+  }
+
+  public onCommunitySosAlertResolved(callback: (msg: CommunitySosAlertRealTimeMessage) => void): () => void {
+    return this.registerHandler('CommunitySosAlertResolved', callback);
+  }
+
+  public onCommunityCarpoolRideCreated(callback: (msg: CommunityCarpoolRideRealTimeMessage) => void): () => void {
+    return this.registerHandler('CommunityCarpoolRideCreated', callback);
+  }
+
+  public onCommunityLostAndFoundItemCreated(callback: (msg: CommunityLostAndFoundRealTimeMessage) => void): () => void {
+    return this.registerHandler('CommunityLostAndFoundItemCreated', callback);
+  }
+
 
   public async joinLocationGroup(locationId: number): Promise<void> {
     if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {

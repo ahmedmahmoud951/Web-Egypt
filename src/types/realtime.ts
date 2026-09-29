@@ -180,5 +180,52 @@ export interface AdvertisingPaymentRealTimeMessage {
   updatedAt: string;
 }
 
+// Community Events (SOS "فزعة مصر", Carpooling "عربية رايحة", Lost & Found "المفقودات والمعثورات")
+export interface CommunitySosAlertRealTimeMessage {
+  alertId: string;
+  userId: string;
+  userName: string;
+  alertType: string;
+  title: string;
+  description: string;
+  locationId?: number | null;
+  locationName?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  bloodType?: string | null;
+  hospitalName?: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface CommunityCarpoolRideRealTimeMessage {
+  rideId: string;
+  driverUserId: string;
+  driverName: string;
+  fromCityOrArea: string;
+  toCityOrArea: string;
+  departureTime: string;
+  availableSeats: number;
+  pricePerSeat: number;
+  status: string;
+  createdAt: string;
+}
+
+export interface CommunityLostAndFoundRealTimeMessage {
+  itemId: string;
+  reporterUserId: string;
+  reporterName: string;
+  itemType: string;
+  category: string;
+  title: string;
+  locationDescription: string;
+  isSmartMatched: boolean;
+  matchedUserId?: string | null;
+  matchedUserName?: string | null;
+  status: string;
+  createdAt: string;
+}
+
+
 
 
