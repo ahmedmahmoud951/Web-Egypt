@@ -14,6 +14,7 @@ import { adminApi } from '@/api/admin';
 import { socialAdminApi } from '@/api/socialAdmin';
 import { verificationAdminApi } from '@/api/verificationAdmin';
 import { advertisingAdminApi } from '@/api/advertisingAdmin';
+import { communityAdminApi } from '@/api/communityAdmin';
 import { signalRService } from '@/lib/signalr';
 import {
   EyeOff,
@@ -32,6 +33,9 @@ import {
   Megaphone,
   UserCog,
   Siren,
+  Car,
+  Search,
+  ArrowLeft,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -99,6 +103,14 @@ export default function AdminDashboardPage() {
     retry: 0,
   });
 
+  const { data: communityStats, isLoading: communityLoading, refetch: refetchCommunity } = useQuery({
+    queryKey: ['admin', 'community', 'sos', 'Active'],
+    queryFn: ({ signal }) => communityAdminApi.getSosAlerts(1, 1, 'Active', signal),
+    enabled: adminReady,
+    staleTime: 60_000,
+    retry: 0,
+  });
+
   useEffect(() => {
     signalRService.start();
 
@@ -108,6 +120,7 @@ export default function AdminDashboardPage() {
       refetchStatuses();
       refetchVerify();
       refetchAds();
+      refetchCommunity();
     };
 
     const unsubs = [
@@ -127,19 +140,23 @@ export default function AdminDashboardPage() {
       signalRService.onNewStatusReport(refreshStats),
       signalRService.onAdvertisingCampaignUpdated(refreshStats),
       signalRService.onAdvertisingPaymentUpdated(refreshStats),
+      signalRService.onCommunitySosAlertCreated(refreshStats),
+      signalRService.onCommunitySosAlertResolved(refreshStats),
+      signalRService.onCommunityCarpoolRideCreated(refreshStats),
+      signalRService.onCommunityLostAndFoundItemCreated(refreshStats),
     ];
 
     return () => {
       unsubs.forEach((u) => u());
     };
-  }, [refetch, refetchReels, refetchStatuses, refetchVerify, refetchAds]);
+  }, [refetch, refetchReels, refetchStatuses, refetchVerify, refetchAds, refetchCommunity]);
 
-  const anyLoading = isLoading || reelsLoading || statusesLoading || verifyLoading || adsLoading;
+  const anyLoading = isLoading || reelsLoading || statusesLoading || verifyLoading || adsLoading || communityLoading;
 
   const cards: DashCard[] = [
     {
       label: 'المجتمع والطوارئ والمفقودات',
-      value: 'مباشر',
+      value: communityLoading ? '...' : (communityStats?.totalCount != null ? `${communityStats.totalCount} استغاثة نشطة` : 'مباشر'),
       hint: 'فزعة مصر · عربية رايحة · مفقودات',
       icon: Siren,
       href: '/admin/community',
@@ -323,6 +340,63 @@ export default function AdminDashboardPage() {
             </button>
           </FlashBanner>
         )}
+
+        {/* FEATURED SPOTLIGHT: شبكة الطوارئ والمجتمع الذكي في مصر */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-950/70 via-slate-900/90 to-slate-900 border border-red-500/30 p-5 md:p-6 shadow-2xl backdrop-blur-xl group hover:border-red-500/60 transition-all">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                </span>
+                <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40">
+                  بث رادار حي Real-Time 🚨
+                </span>
+                <span className="text-xs font-bold text-amber-400">
+                  {communityStats?.totalCount != null && communityStats.totalCount > 0
+                    ? `(${communityStats.totalCount} استغاثة نشطة بالمحافظات)`
+                    : 'حالة الاستقرار طبيعية'}
+                </span>
+              </div>
+
+              <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5">
+                <Siren className="w-6 h-6 text-red-500 animate-pulse" />
+                شبكة الطوارئ والمجتمع الذكي («فزعة مصر» · «عربية رايحة» · المفقودات)
+              </h2>
+
+              <p className="text-xs md:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                غرفة العمليات المركزية لمتابعة استغاثات المواطنين وحوادث الطرق، طلبات التبرع بالدم الحرجة، مشاوير Carpooling الآمنة، واسترداد المفقودات بالمطابقة التلقائية بالرقم القومي.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-rose-300 border border-rose-500/20 font-bold flex items-center gap-1.5">
+                  <Siren className="w-3.5 h-3.5 text-rose-400" />
+                  فزعة مصر (طوارئ ودم)
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-emerald-300 border border-emerald-500/20 font-bold flex items-center gap-1.5">
+                  <Car className="w-3.5 h-3.5 text-emerald-400" />
+                  عربية رايحة (مشاوير مشتركة)
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-indigo-300 border border-indigo-500/20 font-bold flex items-center gap-1.5">
+                  <Search className="w-3.5 h-3.5 text-indigo-400" />
+                  المفقودات (مطابقة ذكية 14 رقم)
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <Link
+                href="/admin/community"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-xs md:text-sm font-black bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 text-white shadow-lg shadow-red-600/30 border border-red-400/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                <span>فتح غرفة عمليات المجتمع</span>
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
 
         <div className="admin-grid admin-grid-4">
           {visibleCards.map((card) => {
