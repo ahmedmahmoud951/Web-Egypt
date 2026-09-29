@@ -25,10 +25,12 @@ import {
   MessageCircle,
   Megaphone,
   ChevronRight,
+  Siren,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'لوحة القيادة', shortLabel: 'لوحة', icon: LayoutDashboard, exact: true },
+  { href: '/admin/community', label: 'المجتمع والطوارئ والمفقودات', shortLabel: 'طوارئ', icon: Siren },
   { href: '/admin/advertising', label: 'منصة الإعلانات', shortLabel: 'إعلانات', icon: Megaphone },
   { href: '/admin/chat', label: 'مراقبة المحادثات', shortLabel: 'محادثات', icon: MessageCircle },
   { href: '/admin/verification', label: 'توثيق الحسابات', shortLabel: 'توثيق', icon: BadgeCheck },

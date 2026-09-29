@@ -31,6 +31,7 @@ import {
   MessageCircle,
   Megaphone,
   UserCog,
+  Siren,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -136,6 +137,14 @@ export default function AdminDashboardPage() {
   const anyLoading = isLoading || reelsLoading || statusesLoading || verifyLoading || adsLoading;
 
   const cards: DashCard[] = [
+    {
+      label: 'المجتمع والطوارئ والمفقودات',
+      value: 'مباشر',
+      hint: 'فزعة مصر · عربية رايحة · مفقودات',
+      icon: Siren,
+      href: '/admin/community',
+      tone: 'danger',
+    },
     {
       label: 'المستخدمون',
       value: stats?.usersCount,
