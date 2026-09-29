@@ -26,6 +26,10 @@ export interface CampaignPlacementStats {
   videoCompletes: number;
   reach: number;
   ctr: number;
+  whatsAppClicks?: number;
+  callClicks?: number;
+  chatClicks?: number;
+  websiteClicks?: number;
 }
 
 export interface AdvertisingCampaignStats {
@@ -45,6 +49,14 @@ export interface AdvertisingCampaignStats {
   videoCompletes?: number;
   likes?: number;
   spend?: number;
+  whatsAppClicksCount?: number;
+  callClicksCount?: number;
+  chatClicksCount?: number;
+  websiteClicksCount?: number;
+  whatsAppClicks?: number;
+  callClicks?: number;
+  chatClicks?: number;
+  websiteClicks?: number;
 }
 
 export interface AdvertisingPlan {
@@ -74,6 +86,9 @@ export interface AdvertisingCampaignSummary {
   title: string;
   destinationUrl?: string;
   ctaType?: string;
+  ctaAction?: string;
+  ctaLabel?: string;
+  ctaValue?: string;
   startDate: string;
   endDate: string;
   status: string;
@@ -162,6 +177,9 @@ export interface AdvertisingCampaignDetails {
   description?: string;
   destinationUrl?: string;
   ctaType?: string;
+  ctaAction?: string;
+  ctaLabel?: string;
+  ctaValue?: string;
   startDate: string;
   endDate: string;
   status: string;
