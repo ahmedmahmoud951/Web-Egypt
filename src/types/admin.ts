@@ -22,6 +22,12 @@ export interface AdminUserListItem {
   blockedAt?: string | null;
   blockReason?: string | null;
   eventsCount: number;
+  nationalId?: string | null;
+  gender?: string | null;
+  genderArabic?: string | null;
+  hasGender?: boolean;
+  hasNationalId?: boolean;
+  needsProfileCompletion?: boolean;
   createdAt: string;
 }
 
@@ -36,6 +42,8 @@ export interface AdminUserDetail extends AdminUserListItem {
   isVerified: boolean;
   verificationType?: string | null;
   visibility: string;
+  referralCode?: string | null;
+  referralsCount?: number;
   followersCount: number;
   followingCount: number;
   postsCount: number;
@@ -66,6 +74,8 @@ export interface UpdateAdminUserRequest {
   email?: string | null;
   bio?: string | null;
   role?: string | null;
+  gender?: string | null;
+  nationalId?: string | null;
   isBlocked?: boolean | null;
   blockReason?: string | null;
   password?: string | null;

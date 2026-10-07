@@ -228,3 +228,95 @@ export interface PaymentReceivingAccount {
   createdAt: string;
   updatedAt?: string;
 }
+
+export interface VideoAdvertisingSettings {
+  id: number;
+  enabled: boolean;
+  preRollEnabled: boolean;
+  midRollEnabled: boolean;
+  postRollEnabled: boolean;
+  defaultMaxAdsPerVideo: number;
+  defaultMinimumAdIntervalSeconds: number;
+  defaultMidRollIntervalSeconds: number;
+  defaultMinimumVideoDurationSeconds: number;
+  defaultSkipAfterSeconds: number;
+  updatedAt: string;
+}
+
+export interface UpdateVideoAdvertisingSettingsRequest {
+  enabled: boolean;
+  preRollEnabled: boolean;
+  midRollEnabled: boolean;
+  postRollEnabled: boolean;
+  defaultMaxAdsPerVideo: number;
+  defaultMinimumAdIntervalSeconds: number;
+  defaultMidRollIntervalSeconds: number;
+  defaultMinimumVideoDurationSeconds: number;
+  defaultSkipAfterSeconds: number;
+}
+
+export interface CampaignVideoAdSettings {
+  id: string;
+  campaignId: string;
+  isEnabled: boolean;
+  enablePreRoll: boolean;
+  enableMidRoll: boolean;
+  enablePostRoll: boolean;
+  maxAdsPerVideo?: number | null;
+  minimumAdIntervalSeconds?: number | null;
+  midRollIntervalSeconds?: number | null;
+  minimumVideoDurationSeconds?: number | null;
+  skipAfterSeconds?: number | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface UpdateCampaignVideoAdSettingsRequest {
+  isEnabled: boolean;
+  enablePreRoll: boolean;
+  enableMidRoll: boolean;
+  enablePostRoll: boolean;
+  maxAdsPerVideo?: number | null;
+  minimumAdIntervalSeconds?: number | null;
+  midRollIntervalSeconds?: number | null;
+  minimumVideoDurationSeconds?: number | null;
+  skipAfterSeconds?: number | null;
+}
+
+export interface PlacementAnalytics {
+  starts: number;
+  completes: number;
+  skips: number;
+  clicks: number;
+  completionRate: number;
+  skipRate: number;
+}
+
+export interface CampaignVideoPerformance {
+  campaignId: string;
+  campaignTitle: string;
+  starts: number;
+  completes: number;
+  skips: number;
+  clicks: number;
+  completionRate: number;
+  ctr: number;
+  avgWatchSeconds: number;
+}
+
+export interface VideoAdAnalytics {
+  totalImpressions: number;
+  videoStarts: number;
+  completedAds: number;
+  skippedAds: number;
+  skipRate: number;
+  averageWatchDurationSeconds: number;
+  completionRate: number;
+  clicks: number;
+  ctr: number;
+  estimatedRevenue: number;
+  preRoll: PlacementAnalytics;
+  midRoll: PlacementAnalytics;
+  postRoll: PlacementAnalytics;
+  campaigns: CampaignVideoPerformance[];
+}

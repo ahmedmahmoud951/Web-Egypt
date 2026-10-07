@@ -143,6 +143,17 @@ export interface VerificationRequestItem {
   createdAt: string;
   documents?: VerificationRequestDocumentItem[];
   auditLogs?: VerificationAuditLogItem[];
+  // Egyptian National ID & OCR verification properties
+  extractedNationalId?: string;
+  extractedFullName?: string;
+  extractedBirthDate?: string;
+  extractedGovernorate?: string;
+  extractedGender?: string;
+  commercialRegistryNumber?: string;
+  ocrConfidenceScore?: number;
+  faceMatchScore?: number;
+  isAutoVerified?: boolean;
+  autoVerificationSummary?: string;
 }
 
 export interface ApproveVerificationPayload {

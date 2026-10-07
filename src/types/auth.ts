@@ -14,6 +14,11 @@ export interface UserDto {
   isBlocked: boolean;
   isSuperAdmin?: boolean;
   createdAt: string;
+  gender?: string;
+  genderArabic?: string;
+  hasGender?: boolean;
+  needsProfileCompletion?: boolean;
+  profileCompletionMessage?: string;
   followersCount?: number;
   followingCount?: number;
   postsCount?: number;
@@ -31,6 +36,8 @@ export interface AuthResponseDto {
   expiresAt?: string;
   user: UserDto;
   isNewUser?: boolean;
+  needsProfileCompletion?: boolean;
+  profileCompletionMessage?: string;
 }
 
 export interface SendOtpRequest {
@@ -41,6 +48,7 @@ export interface VerifyOtpRequest {
   phoneNumber: string;
   otp: string;
   name?: string;
+  gender?: string;
 }
 
 export interface RegisterRequest {
@@ -52,6 +60,7 @@ export interface RegisterRequest {
   confirmPassword: string;
   phoneNumber: string;
   otp: string;
+  gender?: string;
 }
 
 export interface LoginWithPasswordRequest {

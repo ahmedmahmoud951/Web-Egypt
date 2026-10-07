@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { advertisingAdminApi } from '@/api/advertisingAdmin';
+import { VideoAdvertisingTab } from '@/components/admin/VideoAdvertisingTab';
 import {
   AdvertisingDashboardStats,
   AdvertisingCampaignSummary,
@@ -42,6 +43,10 @@ import {
   Zap,
   Copy,
   ZoomIn,
+  LayoutGrid,
+  List,
+  Crown,
+  ArrowUpRight,
   ZoomOut,
   RotateCw,
   Maximize2,
@@ -73,12 +78,29 @@ import {
   Activity,
 } from 'lucide-react';
 
-type TabType = 'dashboard' | 'campaigns' | 'payments' | 'plans' | 'accounts';
+type TabType = 'dashboard' | 'campaigns' | 'payments' | 'plans' | 'accounts' | 'videoAds';
 
 export default function AdvertisingAdminPage() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (
+        tabParam === 'videoAds' ||
+        tabParam === 'campaigns' ||
+        tabParam === 'payments' ||
+        tabParam === 'plans' ||
+        tabParam === 'accounts' ||
+        tabParam === 'dashboard'
+      ) {
+        setActiveTab(tabParam as TabType);
+      }
+    }
+  }, []);
 
   // Dashboard Stats
   const [stats, setStats] = useState<AdvertisingDashboardStats | null>(null);
@@ -107,6 +129,12 @@ export default function AdvertisingAdminPage() {
   const [rotation, setRotation] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState<boolean>(false);
+
+  // View Modes & Filter Search States
+  const [campaignsViewMode, setCampaignsViewMode] = useState<'cards' | 'table'>('cards');
+  const [paymentsViewMode, setPaymentsViewMode] = useState<'cards' | 'table'>('cards');
+  const [campaignSearch, setCampaignSearch] = useState<string>('');
+  const [paymentSearch, setPaymentSearch] = useState<string>('');
 
   // Plans
   const [plans, setPlans] = useState<AdvertisingPlan[]>([]);
@@ -168,12 +196,14 @@ export default function AdvertisingAdminPage() {
 
   // One-click copy helper
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const copyText = (text: string, fieldName: string) => {
+  const copyText = (text?: string, fieldName: string = '') => {
     if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopiedField(fieldName);
-    showFeedback('تم النسخ إلى الحافظة بنجاح');
-    setTimeout(() => setCopiedField(null), 2500);
+    if (typeof window !== 'undefined' && navigator?.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      showFeedback(`تم النسخ إلى الحافظة بنجاح${fieldName ? `: ${fieldName}` : ''}`);
+      setTimeout(() => setCopiedField(null), 2500);
+    }
   };
 
   // Load Data based on active tab
@@ -560,59 +590,1444 @@ export default function AdvertisingAdminPage() {
     }
   };
 
+  const filteredCampaigns = useMemo(() => {
+    let list = campaigns;
+    if (campaignStatusFilter) {
+      list = list.filter((c) => c.status === campaignStatusFilter);
+    }
+    if (campaignSearch.trim()) {
+      const q = campaignSearch.toLowerCase();
+      list = list.filter(
+        (c) =>
+          c.title?.toLowerCase().includes(q) ||
+          c.advertiserName?.toLowerCase().includes(q) ||
+          c.planName?.toLowerCase().includes(q) ||
+          c.id?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [campaigns, campaignStatusFilter, campaignSearch]);
+
+  const filteredPayments = useMemo(() => {
+    let list = payments;
+    if (paymentStatusFilter) {
+      list = list.filter((p) => p.status === paymentStatusFilter);
+    }
+    if (paymentSearch.trim()) {
+      const q = paymentSearch.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.campaignTitle?.toLowerCase().includes(q) ||
+          p.advertiserName?.toLowerCase().includes(q) ||
+          p.transactionReference?.toLowerCase().includes(q) ||
+          p.paymentMethod?.toLowerCase().includes(q) ||
+          p.id?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [payments, paymentStatusFilter, paymentSearch]);
+
   return (
     <AdminShell>
-      <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5 border-white/10">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-amber-500/25 to-amber-400/10 border border-amber-500/40 text-amber-400 shadow-lg shadow-amber-500/10">
-                <Megaphone className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-2xl font-black tracking-tight text-white">منصة إدارة الإعلانات</h1>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    Advertising Pro
-                  </span>
+      <div className="p-4 md:p-8 space-y-7 max-w-7xl mx-auto">
+        {/* ================= COMMAND HEADER ================= */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-amber-500/25 p-6 md:p-8 shadow-2xl shadow-black/60">
+          {/* Background Ambient Glows */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+          <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20"></div>
+
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3.5 flex-wrap">
+                <div className="p-3 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 font-black shadow-lg shadow-amber-500/25 ring-2 ring-amber-400/40">
+                  <Megaphone className="w-7 h-7" />
                 </div>
-                <p className="text-xs md:text-sm text-slate-400">
-                  إدارة شاملة للحملات الإعلانية، مراجعة المحتوى، تدقيق إيصالات التحويل البنكية وإنستاباي لحظياً
-                </p>
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+                      منصة إدارة الإعلانات والرعايات
+                    </h1>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-black bg-gradient-to-r from-amber-500/20 to-amber-400/10 text-amber-300 border border-amber-500/30 shadow-inner">
+                      Advertising Hub Pro
+                    </span>
+                  </div>
+                  <p className="text-xs md:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                    منظومة متكاملة لإدارة الحملات الترويجية، مراجعة المحتوى والوسائط، وفحص إيصالات التحويل البنكي وإنستاباي لحظياً
+                  </p>
+                </div>
               </div>
+            </div>
+
+            {/* Quick Actions & Live Pulse */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Real-time SignalR Pulse */}
+              <div
+                className={`flex items-center gap-2.5 px-3.5 py-2 rounded-2xl text-xs font-bold border backdrop-blur-md transition-all shadow-sm ${
+                  isRealtimeConnected
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-emerald-500/10'
+                    : 'bg-white/5 border-white/10 text-slate-400'
+                }`}
+                title={isRealtimeConnected ? 'متصل بقناة SignalR لتحديث الإعلانات والمدفوعات لحظياً' : 'جاري الاتصال...'}
+              >
+                <span className="relative flex h-2.5 w-2.5">
+                  {isRealtimeConnected && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  )}
+                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isRealtimeConnected ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-slate-500'}`}></span>
+                </span>
+                <span>{isRealtimeConnected ? 'بث حي متصل (SignalR)' : 'جاري الاتصال...'}</span>
+              </div>
+
+              {/* Refresh Button */}
+              <button
+                onClick={() => setRefreshKey((k) => k + 1)}
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs md:text-sm font-bold bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm backdrop-blur-md"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-400' : ''}`} />
+                <span>تحديث</span>
+              </button>
+
+              {/* Contextual Quick Actions */}
+              {activeTab === 'plans' && (
+                <button
+                  onClick={() => {
+                    setEditingPlan({
+                      name: '',
+                      description: '',
+                      price: 500,
+                      currency: 'EGP',
+                      durationDays: 7,
+                      allowedAdTypes: 'Feed,Story,Reels',
+                      isActive: true,
+                      displayOrder: 1,
+                    });
+                    setPlanModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs md:text-sm font-black bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-500 text-slate-950 transition-all hover:scale-[1.02] shadow-lg shadow-amber-500/20"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>إضافة باقة جديدة</span>
+                </button>
+              )}
+
+              {activeTab === 'accounts' && (
+                <div className="flex items-center gap-2.5">
+                  <button
+                    onClick={() => {
+                      setEditingAccount({
+                        name: '',
+                        accountType: 'InstaPay',
+                        bankName: '',
+                        accountHolderName: '',
+                        accountNumber: '',
+                        iban: '',
+                        instaPayIdentifier: '',
+                        instructions: 'يرجى كتابة رقم المرجع في خانة الملاحظات أثناء التحويل عبر تطبيق إنستاباي',
+                        currency: 'EGP',
+                        isActive: true,
+                        isDefault: false,
+                        displayOrder: 1,
+                      });
+                      setAccountModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs md:text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white transition-all shadow-lg shadow-purple-500/20 hover:scale-[1.02]"
+                  >
+                    <Zap className="w-4 h-4 text-amber-300" />
+                    <span>إضافة إنستاباي</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingAccount({
+                        name: '',
+                        accountType: 'BankAccount',
+                        bankName: '',
+                        accountHolderName: '',
+                        accountNumber: '',
+                        iban: '',
+                        instaPayIdentifier: '',
+                        instructions: 'يرجى إرسال التحويل البنكي ثم رفع صورة إشعار التحويل للمطابقة',
+                        currency: 'EGP',
+                        isActive: true,
+                        isDefault: false,
+                        displayOrder: 2,
+                      });
+                      setAccountModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs md:text-sm font-bold bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white transition-all shadow-lg shadow-blue-500/20 hover:scale-[1.02]"
+                  >
+                    <Landmark className="w-4 h-4 text-cyan-200" />
+                    <span>إضافة حساب بنكي</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Real-Time Live Status Pill */}
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
-                isRealtimeConnected
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                  : 'bg-white/5 border-white/10 text-slate-400'
-              }`}
-              title={isRealtimeConnected ? 'متصل بقناة SignalR لتحديث الإعلانات والمدفوعات لحظياً' : 'جاري الاتصال بقناة التحديثات اللحظية'}
+        {/* ================= FEEDBACK MESSAGE TOAST ================= */}
+        {feedbackMessage && (
+          <div
+            className={`p-4 rounded-2xl text-sm font-bold flex items-center justify-between gap-3 border shadow-xl animate-in fade-in slide-in-from-top-3 duration-300 ${
+              feedbackMessage.type === 'success'
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-200 shadow-emerald-500/10'
+                : 'bg-rose-500/15 border-rose-500/30 text-rose-200 shadow-rose-500/10'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              {feedbackMessage.type === 'success' ? (
+                <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400" />
+              ) : (
+                <AlertCircle className="w-5 h-5 shrink-0 text-rose-400" />
+              )}
+              <span>{feedbackMessage.text}</span>
+            </div>
+            <button
+              onClick={() => setFeedbackMessage(null)}
+              className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
             >
-              <span className="relative flex h-2 w-2">
-                {isRealtimeConnected && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                )}
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${isRealtimeConnected ? 'bg-emerald-500' : 'bg-slate-500'}`}></span>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* ================= NAVIGATION TABS BAR ================= */}
+        <div className="flex overflow-x-auto gap-2 p-2 bg-slate-950/80 backdrop-blur-xl rounded-2xl border border-white/10 text-xs md:text-sm font-bold shadow-xl">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'dashboard'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>لوحة القيادة والمؤشرات</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('campaigns')}
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'campaigns'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Megaphone className="w-4 h-4" />
+            <span>الحملات الإعلانية</span>
+            {stats && (stats.pendingReviewCampaigns ?? 0) > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-950 text-amber-300 border border-amber-500/40">
+                {stats.pendingReviewCampaigns}
               </span>
-              <span>{isRealtimeConnected ? 'بث مباشر لحظي' : 'جاري الاتصال...'}</span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'payments'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <DollarSign className="w-4 h-4" />
+            <span>المدفوعات والإيصالات</span>
+            {stats && (stats.pendingPaymentsCount ?? 0) > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-md animate-pulse">
+                {stats.pendingPaymentsCount} إيصال
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('plans')}
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'plans'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            <span>باقات الإعلانات</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('accounts')}
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'accounts'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Building className="w-4 h-4" />
+            <span>حسابات الاستقبال (البنوك / إنستاباي)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('videoAds')}
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'videoAds'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black shadow-lg shadow-amber-500/25 scale-[1.02]'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Film className="w-4 h-4" />
+            <span>إعلانات الفيديو (In-Stream)</span>
+          </button>
+        </div>
+
+        {/* ================= TAB: VIDEO ADS ================= */}
+        {activeTab === 'videoAds' && <VideoAdvertisingTab />}
+
+        {/* ================= TAB 1: DASHBOARD ================= */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-7 animate-in fade-in duration-300">
+            {stats ? (
+              <>
+                {/* 4 HERO 3D KPI CARDS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+                  {/* Card 1: Total Campaigns */}
+                  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-slate-950/90 border border-white/10 p-5 md:p-6 shadow-xl hover:border-amber-500/40 transition-all group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl group-hover:bg-amber-500/10 transition-colors"></div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-slate-400">إجمالي الحملات الترويجية</span>
+                      <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                        <Megaphone className="w-5 h-5" />
+                      </div>
+                    </div>
+                    <div className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                      {stats.totalCampaigns ?? 0}
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-amber-400">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{stats.pendingReviewCampaigns ?? 0} بانتظار المراجعة</span>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Active Campaigns */}
+                  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950/30 via-slate-900/60 to-slate-950/90 border border-emerald-500/30 p-5 md:p-6 shadow-xl hover:border-emerald-500/50 transition-all group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-colors"></div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-emerald-300">الحملات النشطة والمعروضة</span>
+                      <div className="p-2.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+                        <Radio className="w-5 h-5 animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="text-3xl md:text-4xl font-black text-emerald-400 tracking-tight flex items-center gap-2">
+                      {stats.activeCampaigns ?? 0}
+                      <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-300">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{stats.completedCampaigns ?? 0} حملة اكتملت بالكامل</span>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Total Revenue */}
+                  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-950/30 via-slate-900/60 to-slate-950/90 border border-amber-500/30 p-5 md:p-6 shadow-xl hover:border-amber-500/50 transition-all group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-colors"></div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-amber-300">إجمالي الإيرادات المؤكدة</span>
+                      <div className="p-2.5 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-300">
+                        <DollarSign className="w-5 h-5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl md:text-3xl font-black text-amber-400 tracking-tight flex items-baseline gap-1.5">
+                      <span>{(stats.totalRevenue ?? 0).toLocaleString()}</span>
+                      <span className="text-xs font-bold text-amber-300/80">ج.م</span>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-300">
+                      <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{stats.confirmedPaymentsCount ?? 0} معاملة دفع ناجحة</span>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Pending Payments */}
+                  <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-950/30 via-slate-900/60 to-slate-950/90 border border-cyan-500/30 p-5 md:p-6 shadow-xl hover:border-cyan-500/50 transition-all group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-colors"></div>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-bold text-cyan-300">إيصالات بانتظار التدقيق</span>
+                      <div className="p-2.5 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300">
+                        <Receipt className="w-5 h-5" />
+                      </div>
+                    </div>
+                    <div className="text-3xl md:text-4xl font-black text-cyan-400 tracking-tight">
+                      {stats.pendingPaymentsCount ?? 0}
+                    </div>
+                    <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-cyan-300/90">
+                      <FileCheck className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>تتطلب فحص إشعار إنستاباي / البنك</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DELIVERY & ENGAGEMENT METRICS HUB */}
+                <div className="rounded-3xl bg-gradient-to-br from-slate-900/80 via-slate-950 to-slate-900/80 border border-white/10 p-6 md:p-7 shadow-2xl relative overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                        <TrendingUp className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base md:text-lg font-black text-white">
+                          مركز مؤشرات الانتشار والتفاعل الرقمي
+                        </h3>
+                        <p className="text-xs text-slate-400">
+                          بيانات تفاعلية لحظية لقياس وصول إعلانات مصر (Impressions, CTR, Engagement)
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-400">
+                      Live Telemetry
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {/* Impressions */}
+                    <div className="p-4 rounded-2xl bg-slate-950/60 border border-blue-500/20 text-center hover:border-blue-500/40 transition-all shadow-md group">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                        <Eye className="w-5 h-5" />
+                      </div>
+                      <div className="text-2xl font-black text-white tracking-tight">
+                        {(stats.totalImpressions ?? 0).toLocaleString()}
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-bold mt-1">مرات الظهور (Impressions)</div>
+                    </div>
+
+                    {/* Clicks */}
+                    <div className="p-4 rounded-2xl bg-slate-950/60 border border-emerald-500/20 text-center hover:border-emerald-500/40 transition-all shadow-md group">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                        <MousePointerClick className="w-5 h-5" />
+                      </div>
+                      <div className="text-2xl font-black text-white tracking-tight">
+                        {(stats.totalClicks ?? 0).toLocaleString()}
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-bold mt-1">النقرات الفعالة (Clicks)</div>
+                    </div>
+
+                    {/* Likes */}
+                    <div className="p-4 rounded-2xl bg-slate-950/60 border border-rose-500/20 text-center hover:border-rose-500/40 transition-all shadow-md group">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 transition-transform">
+                        <Heart className="w-5 h-5" />
+                      </div>
+                      <div className="text-2xl font-black text-rose-300 tracking-tight">
+                        {(stats.totalLikes ?? 0).toLocaleString()}
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-bold mt-1">إعجابات وتفاعل الجمهور</div>
+                    </div>
+
+                    {/* Video Views */}
+                    <div className="p-4 rounded-2xl bg-slate-950/60 border border-amber-500/20 text-center hover:border-amber-500/40 transition-all shadow-md group">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+                        <Video className="w-5 h-5" />
+                      </div>
+                      <div className="text-2xl font-black text-white tracking-tight">
+                        {((stats.totalVideoViews ?? stats.totalVideoStarts) ?? 0).toLocaleString()}
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-bold mt-1">مشاهدات الفيديو والريلز</div>
+                    </div>
+
+                    {/* Completed Campaigns */}
+                    <div className="p-4 rounded-2xl bg-slate-950/60 border border-purple-500/20 text-center hover:border-purple-500/40 transition-all shadow-md group col-span-2 sm:col-span-1">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div className="text-2xl font-black text-white tracking-tight">
+                        {((stats.totalVideoCompletes ?? stats.completedCampaigns) ?? 0).toLocaleString()}
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-bold mt-1">الحملات المنتهية بنجاح</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* QUICK COMMAND SHORTCUTS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div
+                    onClick={() => {
+                      setActiveTab('campaigns');
+                      setCampaignStatusFilter('PendingReview');
+                    }}
+                    className="group p-6 rounded-3xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 hover:border-amber-500/60 cursor-pointer transition-all shadow-xl flex items-center justify-between hover:scale-[1.01]"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-3.5 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 group-hover:scale-110 transition-transform">
+                        <Megaphone className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="font-black text-white text-base">تدقيق ومراجعة الحملات المعلقة</div>
+                        <div className="text-xs text-slate-400 mt-1">
+                          لديك <span className="font-bold text-amber-300">{stats.pendingReviewCampaigns}</span> حملة تحتاج موافقة الإدارة لاعتماد البث
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronLeft className="w-6 h-6 text-amber-400 group-hover:-translate-x-1.5 transition-transform" />
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setActiveTab('payments');
+                      setPaymentStatusFilter('PaymentSubmitted');
+                    }}
+                    className="group p-6 rounded-3xl bg-gradient-to-r from-emerald-500/10 via-slate-900 to-slate-900 border border-emerald-500/30 hover:border-emerald-500/60 cursor-pointer transition-all shadow-xl flex items-center justify-between hover:scale-[1.01]"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-3.5 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 group-hover:scale-110 transition-transform">
+                        <FileCheck className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="font-black text-white text-base">مطابقة إيصالات الدفع والتحصيل</div>
+                        <div className="text-xs text-slate-400 mt-1">
+                          لديك <span className="font-bold text-emerald-300">{stats.pendingPaymentsCount}</span> إيصال بحاجة للمطابقة وتأكيد الرصيد
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronLeft className="w-6 h-6 text-emerald-400 group-hover:-translate-x-1.5 transition-transform" />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-16 text-slate-400 flex flex-col items-center justify-center gap-3">
+                <RefreshCw className="w-8 h-8 animate-spin text-amber-400" />
+                <span className="text-sm font-bold">جاري تحميل إحصائيات الإعلانات المباشرة...</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= TAB 2: CAMPAIGNS ================= */}
+        {activeTab === 'campaigns' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Filter and Search Bar */}
+            <div className="p-4 md:p-5 rounded-3xl bg-slate-950/80 border border-white/10 shadow-xl space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={campaignSearch}
+                    onChange={(e) => setCampaignSearch(e.target.value)}
+                    placeholder="ابحث بعنوان الحملة، اسم المعلن، المعرف، أو نوع الإعلان..."
+                    className="w-full pl-9 pr-10 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-xs md:text-sm focus:outline-none focus:border-amber-500/50 focus:bg-white/[0.08] transition-all"
+                  />
+                  {campaignSearch && (
+                    <button
+                      onClick={() => setCampaignSearch('')}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* View Mode Switcher */}
+                <div className="flex items-center gap-1.5 p-1 bg-white/5 rounded-2xl border border-white/10 self-end md:self-auto shrink-0">
+                  <button
+                    onClick={() => setCampaignsViewMode('cards')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      campaignsViewMode === 'cards'
+                        ? 'bg-amber-500 text-slate-950 shadow-md scale-[1.02]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span>كروت 3D</span>
+                  </button>
+                  <button
+                    onClick={() => setCampaignsViewMode('table')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      campaignsViewMode === 'table'
+                        ? 'bg-amber-500 text-slate-950 shadow-md scale-[1.02]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    <span>جدول مفصل</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Filter Chips */}
+              <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-white/5">
+                {[
+                  { id: '', label: 'كافة الحملات' },
+                  { id: 'PendingReview', label: 'بانتظار المراجعة' },
+                  { id: 'Active', label: 'نشطة حالياً' },
+                  { id: 'Scheduled', label: 'مجدولة' },
+                  { id: 'Completed', label: 'مكتملة' },
+                  { id: 'Rejected', label: 'مرفوضة' },
+                  { id: 'Cancelled', label: 'ملغاة' },
+                ].map((pill) => (
+                  <button
+                    key={pill.id}
+                    onClick={() => setCampaignStatusFilter(pill.id)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      campaignStatusFilter === pill.id
+                        ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
+                        : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+                <span className="text-[11px] text-slate-500 font-semibold mr-auto">
+                  العدد المعروض: {filteredCampaigns.length}
+                </span>
+              </div>
             </div>
 
-            <button
-              onClick={() => setRefreshKey((k) => k + 1)}
-              disabled={loading}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-semibold bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors shadow-sm"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-400' : ''}`} />
-              تحديث
-            </button>
+            {/* VIEW MODE: 3D LUXURY CARDS */}
+            {campaignsViewMode === 'cards' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredCampaigns.length === 0 ? (
+                  <div className="col-span-full py-16 text-center rounded-3xl bg-slate-950/60 border border-white/10 text-slate-500 space-y-3">
+                    <Megaphone className="w-12 h-12 mx-auto text-slate-600 opacity-50" />
+                    <div className="text-base font-bold text-slate-400">لا توجد حملات تطابق المعايير المحددة</div>
+                    <p className="text-xs text-slate-500">جرب تغيير حالة الفلتر أو البحث بكلمات أخرى</p>
+                  </div>
+                ) : (
+                  filteredCampaigns.map((camp) => {
+                    const mediaUrl =
+                      camp.firstMediaUrl ||
+                      (camp.media && camp.media.length > 0 ? camp.media[0].mediaUrl : null);
+                    const impressions =
+                      camp.reachCount ??
+                      camp.stats?.impressionsCount ??
+                      camp.stats?.impressions ??
+                      camp.totalImpressions ??
+                      0;
+                    const clicks = camp.stats?.clicksCount ?? camp.stats?.clicks ?? camp.totalClicks ?? 0;
+                    const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(1) : '0';
 
-            {activeTab === 'plans' && (
+                    return (
+                      <div
+                        key={camp.id}
+                        className="group relative rounded-3xl bg-gradient-to-b from-slate-900/90 via-slate-950 to-slate-950 border border-white/10 hover:border-amber-500/40 shadow-xl hover:shadow-2xl hover:shadow-amber-500/5 transition-all flex flex-col justify-between overflow-hidden"
+                      >
+                        {/* Top Media & Status Header */}
+                        <div className="relative w-full h-44 bg-slate-950 overflow-hidden shrink-0">
+                          {mediaUrl ? (
+                            <img
+                              src={mediaUrl}
+                              alt={camp.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-tr from-slate-900 to-slate-950 flex flex-col items-center justify-center text-slate-600 gap-2">
+                              <Megaphone className="w-10 h-10 opacity-40 text-amber-400" />
+                              <span className="text-xs font-semibold text-slate-500">لا توجد وسائط مرفقة</span>
+                            </div>
+                          )}
+
+                          {/* Gradient Overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+
+                          {/* Floating Badges */}
+                          <div className="absolute top-3 right-3 left-3 flex items-center justify-between gap-2">
+                            {/* Status Badge */}
+                            <span
+                              className={`px-3 py-1 rounded-full text-[11px] font-black backdrop-blur-md shadow-md border ${
+                                camp.status === 'Active'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                  : camp.status === 'PendingReview'
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
+                                  : camp.status === 'PendingPayment'
+                                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                                  : camp.status === 'Rejected'
+                                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                  : camp.status === 'Completed'
+                                  ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                                  : 'bg-slate-500/20 text-slate-300 border-slate-500/40'
+                              }`}
+                            >
+                              {camp.status === 'Active'
+                                ? '● نشطة ومعروضة'
+                                : camp.status === 'PendingReview'
+                                ? '⏳ بانتظار المراجعة'
+                                : camp.status === 'PendingPayment'
+                                ? '💳 بانتظار السداد'
+                                : camp.status === 'Rejected'
+                                ? '✕ مرفوضة'
+                                : camp.status === 'Cancelled'
+                                ? 'ملغاة'
+                                : camp.status === 'Completed'
+                                ? '✓ مكتملة'
+                                : camp.status}
+                            </span>
+
+                            {/* Placement / Type */}
+                            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-black/60 backdrop-blur-md text-amber-300 border border-amber-500/20">
+                              {camp.campaignType || 'Feed'}
+                            </span>
+                          </div>
+
+                          {/* Countdown Timer chip on bottom of media */}
+                          <div className="absolute bottom-2.5 right-3">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-black backdrop-blur-md border ${
+                                camp.isExpiringSoon
+                                  ? 'bg-rose-500/30 text-rose-300 border-rose-500/40 animate-pulse'
+                                  : 'bg-black/60 text-slate-200 border-white/10'
+                              }`}
+                            >
+                              <Timer className="w-3 h-3 text-amber-400" />
+                              {camp.remainingTimeText || (camp.status === 'Active' ? 'جاري العرض' : '—')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Card Content */}
+                        <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
+                          <div className="space-y-3">
+                            {/* Title & Advertiser */}
+                            <div>
+                              <h3 className="text-base font-black text-white group-hover:text-amber-400 transition-colors line-clamp-1">
+                                {camp.title}
+                              </h3>
+                              <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-400">
+                                <User className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                <span className="font-bold text-slate-200">{camp.advertiserName || 'معلن مجهول'}</span>
+                                <span className="text-slate-600">•</span>
+                                <span className="text-[11px] font-mono text-slate-400">
+                                  {camp.planName || 'باقة مخصصة'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Dates Pill */}
+                            <div className="flex items-center justify-between text-xs text-slate-400 bg-white/[0.03] p-2.5 rounded-2xl border border-white/5">
+                              <span className="flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                                <span>المدة الزمنية:</span>
+                              </span>
+                              <span className="font-semibold text-slate-200">
+                                {new Date(camp.startDate).toLocaleDateString('ar-EG')} ←{' '}
+                                {new Date(camp.endDate).toLocaleDateString('ar-EG')}
+                              </span>
+                            </div>
+
+                            {/* Live Performance HUD */}
+                            <div className="p-3 rounded-2xl bg-black/40 border border-white/5 space-y-2">
+                              <div className="flex items-center justify-between text-xs font-bold">
+                                <span className="flex items-center gap-1.5 text-amber-400">
+                                  <Flame className="w-3.5 h-3.5" />
+                                  <span>{impressions.toLocaleString()} ظهور</span>
+                                </span>
+                                <span className="flex items-center gap-1.5 text-emerald-400">
+                                  <MousePointerClick className="w-3.5 h-3.5" />
+                                  <span>{clicks.toLocaleString()} نقرة ({ctr}%)</span>
+                                </span>
+                              </div>
+                              {/* Mini CTR progress bar */}
+                              <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full"
+                                  style={{ width: `${Math.min(parseFloat(ctr) * 10, 100)}%` }}
+                                ></div>
+                              </div>
+                            </div>
+
+                            {/* Price / Budget */}
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-xs text-slate-400 font-bold">الميزانية المقررة:</span>
+                              <span className="text-base font-black text-amber-400 font-mono">
+                                {camp.totalPrice} <span className="text-xs font-bold text-slate-400">{camp.currency}</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons Dock */}
+                          <div className="pt-3 border-t border-white/10 flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => handleViewCampaign(camp.id)}
+                              className="flex-1 py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-amber-400" />
+                              <span>التفاصيل</span>
+                            </button>
+
+                            <button
+                              onClick={() => openEditCampaignModal(camp)}
+                              className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all"
+                              title="تعديل الحملة"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+
+                            {camp.status === 'PendingReview' && (
+                              <>
+                                <button
+                                  onClick={() => handleApproveCampaign(camp.id)}
+                                  className="py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black transition-all flex items-center justify-center gap-1 shadow-md shadow-emerald-500/20"
+                                  title="موافقة واعتماد البث"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>موافقة</span>
+                                </button>
+                                <button
+                                  onClick={() => openRejectModal(camp.id, 'campaign')}
+                                  className="p-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 transition-all"
+                                  title="رفض الإعلان"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+
+                            {camp.status === 'Active' && (
+                              <button
+                                onClick={() => handlePauseCampaign(camp.id)}
+                                className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 transition-all"
+                                title="إيقاف مؤقت"
+                              >
+                                <PauseCircle className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            {camp.status === 'Paused' && (
+                              <button
+                                onClick={() => handleResumeCampaign(camp.id)}
+                                className="p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition-all"
+                                title="استئناف البث"
+                              >
+                                <PlayCircle className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            {camp.status !== 'Cancelled' && camp.status !== 'Completed' && (
+                              <button
+                                onClick={() => openCancelCampaignModal(camp.id)}
+                                className="p-2 rounded-xl bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/10 transition-all"
+                                title="إلغاء الحملة"
+                              >
+                                <XOctagon className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => handleDeleteCampaign(camp.id)}
+                              className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all"
+                              title="حذف نهائي"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* VIEW MODE: TABLE */}
+            {campaignsViewMode === 'table' && (
+              <div className="rounded-3xl border border-white/10 bg-slate-950/80 backdrop-blur-xl overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right text-xs md:text-sm">
+                    <thead className="bg-white/5 border-b border-white/10 text-slate-400 font-bold">
+                      <tr>
+                        <th className="p-4">الحملة</th>
+                        <th className="p-4">المعلن</th>
+                        <th className="p-4">الباقة والمدة</th>
+                        <th className="p-4">الوقت المتبقي</th>
+                        <th className="p-4">عداد الانتشار</th>
+                        <th className="p-4">الميزانية</th>
+                        <th className="p-4">الحالة</th>
+                        <th className="p-4 text-center">إجراءات وتحكم</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-slate-300">
+                      {filteredCampaigns.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="text-center py-16 text-slate-500">
+                            لا توجد حملات تطابق المعايير المحددة.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredCampaigns.map((camp) => {
+                          const mediaUrl =
+                            camp.firstMediaUrl ||
+                            (camp.media && camp.media.length > 0 ? camp.media[0].mediaUrl : null);
+                          const impressions =
+                            camp.reachCount ??
+                            camp.stats?.impressionsCount ??
+                            camp.stats?.impressions ??
+                            camp.totalImpressions ??
+                            0;
+                          const clicks =
+                            camp.stats?.clicksCount ?? camp.stats?.clicks ?? camp.totalClicks ?? 0;
+                          const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(1) : '0';
+
+                          return (
+                            <tr key={camp.id} className="hover:bg-white/[0.03] transition-colors">
+                              <td className="p-4">
+                                <div className="flex items-center gap-3">
+                                  {mediaUrl ? (
+                                    <img
+                                      src={mediaUrl}
+                                      alt=""
+                                      className="w-12 h-12 rounded-xl object-cover bg-black/50 border border-white/10 shadow-sm"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-500">
+                                      <Megaphone className="w-5 h-5 text-amber-400" />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <div className="font-black text-white max-w-[200px] truncate">
+                                      {camp.title}
+                                    </div>
+                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-amber-300 border border-white/10 mt-1 inline-block">
+                                      {camp.campaignType}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <div className="font-bold text-white">{camp.advertiserName || 'معلن'}</div>
+                                <div className="text-[11px] text-slate-500 font-mono">
+                                  {camp.advertiserUserId?.substring(0, 8)}...
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <span className="font-bold text-white block">{camp.planName || 'مخصصة'}</span>
+                                <span className="text-[11px] text-slate-400">
+                                  {new Date(camp.startDate).toLocaleDateString('ar-EG')} ←{' '}
+                                  {new Date(camp.endDate).toLocaleDateString('ar-EG')}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex flex-col gap-1 items-start">
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold ${
+                                      camp.isExpiringSoon
+                                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 animate-pulse'
+                                        : camp.status === 'Active'
+                                        ? 'bg-blue-500/10 text-blue-300 border border-blue-500/20'
+                                        : 'bg-white/5 text-slate-400'
+                                    }`}
+                                  >
+                                    <Timer className="w-3.5 h-3.5 text-amber-400" />
+                                    {camp.remainingTimeText || (camp.status === 'Active' ? 'جاري العرض' : '—')}
+                                  </span>
+                                  {camp.isExpiringSoon && (
+                                    <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3" />
+                                      سينتهي قريباً
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-4">
+                                <div className="flex flex-col gap-1">
+                                  <div className="inline-flex items-center gap-1.5 text-xs font-black text-amber-400">
+                                    <Flame className="w-3.5 h-3.5" />
+                                    <span>{impressions.toLocaleString()} ظهور</span>
+                                  </div>
+                                  <div className="text-[11px] text-emerald-400 font-semibold">
+                                    {clicks.toLocaleString()} نقرة ({ctr}% CTR)
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4 font-mono font-black text-amber-400 text-sm">
+                                {camp.totalPrice} <span className="text-xs text-slate-400">{camp.currency}</span>
+                              </td>
+                              <td className="p-4">
+                                <span
+                                  className={`px-3 py-1 rounded-full text-xs font-black border ${
+                                    camp.status === 'Active'
+                                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                      : camp.status === 'PendingReview'
+                                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/30 animate-pulse'
+                                      : camp.status === 'PendingPayment'
+                                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                                      : camp.status === 'Rejected'
+                                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                                      : camp.status === 'Cancelled'
+                                      ? 'bg-slate-500/20 text-slate-400 border-slate-500/30 line-through'
+                                      : camp.status === 'Completed'
+                                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                                      : 'bg-white/10 text-slate-400'
+                                  }`}
+                                >
+                                  {camp.status === 'Active'
+                                    ? 'نشطة'
+                                    : camp.status === 'PendingReview'
+                                    ? 'بانتظار المراجعة'
+                                    : camp.status === 'PendingPayment'
+                                    ? 'بانتظار السداد'
+                                    : camp.status === 'Rejected'
+                                    ? 'مرفوضة'
+                                    : camp.status === 'Cancelled'
+                                    ? 'ملغاة'
+                                    : camp.status === 'Paused'
+                                    ? 'متوقفة مؤقتاً'
+                                    : camp.status === 'Completed'
+                                    ? 'مكتملة'
+                                    : camp.status}
+                                </span>
+                              </td>
+                              <td className="p-4 text-center">
+                                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                  <button
+                                    onClick={() => handleViewCampaign(camp.id)}
+                                    title="عرض التفاصيل"
+                                    className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-slate-300 transition-colors"
+                                  >
+                                    <Eye className="w-4 h-4 text-amber-400" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => openEditCampaignModal(camp)}
+                                    title="تعديل الحملة"
+                                    className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-colors"
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
+
+                                  {camp.status === 'PendingReview' && (
+                                    <>
+                                      <button
+                                        onClick={() => handleApproveCampaign(camp.id)}
+                                        title="موافقة وتفعيل"
+                                        className="p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition-colors"
+                                      >
+                                        <CheckCircle2 className="w-4 h-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => openRejectModal(camp.id, 'campaign')}
+                                        title="رفض"
+                                        className="p-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 transition-colors"
+                                      >
+                                        <XCircle className="w-4 h-4" />
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {camp.status === 'Active' && (
+                                    <button
+                                      onClick={() => handlePauseCampaign(camp.id)}
+                                      title="إيقاف مؤقت"
+                                      className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 transition-colors"
+                                    >
+                                      <PauseCircle className="w-4 h-4" />
+                                    </button>
+                                  )}
+
+                                  {camp.status === 'Paused' && (
+                                    <button
+                                      onClick={() => handleResumeCampaign(camp.id)}
+                                      title="استئناف"
+                                      className="p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition-colors"
+                                    >
+                                      <PlayCircle className="w-4 h-4" />
+                                    </button>
+                                  )}
+
+                                  {camp.status !== 'Cancelled' && camp.status !== 'Completed' && (
+                                    <button
+                                      onClick={() => openCancelCampaignModal(camp.id)}
+                                      title="إلغاء الإعلان"
+                                      className="p-2 rounded-xl bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 border border-white/10 transition-colors"
+                                    >
+                                      <XOctagon className="w-4 h-4" />
+                                    </button>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleDeleteCampaign(camp.id)}
+                                    title="حذف الإعلان نهائياً"
+                                    className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= TAB 3: PAYMENTS ================= */}
+        {activeTab === 'payments' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Filter and Search Bar */}
+            <div className="p-4 md:p-5 rounded-3xl bg-slate-950/80 border border-white/10 shadow-xl space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={paymentSearch}
+                    onChange={(e) => setPaymentSearch(e.target.value)}
+                    placeholder="ابحث برقم المعاملة، اسم المعلن، عنوان الحملة، أو وسيلة الدفع..."
+                    className="w-full pl-9 pr-10 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-xs md:text-sm focus:outline-none focus:border-amber-500/50 focus:bg-white/[0.08] transition-all"
+                  />
+                  {paymentSearch && (
+                    <button
+                      onClick={() => setPaymentSearch('')}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* View Mode Switcher */}
+                <div className="flex items-center gap-1.5 p-1 bg-white/5 rounded-2xl border border-white/10 self-end md:self-auto shrink-0">
+                  <button
+                    onClick={() => setPaymentsViewMode('cards')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      paymentsViewMode === 'cards'
+                        ? 'bg-amber-500 text-slate-950 shadow-md scale-[1.02]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span>كروت الإيصالات</span>
+                  </button>
+                  <button
+                    onClick={() => setPaymentsViewMode('table')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      paymentsViewMode === 'table'
+                        ? 'bg-amber-500 text-slate-950 shadow-md scale-[1.02]'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    <span>جدول المعاملات</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Filter Chips */}
+              <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-white/5">
+                {[
+                  { id: '', label: 'كافة المعاملات' },
+                  { id: 'PaymentSubmitted', label: 'إيصالات قيد المراجعة' },
+                  { id: 'PaymentConfirmed', label: 'مدفوعة ومؤكدة' },
+                  { id: 'Pending', label: 'معلقة' },
+                  { id: 'PaymentFailed', label: 'فاشلة / مرفوضة' },
+                ].map((pill) => (
+                  <button
+                    key={pill.id}
+                    onClick={() => setPaymentStatusFilter(pill.id)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      paymentStatusFilter === pill.id
+                        ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
+                        : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+                <span className="text-[11px] text-slate-500 font-semibold mr-auto">
+                  العدد المعروض: {filteredPayments.length}
+                </span>
+              </div>
+            </div>
+
+            {/* VIEW MODE: CARDS */}
+            {paymentsViewMode === 'cards' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredPayments.length === 0 ? (
+                  <div className="col-span-full py-16 text-center rounded-3xl bg-slate-950/60 border border-white/10 text-slate-500 space-y-3">
+                    <Receipt className="w-12 h-12 mx-auto text-slate-600 opacity-50" />
+                    <div className="text-base font-bold text-slate-400">لا توجد عمليات دفع مسجلة</div>
+                    <p className="text-xs text-slate-500">جرب تغيير حالة الفلتر أو البحث بكلمات أخرى</p>
+                  </div>
+                ) : (
+                  filteredPayments.map((p) => {
+                    const isInstaPay = p.paymentMethod?.toLowerCase().includes('insta');
+                    const isBank = p.paymentMethod?.toLowerCase().includes('bank');
+
+                    return (
+                      <div
+                        key={p.id}
+                        className={`group relative rounded-3xl bg-gradient-to-b from-slate-900/90 via-slate-950 to-slate-950 border p-5 shadow-xl transition-all flex flex-col justify-between space-y-4 ${
+                          p.status === 'PaymentSubmitted'
+                            ? 'border-amber-500/40 shadow-amber-500/5'
+                            : p.status === 'PaymentConfirmed'
+                            ? 'border-emerald-500/30'
+                            : 'border-white/10'
+                        }`}
+                      >
+                        <div className="space-y-4">
+                          {/* Method Badge & Reference */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                                isInstaPay
+                                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                                  : isBank
+                                  ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                                  : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                              }`}
+                            >
+                              {isInstaPay ? (
+                                <Zap className="w-3.5 h-3.5 text-amber-300" />
+                              ) : (
+                                <Landmark className="w-3.5 h-3.5 text-cyan-300" />
+                              )}
+                              <span>{p.paymentMethod || 'تحويل مباشر'}</span>
+                            </span>
+
+                            <button
+                              onClick={() => copyText(p.transactionReference || p.id, 'رقم المعاملة')}
+                              title="نسخ رقم المرجع"
+                              className="flex items-center gap-1 font-mono text-[11px] text-slate-400 hover:text-amber-400 transition-colors bg-white/5 px-2.5 py-1 rounded-xl border border-white/5"
+                            >
+                              <span>{p.transactionReference || p.id.substring(0, 8)}</span>
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Giant Amount Display */}
+                          <div className="p-4 rounded-2xl bg-black/40 border border-white/5 text-center space-y-1">
+                            <div className="text-2xl md:text-3xl font-black text-amber-400 font-mono tracking-tight">
+                              {p.amount.toLocaleString()}{' '}
+                              <span className="text-xs font-bold text-amber-300/80">{p.currency || 'ج.م'}</span>
+                            </div>
+                            <div className="text-[11px] text-slate-400">
+                              تاريخ المعاملة: {new Date(p.createdAt).toLocaleDateString('ar-EG')} -{' '}
+                              {new Date(p.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+
+                          {/* Receipt Proof Section */}
+                          <div>
+                            <div className="text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
+                              <span>صورة إيصال التحويل:</span>
+                              <span className="text-[10px] text-amber-400">تدقيق مجهري 🔍</span>
+                            </div>
+
+                            {p.proofMediaUrl ? (
+                              <div
+                                onClick={() => openReceiptLightbox(p)}
+                                className="group/proof relative h-36 rounded-2xl overflow-hidden bg-slate-950 border border-white/10 hover:border-amber-500/50 cursor-pointer transition-all shadow-inner flex items-center justify-center"
+                              >
+                                <img
+                                  src={p.proofMediaUrl}
+                                  alt="إيصال التحويل"
+                                  className="w-full h-full object-cover group-hover/proof:scale-105 transition-transform duration-300"
+                                />
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/proof:opacity-100 flex flex-col items-center justify-center gap-1.5 transition-opacity backdrop-blur-xs">
+                                  <ZoomIn className="w-6 h-6 text-amber-400 animate-bounce" />
+                                  <span className="text-xs font-black text-white">انقر للتكبير وفحص الإيصال</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="h-24 rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center justify-center text-slate-500 text-xs gap-1.5">
+                                <Receipt className="w-6 h-6 opacity-30" />
+                                <span>لم يتم إرفاق إيصال إلكتروني</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Campaign & Advertiser Information */}
+                          <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1.5 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-400">الحملة الإعلانية:</span>
+                              <span className="font-bold text-white max-w-[160px] truncate">
+                                {p.campaignTitle || 'حملة إعلانية'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-400">المعلن:</span>
+                              <span className="font-bold text-slate-200">{p.advertiserName || 'معلن'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status & Action Dock */}
+                        <div className="pt-3 border-t border-white/10 space-y-2">
+                          {p.status === 'PaymentSubmitted' || p.status === 'Pending' ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleConfirmPayment(p.id)}
+                                className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20"
+                              >
+                                <CheckCircle2 className="w-4 h-4 stroke-[3]" />
+                                <span>تأكيد واستلام</span>
+                              </button>
+                              <button
+                                onClick={() => openRejectModal(p.id, 'payment')}
+                                className="py-2.5 px-4 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all"
+                              >
+                                <span>رفض</span>
+                              </button>
+                            </div>
+                          ) : p.status === 'PaymentConfirmed' ? (
+                            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-black text-center flex items-center justify-center gap-1.5">
+                              <CheckCheck className="w-4 h-4 text-emerald-400" />
+                              <span>تم تأكيد الدفعة واعتماد الحملة بنجاح</span>
+                            </div>
+                          ) : (
+                            <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs font-bold text-center">
+                              معاملة مرفوضة أو ملغاة
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* VIEW MODE: TABLE */}
+            {paymentsViewMode === 'table' && (
+              <div className="rounded-3xl border border-white/10 bg-slate-950/80 backdrop-blur-xl overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right text-xs md:text-sm">
+                    <thead className="bg-white/5 border-b border-white/10 text-slate-400 font-bold">
+                      <tr>
+                        <th className="p-4">رقم المعاملة / المرجع</th>
+                        <th className="p-4">الحملة المعلنة</th>
+                        <th className="p-4">المعلن</th>
+                        <th className="p-4">المبلغ</th>
+                        <th className="p-4">طريقة الدفع</th>
+                        <th className="p-4">إيصال التحويل</th>
+                        <th className="p-4">الحالة</th>
+                        <th className="p-4 text-center">الإجراء</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-slate-300">
+                      {filteredPayments.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="text-center py-16 text-slate-500">
+                            لا توجد عمليات دفع مسجلة.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredPayments.map((p) => (
+                          <tr key={p.id} className="hover:bg-white/[0.03] transition-colors">
+                            <td className="p-4 font-mono">
+                              <div className="font-bold text-white">{p.transactionReference || p.id.substring(0, 8)}</div>
+                              <div className="text-[10px] text-slate-500">
+                                {new Date(p.createdAt).toLocaleDateString('ar-EG')}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="font-bold text-white max-w-[180px] truncate">
+                                {p.campaignTitle || 'حملة إعلانية'}
+                              </div>
+                              <div className="text-[10px] text-slate-500 font-mono">
+                                {p.campaignId?.substring(0, 8)}...
+                              </div>
+                            </td>
+                            <td className="p-4 font-bold text-white">{p.advertiserName || 'معلن'}</td>
+                            <td className="p-4 font-mono font-black text-amber-400">
+                              {p.amount.toLocaleString()} {p.currency}
+                            </td>
+                            <td className="p-4">
+                              <span className="px-2.5 py-1 rounded-full bg-white/5 text-xs font-bold border border-white/10">
+                                {p.paymentMethod}
+                              </span>
+                            </td>
+                            <td className="p-4">
+                              {p.proofMediaUrl ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openReceiptLightbox(p)}
+                                  className="group relative flex items-center gap-2 p-1.5 rounded-xl bg-black/40 hover:bg-black/70 border border-white/10 hover:border-amber-500/50 transition-all text-right cursor-pointer"
+                                  title="انقر لتكبير الإيصال وعرضه بالحجم الكامل"
+                                >
+                                  <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-slate-950 border border-white/10 shrink-0">
+                                    <img
+                                      src={p.proofMediaUrl}
+                                      alt="إيصال التحويل"
+                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                    />
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-xs font-bold text-amber-400 flex items-center gap-1">
+                                      <span>عرض</span>
+                                      <Eye className="w-3 h-3" />
+                                    </div>
+                                    <span className="text-[10px] text-slate-400">تكبير 🔍</span>
+                                  </div>
+                                </button>
+                              ) : (
+                                <span className="text-slate-500 text-xs">لا يوجد إيصال</span>
+                              )}
+                            </td>
+
+                            <td className="p-4">
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-xs font-black border ${
+                                  p.status === 'PaymentConfirmed'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                    : p.status === 'PaymentSubmitted'
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30 animate-pulse'
+                                    : p.status === 'PaymentFailed' || p.status === 'Cancelled'
+                                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                                    : 'bg-white/10 text-slate-400 border-white/10'
+                                }`}
+                              >
+                                {p.status === 'PaymentConfirmed'
+                                  ? 'مؤكدة ومقبولة'
+                                  : p.status === 'PaymentSubmitted'
+                                  ? 'قيد المراجعة'
+                                  : p.status === 'PaymentFailed'
+                                  ? 'مرفوضة'
+                                  : p.status}
+                              </span>
+                            </td>
+                            <td className="p-4 text-center">
+                              {p.status === 'PaymentSubmitted' || p.status === 'Pending' ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => handleConfirmPayment(p.id)}
+                                    className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black transition-colors shadow-md"
+                                  >
+                                    تأكيد
+                                  </button>
+                                  <button
+                                    onClick={() => openRejectModal(p.id, 'payment')}
+                                    className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-xs font-bold transition-colors"
+                                  >
+                                    رفض
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-slate-500 text-xs font-bold">مكتمل</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= TAB 4: PLANS ================= */}
+        {activeTab === 'plans' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Header info */}
+            <div className="flex items-center justify-between gap-4 p-5 rounded-3xl bg-slate-950/80 border border-white/10">
+              <div>
+                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-amber-400" />
+                  <span>باقات الترويج والإعلانات المعتمدة</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  حدد أسعار الباقات بالجنيه المصري ومدة صلاحيتها ومواضع الظهور في خلاصة الأخبار، القصص، وفيديوهات الريلز
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setEditingPlan({
@@ -623,18 +2038,119 @@ export default function AdvertisingAdminPage() {
                     durationDays: 7,
                     allowedAdTypes: 'Feed,Story,Reels',
                     isActive: true,
-                    displayOrder: 1,
+                    displayOrder: plans.length + 1,
                   });
                   setPlanModalOpen(true);
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs md:text-sm font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 transition-colors shadow-lg shadow-amber-500/20"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs md:text-sm font-black bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 shadow-lg shadow-amber-500/20 hover:scale-[1.02] transition-all"
               >
-                <Plus className="w-4 h-4" />
-                إضافة باقة جديدة
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>إضافة باقة جديدة</span>
               </button>
-            )}
-            {activeTab === 'accounts' && (
-              <div className="flex items-center gap-2">
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="group rounded-3xl bg-gradient-to-b from-slate-900/90 via-slate-950 to-slate-950 border border-white/10 hover:border-amber-500/40 p-6 flex flex-col justify-between space-y-5 shadow-xl hover:shadow-2xl hover:shadow-amber-500/5 transition-all relative overflow-hidden"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`px-3 py-1 rounded-full text-[10px] font-black border ${
+                          plan.isActive
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                            : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                        }`}
+                      >
+                        {plan.isActive ? '● باقة نشطة' : '✕ معطلة'}
+                      </span>
+                      <span className="text-xs text-amber-400/80 font-black font-mono">
+                        ترتيب #{plan.displayOrder}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="text-lg font-black text-white group-hover:text-amber-400 transition-colors">
+                        {plan.name}
+                      </h4>
+                      <p className="text-xs text-slate-400 leading-relaxed mt-1.5 min-h-[36px]">
+                        {plan.description}
+                      </p>
+                    </div>
+
+                    {/* Price Tag */}
+                    <div className="p-4 rounded-2xl bg-black/40 border border-white/5 text-center">
+                      <div className="text-3xl font-black text-amber-400 font-mono tracking-tight">
+                        {plan.price.toLocaleString()}{' '}
+                        <span className="text-xs font-bold text-amber-300/80">{plan.currency}</span>
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1 font-bold">
+                        صلاحية العرض: <span className="text-white">{plan.durationDays} أيام</span>
+                      </div>
+                    </div>
+
+                    {/* Features list */}
+                    <div className="space-y-2 text-xs border-t border-white/5 pt-3">
+                      <div className="flex items-center justify-between text-slate-300">
+                        <span className="text-slate-400">مواضع الظهور:</span>
+                        <span className="font-bold text-amber-300">{plan.allowedAdTypes}</span>
+                      </div>
+                      {plan.maxImpressions != null && (
+                        <div className="flex items-center justify-between text-slate-300">
+                          <span className="text-slate-400">الحد الأقصى للظهور:</span>
+                          <span className="font-mono font-bold text-emerald-400">
+                            {(plan.maxImpressions ?? 0).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-3 border-t border-white/10">
+                    <button
+                      onClick={() => {
+                        setEditingPlan(plan);
+                        setPlanModalOpen(true);
+                      }}
+                      className="flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
+                    >
+                      تعديل
+                    </button>
+                    <button
+                      onClick={() => handleTogglePlan(plan.id)}
+                      className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-colors ${
+                        plan.isActive
+                          ? 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
+                          : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
+                      }`}
+                    >
+                      {plan.isActive ? 'تعطيل' : 'تفعيل'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ================= TAB 5: ACCOUNTS ================= */}
+        {activeTab === 'accounts' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Header info */}
+            <div className="flex items-center justify-between gap-4 p-5 rounded-3xl bg-slate-950/80 border border-white/10">
+              <div>
+                <h3 className="text-lg font-black text-white flex items-center gap-2">
+                  <Landmark className="w-5 h-5 text-amber-400" />
+                  <span>حسابات تحصيل المدفوعات المصرية (InstaPay & البنوك)</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  تظهر هذه الحسابات للمعلنين عند سداد رسوم الحملات الإعلانية لتحويل الأموال عبر تطبيق إنستاباي أو الحسابات البنكية المصرية
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5">
                 <button
                   onClick={() => {
                     setEditingAccount({
@@ -649,14 +2165,14 @@ export default function AdvertisingAdminPage() {
                       currency: 'EGP',
                       isActive: true,
                       isDefault: false,
-                      displayOrder: 1,
+                      displayOrder: accounts.length + 1,
                     });
                     setAccountModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold bg-purple-500 hover:bg-purple-600 text-white transition-colors shadow-lg shadow-purple-500/20"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs md:text-sm font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/20 hover:scale-[1.02] transition-all"
                 >
                   <Zap className="w-4 h-4 text-amber-300" />
-                  إضافة إنستاباي
+                  <span>إضافة إنستاباي</span>
                 </button>
                 <button
                   onClick={() => {
@@ -672,804 +2188,181 @@ export default function AdvertisingAdminPage() {
                       currency: 'EGP',
                       isActive: true,
                       isDefault: false,
-                      displayOrder: 2,
+                      displayOrder: accounts.length + 1,
                     });
                     setAccountModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs md:text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-lg shadow-blue-500/20"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs md:text-sm font-bold bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/20 hover:scale-[1.02] transition-all"
                 >
-                  <Landmark className="w-4 h-4 text-cyan-300" />
-                  إضافة حساب بنكي
+                  <Landmark className="w-4 h-4 text-cyan-200" />
+                  <span>إضافة حساب بنكي</span>
                 </button>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Feedback message */}
-        {feedbackMessage && (
-          <div
-            className={`p-4 rounded-xl text-sm font-bold flex items-center gap-3 border shadow-lg animate-in fade-in slide-in-from-top-2 ${
-              feedbackMessage.type === 'success'
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 shadow-emerald-500/5'
-                : 'bg-rose-500/10 border-rose-500/30 text-rose-300 shadow-rose-500/5'
-            }`}
-          >
-            {feedbackMessage.type === 'success' ? (
-              <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400" />
-            ) : (
-              <AlertCircle className="w-5 h-5 shrink-0 text-rose-400" />
-            )}
-            <span>{feedbackMessage.text}</span>
-          </div>
-        )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {accounts.map((acc) => {
+                const isInsta = acc.accountType === 'InstaPay';
 
-        {/* Tabs Bar */}
-        <div className="flex overflow-x-auto gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/5 text-sm font-semibold">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-              activeTab === 'dashboard'
-                ? 'bg-amber-500 text-slate-950 font-black shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" />
-            <span>لوحة الإحصائيات</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('campaigns')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-              activeTab === 'campaigns'
-                ? 'bg-amber-500 text-slate-950 font-black shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Megaphone className="w-4 h-4" />
-            <span>الحملات الإعلانية</span>
-            {stats && (stats.pendingReviewCampaigns ?? 0) > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                {stats.pendingReviewCampaigns}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('payments')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-              activeTab === 'payments'
-                ? 'bg-amber-500 text-slate-950 font-black shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <DollarSign className="w-4 h-4" />
-            <span>المدفوعات والتحويلات</span>
-            {stats && (stats.pendingPaymentsCount ?? 0) > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-slate-950 shadow-sm animate-pulse">
-                {stats.pendingPaymentsCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('plans')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-              activeTab === 'plans'
-                ? 'bg-amber-500 text-slate-950 font-black shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            <span>باقات الإعلانات</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('accounts')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-              activeTab === 'accounts'
-                ? 'bg-amber-500 text-slate-950 font-black shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Building className="w-4 h-4" />
-            <span>حسابات الاستقبال (البنوك / إنستاباي)</span>
-          </button>
-        </div>
-
-
-        {/* ================= TAB 1: DASHBOARD ================= */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            {stats ? (
-              <>
-                {/* Top Metrics Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 space-y-2">
-                    <span className="text-xs font-bold text-slate-400">إجمالي الحملات</span>
-                    <div className="text-3xl font-black text-white">{stats.totalCampaigns ?? 0}</div>
-                    <div className="text-xs text-amber-400 flex items-center gap-1 font-semibold">
-                      <Clock className="w-3.5 h-3.5" />
-                      {stats.pendingReviewCampaigns ?? 0} بانتظار المراجعة
-                    </div>
-                  </div>
-
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 space-y-2">
-                    <span className="text-xs font-bold text-slate-400">الحملات النشطة</span>
-                    <div className="text-3xl font-black text-emerald-400">{stats.activeCampaigns ?? 0}</div>
-                    <div className="text-xs text-slate-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />
-                      {stats.completedCampaigns ?? 0} مكتملة
-                    </div>
-                  </div>
-
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 space-y-2">
-                    <span className="text-xs font-bold text-slate-400">إجمالي الإيرادات المؤكدة</span>
-                    <div className="text-3xl font-black text-amber-400">
-                      {(stats.totalRevenue ?? 0).toLocaleString()} <span className="text-sm font-normal">ج.م</span>
-                    </div>
-                    <div className="text-xs text-slate-400 flex items-center gap-1">
-                      <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
-                      {stats.confirmedPaymentsCount ?? 0} معاملة ناجحة
-                    </div>
-                  </div>
-
-                  <div className="p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 space-y-2">
-                    <span className="text-xs font-bold text-slate-400">مدفوعات قيد المراجعة</span>
-                    <div className="text-3xl font-black text-cyan-400">{stats.pendingPaymentsCount ?? 0}</div>
-                    <div className="text-xs text-slate-400">تتطلب فحص إيصال التحويل</div>
-                  </div>
-                </div>
-
-                {/* Delivery & Engagement Metrics */}
-                <div className="p-6 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 space-y-5">
-                  <h3 className="text-base font-bold text-white flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-amber-400" />
-                    مؤشرات التفاعل والظهور (Delivery Performance)
-                  </h3>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-                    <div className="p-4 rounded-xl bg-black/30 border border-white/5 text-center">
-                      <Eye className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-                      <div className="text-2xl font-black text-white">{(stats.totalImpressions ?? 0).toLocaleString()}</div>
-                      <div className="text-xs text-slate-400 font-semibold mt-1">مرات الظهور (Impressions)</div>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-black/30 border border-white/5 text-center">
-                      <MousePointerClick className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
-                      <div className="text-2xl font-black text-white">{(stats.totalClicks ?? 0).toLocaleString()}</div>
-                      <div className="text-xs text-slate-400 font-semibold mt-1">النقرات (Clicks)</div>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-black/30 border border-white/5 text-center">
-                      <Heart className="w-6 h-6 text-rose-400 mx-auto mb-2" />
-                      <div className="text-2xl font-black text-rose-300">{(stats.totalLikes ?? 0).toLocaleString()}</div>
-                      <div className="text-xs text-slate-400 font-semibold mt-1">الإعجابات (Likes ❤️)</div>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-black/30 border border-white/5 text-center">
-                      <Video className="w-6 h-6 text-amber-400 mx-auto mb-2" />
-                      <div className="text-2xl font-black text-white">{((stats.totalVideoViews ?? stats.totalVideoStarts) ?? 0).toLocaleString()}</div>
-                      <div className="text-xs text-slate-400 font-semibold mt-1">مشاهدات الفيديو (Video)</div>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-black/30 border border-white/5 text-center col-span-2 sm:col-span-1">
-                      <ShieldCheck className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                      <div className="text-2xl font-black text-white">{((stats.totalVideoCompletes ?? stats.completedCampaigns) ?? 0).toLocaleString()}</div>
-                      <div className="text-xs text-slate-400 font-semibold mt-1">الحملات المكتملة (Completed)</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Shortcuts */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                return (
                   <div
-                    onClick={() => {
-                      setActiveTab('campaigns');
-                      setCampaignStatusFilter('PendingReview');
-                    }}
-                    className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/40 cursor-pointer transition-all flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-xl bg-amber-500/20 text-amber-400">
-                        <Megaphone className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <div className="font-bold text-white">مراجعة الحملات المعلقة</div>
-                        <div className="text-xs text-slate-400">لديك {stats.pendingReviewCampaigns} حملة تنتظر موافقة الإدارة</div>
-                      </div>
-                    </div>
-                    <ChevronLeft className="w-5 h-5 text-amber-400" />
-                  </div>
-
-                  <div
-                    onClick={() => {
-                      setActiveTab('payments');
-                      setPaymentStatusFilter('PaymentSubmitted');
-                    }}
-                    className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 cursor-pointer transition-all flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400">
-                        <FileCheck className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <div className="font-bold text-white">التحقق من إيصالات الدفع</div>
-                        <div className="text-xs text-slate-400">لديك {stats.pendingPaymentsCount} إيصال بحاجة للمطابقة</div>
-                      </div>
-                    </div>
-                    <ChevronLeft className="w-5 h-5 text-emerald-400" />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-12 text-slate-500">جاري تحميل إحصائيات الإعلانات...</div>
-            )}
-          </div>
-        )}
-
-        {/* ================= TAB 2: CAMPAIGNS ================= */}
-        {activeTab === 'campaigns' && (
-          <div className="space-y-4">
-            {/* Filter pills */}
-            <div className="flex flex-wrap gap-2 items-center">
-              {[
-                { id: '', label: 'الكل' },
-                { id: 'PendingReview', label: 'بانتظار المراجعة' },
-                { id: 'Active', label: 'نشطة حالياً' },
-                { id: 'Scheduled', label: 'مجدولة' },
-                { id: 'Completed', label: 'مكتملة' },
-                { id: 'Rejected', label: 'مرفوضة' },
-              ].map((pill) => (
-                <button
-                  key={pill.id}
-                  onClick={() => setCampaignStatusFilter(pill.id)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                    campaignStatusFilter === pill.id
-                      ? 'bg-amber-500 text-slate-950 shadow'
-                      : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  {pill.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Campaigns Table */}
-            <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs md:text-sm">
-                  <thead className="bg-white/5 border-b border-white/10 text-slate-400 font-bold">
-                    <tr>
-                      <th className="p-4">الحملة</th>
-                      <th className="p-4">المعلن</th>
-                      <th className="p-4">الباقة والمدة</th>
-                      <th className="p-4">الوقت المتبقي</th>
-                      <th className="p-4">عداد الانتشار</th>
-                      <th className="p-4">الميزانية</th>
-                      <th className="p-4">الحالة</th>
-                      <th className="p-4 text-center">إجراءات وتحكم</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5 text-slate-300">
-                    {campaigns.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="text-center py-12 text-slate-500">
-                          لا توجد حملات تطابق المعايير المحددة.
-                        </td>
-                      </tr>
-                    ) : (
-                      campaigns.map((camp) => {
-                        const mediaUrl = camp.firstMediaUrl || (camp.media && camp.media.length > 0 ? camp.media[0].mediaUrl : null);
-                        const impressions = camp.reachCount ?? camp.stats?.impressionsCount ?? camp.stats?.impressions ?? camp.totalImpressions ?? 0;
-                        const clicks = camp.stats?.clicksCount ?? camp.stats?.clicks ?? camp.totalClicks ?? 0;
-                        const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(1) : '0';
-
-                        return (
-                        <tr key={camp.id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              {mediaUrl ? (
-                                <img
-                                  src={mediaUrl}
-                                  alt=""
-                                  className="w-10 h-10 rounded-lg object-cover bg-black/50 border border-white/10"
-                                />
-                              ) : (
-                                <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-500">
-                                  <Megaphone className="w-5 h-5" />
-                                </div>
-                              )}
-                              <div>
-                                <div className="font-bold text-white max-w-[200px] truncate">{camp.title}</div>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
-                                  {camp.campaignType}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div className="font-semibold text-white">{camp.advertiserName || 'معلن'}</div>
-                            <div className="text-[11px] text-slate-500 font-mono">{camp.advertiserUserId.substring(0, 8)}...</div>
-                          </td>
-                          <td className="p-4">
-                            <span className="font-semibold text-white block">{camp.planName || 'مخصصة'}</span>
-                            <span className="text-[11px] text-slate-400">
-                              {new Date(camp.startDate).toLocaleDateString('ar-EG')} ← {new Date(camp.endDate).toLocaleDateString('ar-EG')}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex flex-col gap-1 items-start">
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${
-                                camp.isExpiringSoon
-                                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse'
-                                  : camp.status === 'Active'
-                                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                  : 'bg-white/5 text-slate-400'
-                              }`}>
-                                <Timer className="w-3.5 h-3.5" />
-                                {camp.remainingTimeText || (camp.status === 'Active' ? 'جاري الحساب...' : '—')}
-                              </span>
-                              {camp.isExpiringSoon && (
-                                <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
-                                  <AlertTriangle className="w-3 h-3" />
-                                  سينتهي قريباً (أقل من يومين)
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex flex-col gap-1">
-                              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400">
-                                <Flame className="w-3.5 h-3.5 text-amber-400" />
-                                <span>{impressions.toLocaleString()} ظهور</span>
-                              </div>
-                              <div className="text-[11px] text-emerald-400 font-semibold">
-                                {clicks.toLocaleString()} نقرة ({ctr}% CTR)
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-4 font-mono font-bold text-amber-400">
-                            {camp.totalPrice} {camp.currency}
-                          </td>
-                          <td className="p-4">
-                            <span
-                              className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                                camp.status === 'Active'
-                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                  : camp.status === 'PendingReview'
-                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse'
-                                  : camp.status === 'PendingPayment'
-                                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                                  : camp.status === 'Rejected'
-                                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                                  : camp.status === 'Cancelled'
-                                  ? 'bg-slate-500/20 text-slate-400 border border-slate-500/30 line-through'
-                                  : camp.status === 'Completed'
-                                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                  : 'bg-white/10 text-slate-400'
-                              }`}
-                            >
-                              {camp.status === 'Active' ? 'نشطة' :
-                               camp.status === 'PendingReview' ? 'بانتظار المراجعة' :
-                               camp.status === 'PendingPayment' ? 'بانتظار السداد' :
-                               camp.status === 'Rejected' ? 'مرفوضة' :
-                               camp.status === 'Cancelled' ? 'ملغاة' :
-                               camp.status === 'Paused' ? 'متوقفة مؤقتاً' :
-                               camp.status === 'Completed' ? 'مكتملة' : camp.status}
-                            </span>
-                          </td>
-                          <td className="p-4 text-center">
-                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                              <button
-                                onClick={() => handleViewCampaign(camp.id)}
-                                title="عرض التفاصيل"
-                                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-colors"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-
-                              <button
-                                onClick={() => openEditCampaignModal(camp)}
-                                title="تعديل الحملة"
-                                className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-colors"
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-
-                              {camp.status === 'PendingReview' && (
-                                <>
-                                  <button
-                                    onClick={() => handleApproveCampaign(camp.id)}
-                                    title="موافقة وتفعيل"
-                                    className="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition-colors"
-                                  >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => openRejectModal(camp.id, 'campaign')}
-                                    title="رفض"
-                                    className="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 transition-colors"
-                                  >
-                                    <XCircle className="w-4 h-4" />
-                                  </button>
-                                </>
-                              )}
-
-                              {camp.status === 'Active' && (
-                                <button
-                                  onClick={() => handlePauseCampaign(camp.id)}
-                                  title="إيقاف مؤقت"
-                                  className="p-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 transition-colors"
-                                >
-                                  <PauseCircle className="w-4 h-4" />
-                                </button>
-                              )}
-
-                              {camp.status === 'Paused' && (
-                                <button
-                                  onClick={() => handleResumeCampaign(camp.id)}
-                                  title="استئناف"
-                                  className="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 transition-colors"
-                                >
-                                  <PlayCircle className="w-4 h-4" />
-                                </button>
-                              )}
-
-                              {camp.status !== 'Cancelled' && camp.status !== 'Completed' && (
-                                <button
-                                  onClick={() => openCancelCampaignModal(camp.id)}
-                                  title="إلغاء الإعلان"
-                                  className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/25 text-amber-400 border border-amber-500/20 transition-colors"
-                                >
-                                  <XOctagon className="w-4 h-4" />
-                                </button>
-                              )}
-
-                              <button
-                                onClick={() => handleDeleteCampaign(camp.id)}
-                                title="حذف الإعلان نهائياً"
-                                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 border border-rose-500/20 transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    }))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 3: PAYMENTS ================= */}
-        {activeTab === 'payments' && (
-          <div className="space-y-4">
-            {/* Filter pills */}
-            <div className="flex flex-wrap gap-2 items-center">
-              {[
-                { id: '', label: 'كافة المعاملات' },
-                { id: 'PaymentSubmitted', label: 'إيصالات قيد المراجعة' },
-                { id: 'PaymentConfirmed', label: 'مدفوعة ومؤكدة' },
-                { id: 'Pending', label: 'معلقة' },
-                { id: 'PaymentFailed', label: 'فاشلة / مرفوضة' },
-              ].map((pill) => (
-                <button
-                  key={pill.id}
-                  onClick={() => setPaymentStatusFilter(pill.id)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                    paymentStatusFilter === pill.id
-                      ? 'bg-amber-500 text-slate-950 shadow'
-                      : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  {pill.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Payments Table */}
-            <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs md:text-sm">
-                  <thead className="bg-white/5 border-b border-white/10 text-slate-400 font-bold">
-                    <tr>
-                      <th className="p-4">رقم المعاملة / المرجع</th>
-                      <th className="p-4">الحملة المعلنة</th>
-                      <th className="p-4">المعلن</th>
-                      <th className="p-4">المبلغ</th>
-                      <th className="p-4">طريقة الدفع</th>
-                      <th className="p-4">إيصال التحويل</th>
-                      <th className="p-4">الحالة</th>
-                      <th className="p-4 text-center">الإجراء</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5 text-slate-300">
-                    {payments.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="text-center py-12 text-slate-500">
-                          لا توجد عمليات دفع مسجلة.
-                        </td>
-                      </tr>
-                    ) : (
-                      payments.map((p) => (
-                        <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="p-4 font-mono">
-                            <div className="font-bold text-white">{p.transactionReference || p.id.substring(0, 8)}</div>
-                            <div className="text-[10px] text-slate-500">{new Date(p.createdAt).toLocaleDateString('ar-EG')}</div>
-                          </td>
-                          <td className="p-4">
-                            <div className="font-semibold text-white max-w-[180px] truncate">
-                              {p.campaignTitle || 'حملة إعلانية'}
-                            </div>
-                            <div className="text-[10px] text-slate-500 font-mono">{p.campaignId.substring(0, 8)}...</div>
-                          </td>
-                          <td className="p-4 font-semibold text-white">{p.advertiserName || 'معلن'}</td>
-                          <td className="p-4 font-mono font-bold text-emerald-400">
-                            {p.amount} {p.currency}
-                          </td>
-                          <td className="p-4">
-                            <span className="px-2 py-0.5 rounded bg-white/5 text-[11px] font-medium">
-                              {p.paymentMethod}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            {p.proofMediaUrl ? (
-                              <button
-                                type="button"
-                                onClick={() => openReceiptLightbox(p)}
-                                className="group relative flex items-center gap-2.5 p-1.5 rounded-xl bg-black/40 hover:bg-black/70 border border-white/10 hover:border-amber-500/50 transition-all text-right shadow-sm cursor-pointer"
-                                title="انقر لتكبير الإيصال وعرضه بالحجم الكامل"
-                              >
-                                <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-slate-950 border border-white/10 shrink-0">
-                                  <img
-                                    src={p.proofMediaUrl}
-                                    alt="إيصال التحويل"
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                                  />
-                                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                    <ZoomIn className="w-4 h-4 text-amber-400" />
-                                  </div>
-                                </div>
-                                <div className="pr-1 text-right">
-                                  <div className="text-xs font-bold text-amber-400 group-hover:text-amber-300 flex items-center gap-1">
-                                    <span>عرض الإيصال</span>
-                                    <Eye className="w-3.5 h-3.5" />
-                                  </div>
-                                  <div className="text-[10px] text-slate-400">انقر للتكبير 🔍</div>
-                                </div>
-                              </button>
-                            ) : (
-                              <span className="text-slate-500 text-xs">لا يوجد إيصال</span>
-                            )}
-                          </td>
-
-                          <td className="p-4">
-                            <span
-                              className={`px-2 py-1 rounded-md text-[11px] font-bold ${
-                                p.status === 'PaymentConfirmed'
-                                  ? 'bg-emerald-500/20 text-emerald-400'
-                                  : p.status === 'PaymentSubmitted'
-                                  ? 'bg-amber-500/20 text-amber-400'
-                                  : p.status === 'PaymentFailed' || p.status === 'Cancelled'
-                                  ? 'bg-rose-500/20 text-rose-400'
-                                  : 'bg-white/10 text-slate-400'
-                              }`}
-                            >
-                              {p.status}
-                            </span>
-                          </td>
-                          <td className="p-4 text-center">
-                            {p.status === 'PaymentSubmitted' || p.status === 'Pending' ? (
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  onClick={() => handleConfirmPayment(p.id)}
-                                  className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-bold transition-colors"
-                                >
-                                  تأكيد الاستلام
-                                </button>
-                                <button
-                                  onClick={() => openRejectModal(p.id, 'payment')}
-                                  className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-xs font-bold transition-colors"
-                                >
-                                  رفض
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-slate-500 text-xs">مكتمل</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 4: PLANS ================= */}
-        {activeTab === 'plans' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {plans.map((plan) => (
-              <div
-                key={plan.id}
-                className="p-5 rounded-2xl bg-gradient-to-b from-white/5 to-white/[0.02] border border-white/10 flex flex-col justify-between space-y-4 hover:border-amber-500/40 transition-all"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        plan.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
-                      }`}
-                    >
-                      {plan.isActive ? 'مفعلة' : 'معطلة'}
-                    </span>
-                    <span className="text-xs text-slate-500 font-mono">#{plan.displayOrder}</span>
-                  </div>
-
-                  <h3 className="text-lg font-black text-white">{plan.name}</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed min-h-[36px]">{plan.description}</p>
-
-                  <div className="pt-2 border-t border-white/5 space-y-1 text-xs">
-                    <div className="flex justify-between text-slate-300">
-                      <span>السعر:</span>
-                      <span className="font-bold text-amber-400 font-mono">
-                        {plan.price} {plan.currency}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-slate-300">
-                      <span>المدة:</span>
-                      <span className="font-semibold">{plan.durationDays} أيام</span>
-                    </div>
-                    <div className="flex justify-between text-slate-300">
-                      <span>الأنواع المدعومة:</span>
-                      <span className="font-semibold">{plan.allowedAdTypes}</span>
-                    </div>
-                    {plan.maxImpressions != null && (
-                      <div className="flex justify-between text-slate-300">
-                        <span>الحد الأقصى للظهور:</span>
-                        <span className="font-semibold font-mono">{(plan.maxImpressions ?? 0).toLocaleString()}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2">
-                  <button
-                    onClick={() => {
-                      setEditingPlan(plan);
-                      setPlanModalOpen(true);
-                    }}
-                    className="flex-1 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
-                  >
-                    تعديل
-                  </button>
-                  <button
-                    onClick={() => handleTogglePlan(plan.id)}
-                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-colors ${
-                      plan.isActive
-                        ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30'
-                        : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                    key={acc.id}
+                    className={`rounded-3xl p-6 border shadow-2xl transition-all flex flex-col justify-between space-y-5 relative overflow-hidden ${
+                      isInsta
+                        ? 'bg-gradient-to-br from-purple-950/40 via-slate-950 to-slate-950 border-purple-500/40 hover:border-purple-500/70 shadow-purple-500/5'
+                        : 'bg-gradient-to-br from-blue-950/40 via-slate-950 to-slate-950 border-blue-500/40 hover:border-blue-500/70 shadow-blue-500/5'
                     }`}
                   >
-                    {plan.isActive ? 'تعطيل' : 'تفعيل'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+                    <div className="space-y-4">
+                      {/* Top Type & Default Badge */}
+                      <div className="flex items-center justify-between">
+                        {isInsta ? (
+                          <span className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            <Zap className="w-3.5 h-3.5 text-amber-300" />
+                            <span>إنستاباي (InstaPay Egypt)</span>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            <Landmark className="w-3.5 h-3.5 text-cyan-300" />
+                            <span>حساب بنكي (Bank Wire)</span>
+                          </span>
+                        )}
 
-        {/* ================= TAB 5: ACCOUNTS ================= */}
-        {activeTab === 'accounts' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {accounts.map((acc) => (
-              <div
-                key={acc.id}
-                className={`p-5 rounded-2xl bg-gradient-to-b from-white/5 to-white/[0.02] border space-y-4 transition-all flex flex-col justify-between ${
-                  acc.accountType === 'InstaPay'
-                    ? 'border-purple-500/30 hover:border-purple-500/60'
-                    : 'border-blue-500/30 hover:border-blue-500/60'
-                }`}
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    {acc.accountType === 'InstaPay' ? (
-                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                        <Zap className="w-3.5 h-3.5 text-purple-400" />
-                        إنستاباي (InstaPay)
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                        <Landmark className="w-3.5 h-3.5 text-blue-400" />
-                        حساب بنكي (Bank Transfer)
-                      </span>
-                    )}
-                    <div className="flex items-center gap-1.5">
-                      {acc.isDefault && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          افتراضي
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {acc.isDefault && (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              افتراضي
+                            </span>
+                          )}
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
+                              acc.isActive
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                            }`}
+                          >
+                            {acc.isActive ? 'نشط' : 'معطل'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <h4 className="text-base font-black text-white">{acc.name}</h4>
+
+                      {/* InstaPay Details Box */}
+                      {isInsta ? (
+                        <div className="p-4 rounded-2xl bg-purple-950/30 border border-purple-500/25 space-y-3">
+                          <div>
+                            <span className="text-[11px] text-purple-300 font-bold block mb-1">
+                              معرف إنستاباي المعتمد (IPA):
+                            </span>
+                            <div className="flex items-center justify-between bg-black/40 p-2.5 rounded-xl border border-purple-500/20">
+                              <span className="font-mono font-black text-amber-300 text-sm md:text-base tracking-wide select-all">
+                                {acc.instaPayIdentifier || '-'}
+                              </span>
+                              {acc.instaPayIdentifier && (
+                                <button
+                                  onClick={() => copyText(acc.instaPayIdentifier, 'معرف إنستاباي')}
+                                  title="نسخ المعرف"
+                                  className="p-1 rounded-lg hover:bg-white/10 text-purple-300 hover:text-white transition-colors"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-xs text-slate-300 space-y-1 pt-1 border-t border-purple-500/15">
+                            <div>
+                              صاحب الحساب: <span className="font-bold text-white">{acc.accountHolderName}</span>
+                            </div>
+                            {acc.bankName && (
+                              <div>
+                                البنك المرتبط: <span className="text-slate-400">{acc.bankName}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Bank Details Box */
+                        <div className="p-4 rounded-2xl bg-blue-950/30 border border-blue-500/25 space-y-2.5 text-xs">
+                          <div className="flex justify-between items-center text-slate-200">
+                            <span className="text-slate-400">البنك:</span>
+                            <span className="font-black text-white">{acc.bankName || '-'}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-slate-200">
+                            <span className="text-slate-400">المستفيد:</span>
+                            <span className="font-bold text-white">{acc.accountHolderName}</span>
+                          </div>
+                          {acc.accountNumber && (
+                            <div className="flex justify-between items-center text-slate-200 pt-1 border-t border-blue-500/15">
+                              <span className="text-slate-400">رقم الحساب:</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-black text-amber-300 select-all">
+                                  {acc.accountNumber}
+                                </span>
+                                <button
+                                  onClick={() => copyText(acc.accountNumber, 'رقم الحساب البنكي')}
+                                  title="نسخ رقم الحساب"
+                                  className="text-slate-400 hover:text-white"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          {acc.iban && (
+                            <div className="pt-1 border-t border-blue-500/15">
+                              <span className="text-[11px] text-slate-400 block mb-1">رقم الآيبان (IBAN):</span>
+                              <div className="flex items-center justify-between bg-black/40 p-2 rounded-xl border border-blue-500/20">
+                                <span className="font-mono text-xs font-bold text-cyan-300 break-all select-all">
+                                  {acc.iban}
+                                </span>
+                                <button
+                                  onClick={() => copyText(acc.iban, 'رقم الآيبان IBAN')}
+                                  title="نسخ رقم الآيبان"
+                                  className="text-slate-400 hover:text-white shrink-0 mr-1"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          acc.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+
+                      {acc.instructions && (
+                        <p className="text-xs text-slate-400 leading-relaxed bg-white/5 p-3 rounded-2xl border border-white/5">
+                          {acc.instructions}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 pt-3 border-t border-white/10">
+                      <button
+                        onClick={() => {
+                          setEditingAccount(acc);
+                          setAccountModalOpen(true);
+                        }}
+                        className="flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
+                      >
+                        تعديل
+                      </button>
+                      <button
+                        onClick={() => handleToggleAccount(acc.id)}
+                        className={`py-2 px-4 rounded-xl text-xs font-bold transition-colors ${
+                          acc.isActive
+                            ? 'bg-rose-500/20 text-rose-300 hover:bg-rose-500/30'
+                            : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
                         }`}
                       >
-                        {acc.isActive ? 'نشط' : 'متوقف'}
-                      </span>
+                        {acc.isActive ? 'تعطيل' : 'تفعيل'}
+                      </button>
                     </div>
                   </div>
-
-                  <h3 className="text-base font-bold text-white">{acc.name}</h3>
-
-                  {acc.accountType === 'InstaPay' ? (
-                    <div className="p-3.5 rounded-xl bg-purple-950/20 border border-purple-500/20 space-y-2">
-                      <div className="text-[11px] text-purple-300 font-semibold">معرف إنستاباي المعتمد:</div>
-                      <div className="text-base font-mono font-black text-amber-300 select-all tracking-wide">
-                        {acc.instaPayIdentifier || '-'}
-                      </div>
-                      <div className="pt-2 border-t border-purple-500/10 text-xs text-slate-300 space-y-1">
-                        <div>صاحب الحساب: <span className="font-semibold text-white">{acc.accountHolderName}</span></div>
-                        {acc.bankName && <div>البنك المرتبط: <span className="text-slate-400">{acc.bankName}</span></div>}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-3.5 rounded-xl bg-blue-950/20 border border-blue-500/20 space-y-2 text-xs">
-                      <div className="flex justify-between items-center text-slate-200">
-                        <span>البنك:</span>
-                        <span className="font-bold text-white">{acc.bankName || '-'}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-slate-200">
-                        <span>المستفيد:</span>
-                        <span className="font-semibold text-white">{acc.accountHolderName}</span>
-                      </div>
-                      {acc.accountNumber && (
-                        <div className="flex justify-between items-center text-slate-200 pt-1 border-t border-blue-500/10">
-                          <span>رقم الحساب:</span>
-                          <span className="font-mono font-bold text-amber-300 select-all">{acc.accountNumber}</span>
-                        </div>
-                      )}
-                      {acc.iban && (
-                        <div className="pt-1 border-t border-blue-500/10">
-                          <span className="text-[11px] text-slate-400 block mb-0.5">رقم الآيبان (IBAN):</span>
-                          <span className="font-mono text-xs font-bold text-cyan-300 break-all select-all">{acc.iban}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {acc.instructions && (
-                    <p className="text-xs text-slate-400 leading-relaxed bg-white/5 p-2.5 rounded-lg border border-white/5">
-                      {acc.instructions}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                  <button
-                    onClick={() => {
-                      setEditingAccount(acc);
-                      setAccountModalOpen(true);
-                    }}
-                    className="flex-1 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
-                  >
-                    تعديل
-                  </button>
-                  <button
-                    onClick={() => handleToggleAccount(acc.id)}
-                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-colors ${
-                      acc.isActive
-                        ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30'
-                        : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                    }`}
-                  >
-                    {acc.isActive ? 'تعطيل' : 'تفعيل'}
-                  </button>
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         )}
 

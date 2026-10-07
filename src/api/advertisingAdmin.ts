@@ -177,4 +177,32 @@ export const advertisingAdminApi = {
     const res = await safeDelete<boolean>(`/receiving-accounts/${id}`);
     return !!res.success;
   },
+
+  // Video In-Stream Advertising Settings & Analytics
+  getVideoSettings: async (): Promise<any> => {
+    return await safeGet<any>('/video-settings');
+  },
+
+  updateVideoSettings: async (settings: any): Promise<any> => {
+    const res = await safePut<any>('/video-settings', settings);
+    if (!res?.data) throw new Error(res?.error?.message || 'فشل تحديث إعدادات إعلانات الفيديو');
+    return res.data;
+  },
+
+  getCampaignVideoSettings: async (campaignId: string): Promise<any> => {
+    return await safeGet<any>(`/campaigns/${campaignId}/video-settings`);
+  },
+
+  updateCampaignVideoSettings: async (campaignId: string, settings: any): Promise<any> => {
+    const res = await safePut<any>(`/campaigns/${campaignId}/video-settings`, settings);
+    if (!res?.data) throw new Error(res?.error?.message || 'فشل تحديث إعدادات الفيديو للحملة');
+    return res.data;
+  },
+
+  getVideoAnalytics: async (fromDate?: string, toDate?: string): Promise<any> => {
+    const params: any = {};
+    if (fromDate) params.fromDate = fromDate;
+    if (toDate) params.toDate = toDate;
+    return await safeGet<any>('/video-analytics', params);
+  },
 };

@@ -57,7 +57,19 @@ import {
   Crown,
   ShieldOff,
   Gem,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
+import { NationalIdInspectorModal } from '@/components/admin/verification/NationalIdInspectorModal';
+import { VerificationRequestCard } from '@/components/admin/verification/VerificationRequestCard';
+import { VerificationNavBar, VerificationTabId } from '@/components/admin/verification/VerificationNavBar';
+import { VerificationTypeCard } from '@/components/admin/verification/VerificationTypeCard';
+import { VerificationPlanCard } from '@/components/admin/verification/VerificationPlanCard';
+import { ActiveVerificationCard } from '@/components/admin/verification/ActiveVerificationCard';
+import { DirectGrantPanel } from '@/components/admin/verification/DirectGrantPanel';
+import { RevokeExtendPanel } from '@/components/admin/verification/RevokeExtendPanel';
+import { VerificationSecurityPanel } from '@/components/admin/verification/VerificationSecurityPanel';
+import { VerificationConfirmModal } from '@/components/admin/verification/VerificationConfirmModal';
 
 function activeDaysProgress(uv: ActiveVerificationItem) {
   const start = new Date(uv.startedAt).getTime();
@@ -88,6 +100,7 @@ export default function AdminVerificationPage() {
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [page, setPage] = useState<number>(1);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
 
   // Selected Request for Modal Details
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -180,13 +193,13 @@ export default function AdminVerificationPage() {
     refetchOnWindowFocus: true,
   });
 
-  const { data: typesData, refetch: refetchTypes } = useQuery({
+  const { data: typesData, isLoading: typesLoading, refetch: refetchTypes } = useQuery({
     queryKey: ['admin', 'verification', 'types'],
     queryFn: ({ signal }) => verificationAdminApi.getTypes(signal),
     enabled: adminReady,
   });
 
-  const { data: plansData, refetch: refetchPlans } = useQuery({
+  const { data: plansData, isLoading: plansLoading, refetch: refetchPlans } = useQuery({
     queryKey: ['admin', 'verification', 'plans'],
     queryFn: ({ signal }) => verificationAdminApi.getPlans(undefined, signal),
     enabled: adminReady,
@@ -472,6 +485,110 @@ export default function AdminVerificationPage() {
     }
   };
 
+  // Confirmation Modal State
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    isDestructive?: boolean;
+    requiresInput?: boolean;
+    inputPlaceholder?: string;
+    inputLabel?: string;
+    onConfirm: (val?: string) => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const handleDeleteType = (t: VerificationTypeItem) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: `حذف نوع التوثيق (${t.name})`,
+      message: `هل أنت متأكد من رغبتك في حذف أو تعطيل نوع وشارة التوثيق (${t.name})؟ لن يؤثر هذا على التوثيقات التاريخية.`,
+      confirmText: 'نعم، حذف النوع',
+      isDestructive: true,
+      onConfirm: () => {
+        verificationAdminApi.deleteType(t.id).then(() => {
+          showToast('تم حذف/تعطيل نوع التوثيق بنجاح');
+          refetchTypes();
+        });
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
+
+  const handleDeletePlan = (p: VerificationPlanItem) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: `حذف باقة التوثيق (${p.name})`,
+      message: `هل أنت متأكد من رغبتك في حذف أو تعطيل الباقة (${p.name})؟`,
+      confirmText: 'نعم، حذف الباقة',
+      isDestructive: true,
+      onConfirm: () => {
+        verificationAdminApi.deletePlan(p.id).then(() => {
+          showToast('تم حذف/تعطيل الباقة بنجاح');
+          refetchPlans();
+        });
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
+
+  const handleRevokeActive = (uv: ActiveVerificationItem) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: `سحب توثيق الحساب (${uv.userName})`,
+      message: `سيتم سحب الشارة الفعالة من حساب (${uv.userName}). لن يتم حذف الطلب التاريخي وسيظهر كـ «تم سحب التوثيق». يرجى كتابة سبب السحب:`,
+      confirmText: 'تأكيد سحب الشارة',
+      isDestructive: true,
+      requiresInput: true,
+      inputLabel: 'سبب سحب التوثيق الموجه للنظام',
+      inputPlaceholder: 'مثال: مخالفة شروط المجتمع، انتحال هوية، بناءً على طلب المستخدم...',
+      onConfirm: (reason) => {
+        if (!reason?.trim()) {
+          showToast('يرجى كتابة سبب السحب أولاً', 'error');
+          return;
+        }
+        revokeMutation.mutate({ verificationId: uv.id, reason: reason.trim() });
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
+
+  const handlePanelRevoke = () => {
+    setConfirmConfig({
+      isOpen: true,
+      title: `تأكيد سحب التوثيق (${actionIdentifier})`,
+      message: `هل أنت متأكد من رغبتك في سحب وإلغاء شارة التوثيق للحساب (${actionIdentifier})؟ السبب المسجل: ${actionReason}`,
+      confirmText: 'نعم، سحب التوثيق',
+      isDestructive: true,
+      onConfirm: () => {
+        revokeMutation.mutate({ reason: actionReason });
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
+
+  const handleDeleteRequest = (id: string, name?: string) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: 'حذف طلب التوثيق نهائياً',
+      message: `هل أنت متأكد من مسح طلب التوثيق ${name ? `للمستخدم (${name})` : ''} نهائياً من سجلات النظام؟ لا يمكن التراجع عن هذا الإجراء.`,
+      confirmText: 'نعم، حذف الطلب',
+      isDestructive: true,
+      onConfirm: () => {
+        deleteRequestMutation.mutate(id);
+        if (selectedRequestId === id) {
+          setSelectedRequestId(null);
+        }
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
+
   return (
     <AdminShell>
       <div className="space-y-4 sm:space-y-6 text-right max-w-7xl mx-auto pb-8 sm:pb-12 font-sans" dir="rtl">
@@ -628,327 +745,254 @@ export default function AdminVerificationPage() {
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="admin-tab-rail">
-          {(
-            [
-              { id: 'requests' as const, label: 'الطلبات', full: 'طلبات التوثيق', icon: Clock },
-              {
-                id: 'types' as const,
-                label: 'الأنواع',
-                full: `أنواع التوثيق (${typesData?.length ?? 0})`,
-                icon: BadgeCheck,
-              },
-              {
-                id: 'plans' as const,
-                label: 'الباقات',
-                full: `الباقات (${plansData?.length ?? 0})`,
-                icon: Tag,
-              },
-              { id: 'grants' as const, label: 'المنح', full: 'المنح والسحب', icon: Crown },
-              { id: 'settings' as const, label: 'الأمان', full: 'الأمان والقواعد', icon: Shield },
-            ] as const
-          ).map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                data-active={active}
-                className="admin-tab-chip"
-                title={tab.full}
-              >
-                <Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2.4} />
-                <span className="sm:hidden">{tab.label}</span>
-                <span className="hidden sm:inline">{tab.full}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Verification System Navigation Bar */}
+        <VerificationNavBar
+          activeTab={activeTab}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            if (tab === 'grants') {
+              setFocusActiveList(true);
+            }
+          }}
+          pendingCount={stats?.pendingRequests ?? 0}
+          typesCount={typesData?.length ?? 0}
+          plansCount={plansData?.length ?? 0}
+          activeCount={stats?.activeVerifications ?? (activeVerifications?.totalCount ?? 0)}
+        />
 
         {/* TAB 1: REQUESTS REVIEW CENTER */}
         {activeTab === 'requests' && (
-          <div className="space-y-4">
-            {/* Filter Bar */}
-            <div className="admin-card p-3 sm:p-4 flex flex-col gap-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto] gap-2 w-full">
-                <div className="relative min-w-0">
-                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <div className="space-y-6">
+            {/* SUPERCHARGED FILTER & SEARCH DECK */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-4 shadow-xl">
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                {/* Search Input */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="بحث بالهاتف أو الاسم..."
+                    placeholder="بحث باسم المستخدم، رقم الهاتف، أو الرقم القومي (14 رقم)..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="admin-input w-full pr-9 pl-3 py-2.5 text-sm rounded-xl"
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl pr-10 pl-10 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      title="مسح البحث"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
-                <select
-                  value={statusFilter === undefined ? '' : statusFilter}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setStatusFilter(val === '' ? undefined : parseInt(val));
-                    setPage(1);
-                  }}
-                  className="admin-input w-full px-3 py-2.5 text-sm rounded-xl"
-                >
-                  <option value="">جميع الحالات</option>
-                  <option value="1">قيد الانتظار</option>
-                  <option value="2">قيد المراجعة</option>
-                  <option value="3">معتمد وموثق</option>
-                  <option value="4">مرفوض</option>
-                  <option value="5">ملغي</option>
-                  <option value="6">منتهي الصلاحية</option>
-                  <option value="7">تم سحب التوثيق</option>
-                </select>
+                {/* Type Filter Dropdown */}
+                <div className="w-full sm:w-64">
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => {
+                      setTypeFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="">كافة أنواع وشارات التوثيق</option>
+                    {typesData?.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.badgeName})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <select
-                  value={typeFilter}
-                  onChange={(e) => {
-                    setTypeFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="admin-input w-full px-3 py-2.5 text-sm rounded-xl sm:col-span-2 lg:col-span-1"
-                >
-                  <option value="">كافة أنواع التوثيق</option>
-                  {typesData?.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                {/* View Mode Switcher */}
+                <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-2xl border border-slate-800 self-end lg:self-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('cards')}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      viewMode === 'cards'
+                        ? 'bg-amber-500 text-slate-950 shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                    <span>كروت ذكية</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('table')}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                      viewMode === 'table'
+                        ? 'bg-amber-500 text-slate-950 shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <List className="w-4 h-4" />
+                    <span>جدول</span>
+                  </button>
+                </div>
               </div>
 
-              {(statusFilter !== undefined || typeFilter !== '' || searchQuery !== '') && (
-                <button
-                  onClick={() => {
-                    setStatusFilter(undefined);
-                    setTypeFilter('');
-                    setSearchQuery('');
-                    setPage(1);
-                  }}
-                  className="self-start text-xs text-rose-600 hover:underline font-bold"
-                >
-                  إلغاء الفلاتر
-                </button>
-              )}
-            </div>
-
-            {/* Mobile cards */}
-            <div className="admin-mobile-only space-y-3">
-              {requestsLoading ? (
-                <div className="admin-mobile-card py-10 text-center text-gray-400">
-                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#1F6B7A]" />
-                  جاري تحميل الطلبات...
-                </div>
-              ) : requestsData?.items?.length === 0 ? (
-                <div className="admin-mobile-card py-10 text-center text-gray-500 text-sm">
-                  لا توجد طلبات تطابق البحث.
-                </div>
-              ) : (
-                requestsData?.items?.map((r) => (
-                  <div key={r.id} className="admin-mobile-card space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="font-extrabold text-[var(--egypt-navy)] truncate">
-                          {r.userName || 'مستخدم بدون اسم'}
-                        </div>
-                        <div className="admin-cell-mono mt-0.5 truncate">{r.userPhoneNumber}</div>
-                      </div>
-                      {getStatusBadge(r.status, r.statusName)}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className="inline-flex items-center gap-1 font-bold text-gray-800 bg-[rgba(196,163,90,0.12)] text-[#8A6A1F] px-2 py-1 rounded-lg">
-                        <BadgeCheck className="w-3.5 h-3.5" />
-                        {r.verificationTypeName}
-                      </span>
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 text-gray-700 font-semibold">
-                        <FileText className="w-3.5 h-3.5" />
-                        {r.documentsCount} مرفق
-                      </span>
-                      <span className="text-gray-500">
-                        {r.planName || `${r.requestedDurationDays} يوم`}
-                        {r.planPrice ? ` · ${r.planPrice} ج.م` : ''}
-                      </span>
-                    </div>
-
-                    <div className="text-[11px] text-gray-500">
-                      {new Date(r.requestedAt).toLocaleDateString('ar-EG', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-white/10">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedRequestId(r.id)}
-                          className="admin-touch-btn bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 text-xs font-bold"
-                          title="عرض تفاصيل الطلب والمستندات"
-                        >
-                          <Eye className="w-4 h-4" />
-                          المعاينة
-                        </button>
-                        {normalizeStatus(r.status, r.statusName) === 1 && (
-                          <button
-                            type="button"
-                            onClick={() => reviewMutation.mutate(r.id)}
-                            disabled={reviewMutation.isPending}
-                            className="admin-touch-btn bg-sky-950/70 text-sky-300 border border-sky-500/40 flex items-center gap-1 text-xs font-bold"
-                            title="بدء المراجعة"
-                          >
-                            <ScanSearch className="w-4 h-4" />
-                            مراجعة
-                          </button>
-                        )}
-                        {isActionableStatus(r.status, r.statusName) && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setApproveModalRequest(r);
-                                setApprovedDuration(r.requestedDurationDays || 30);
-                                setIsFreeApprove(false);
-                                setAdminNotes('');
-                              }}
-                              className="admin-touch-btn bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1 text-xs font-bold shadow-md"
-                              title="قبول واعتماد التوثيق"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                              قبول واعتماد
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRejectModalRequest(r);
-                                setRejectReason('');
-                              }}
-                              className="admin-touch-btn bg-rose-950/60 text-rose-300 border border-rose-500/40 flex items-center gap-1 text-xs font-bold"
-                              title="رفض الطلب"
-                            >
-                              <XCircle className="w-4 h-4" />
-                              رفض
-                            </button>
-                          </>
-                        )}
-                      </div>
+              {/* Status Quick Filter Chips */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-800/80">
+                <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none snap-x touch-pan-x">
+                  <span className="text-xs font-bold text-slate-400 ml-1 shrink-0">الحالة:</span>
+                  {[
+                    { label: 'الكل', value: undefined, color: 'text-slate-200' },
+                    { label: 'قيد الانتظار', value: 1, count: stats?.pendingRequests, color: 'text-amber-400', badgeColor: 'bg-amber-500/20 text-amber-300' },
+                    { label: 'قيد المراجعة', value: 2, count: stats?.underReviewRequests, color: 'text-sky-400', badgeColor: 'bg-sky-500/20 text-sky-300' },
+                    { label: 'معتمد وموثق', value: 3, color: 'text-emerald-400', badgeColor: 'bg-emerald-500/20 text-emerald-300' },
+                    { label: 'مرفوض', value: 4, count: stats?.rejectedRequests, color: 'text-rose-400', badgeColor: 'bg-rose-500/20 text-rose-300' },
+                  ].map((chip) => {
+                    const isSelected = statusFilter === chip.value;
+                    return (
                       <button
+                        key={chip.label}
                         type="button"
                         onClick={() => {
-                          if (
-                            confirm(
-                              `هل أنت متأكد من مسح طلب التوثيق للمستخدم (${r.userName || r.userPhoneNumber}) نهائياً؟`
-                            )
-                          ) {
-                            deleteRequestMutation.mutate(r.id);
-                          }
+                          setStatusFilter(chip.value);
+                          setPage(1);
                         }}
-                        className="admin-touch-btn text-rose-400 bg-rose-950/50 border border-rose-800/40"
-                        title="مسح الطلب"
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 snap-center min-h-[34px] active:scale-95 ${
+                          isSelected
+                            ? 'bg-amber-500/20 border border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                            : 'bg-slate-950/70 border border-slate-800 text-slate-400 hover:text-white'
+                        }`}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <span className="truncate">{chip.label}</span>
+                        {typeof chip.count === 'number' && chip.count > 0 && (
+                          <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-black ${chip.badgeColor || 'bg-white/10'}`}>
+                            {chip.count}
+                          </span>
+                        )}
                       </button>
-                    </div>
-                  </div>
-                ))
-              )}
+                    );
+                  })}
+                </div>
+
+                {(statusFilter !== undefined || typeFilter !== '' || searchQuery !== '') && (
+                  <button
+                    onClick={() => {
+                      setStatusFilter(undefined);
+                      setTypeFilter('');
+                      setSearchQuery('');
+                      setPage(1);
+                    }}
+                    className="text-xs text-rose-400 hover:text-rose-300 hover:underline font-bold transition-colors shrink-0 self-start sm:self-auto"
+                  >
+                    إلغاء كافة الفلاتر ✕
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Desktop table */}
-            <div className="admin-desktop-only admin-data-grid overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-sm min-w-[720px]">
-                  <thead className="admin-thead">
-                    <tr>
-                      <th>المستخدم</th>
-                      <th>نوع التوثيق</th>
-                      <th>الخطة / السعر</th>
-                      <th>تاريخ التقديم</th>
-                      <th>الوثائق</th>
-                      <th>الحالة</th>
-                      <th className="text-center">الإجراءات</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {requestsLoading ? (
+            {/* REQUESTS LISTING (CARDS OR TABLE) */}
+            {requestsLoading ? (
+              <div className="p-16 rounded-3xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 font-bold space-y-3">
+                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-amber-400" />
+                <div>جاري فحص وتحميل طلبات التوثيق والوثائق...</div>
+              </div>
+            ) : requestsData?.items?.length === 0 ? (
+              <div className="p-16 rounded-3xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 font-bold space-y-2">
+                <Shield className="w-12 h-12 mx-auto text-slate-600 mb-2" />
+                <div className="text-base text-white">لا توجد طلبات توثيق تطابق معايير البحث المحددة</div>
+                <p className="text-xs text-slate-500">جرب تغيير حالة الطلب أو مسح نص البحث للاطلاع على باقي الطلبات.</p>
+              </div>
+            ) : viewMode === 'cards' ? (
+              /* CARDS GRID VIEW */
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {requestsData?.items?.map((r) => (
+                  <VerificationRequestCard
+                    key={r.id}
+                    request={r}
+                    onInspect={(req) => setSelectedRequestId(req.id)}
+                    onApprove={(req) => {
+                      setApproveModalRequest(req);
+                      setApprovedDuration(req.requestedDurationDays || 30);
+                      setIsFreeApprove(false);
+                      setAdminNotes('');
+                    }}
+                    onReject={(req) => {
+                      setRejectModalRequest(req);
+                      setRejectReason('');
+                    }}
+                    onReview={(id) => reviewMutation.mutate(id)}
+                    onDelete={(id) => handleDeleteRequest(id, r.userName || r.userPhoneNumber)}
+                    normalizeStatus={normalizeStatus}
+                    isActionable={isActionableStatus(r.status, r.statusName)}
+                  />
+                ))}
+              </div>
+            ) : (
+              /* GLOWING TABLE VIEW */
+              <div className="rounded-3xl bg-slate-900/90 border border-slate-800 overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right text-xs">
+                    <thead className="bg-slate-950/80 text-slate-400 font-bold border-b border-slate-800">
                       <tr>
-                        <td colSpan={7} className="py-12 text-center text-gray-400">
-                          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#1F6B7A]" />
-                          جاري تحميل طلبات التوثيق...
-                        </td>
+                        <th className="p-4">المستخدم</th>
+                        <th className="p-4">الرقم القومي / المحافظة</th>
+                        <th className="p-4">نوع وشارة التوثيق</th>
+                        <th className="p-4">الخطة / السعر</th>
+                        <th className="p-4">الوثائق المرفقة</th>
+                        <th className="p-4">الحالة</th>
+                        <th className="p-4 text-center">الإجراءات</th>
                       </tr>
-                    ) : requestsData?.items?.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-12 text-center text-gray-500">
-                          لا توجد طلبات تطابق معايير البحث الحالية.
-                        </td>
-                      </tr>
-                    ) : (
-                      requestsData?.items?.map((r) => (
-                        <tr key={r.id} className="admin-tr">
-                          <td>
-                            <div className="admin-cell-title">{r.userName || 'مستخدم بدون اسم'}</div>
-                            <div className="admin-cell-mono">{r.userPhoneNumber}</div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {requestsData?.items?.map((r) => (
+                        <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="p-4">
+                            <div className="font-bold text-white text-xs">{r.userName || 'مستخدم بدون اسم'}</div>
+                            <div className="font-mono text-cyan-400 text-[11px] mt-0.5">{r.userPhoneNumber}</div>
                           </td>
-                          <td>
-                            <div className="inline-flex items-center gap-1.5 font-semibold text-gray-800">
-                              <BadgeCheck className="w-4 h-4 text-[#C4A35A]" />
-                              {r.verificationTypeName}
+                          <td className="p-4 font-mono">
+                            {r.extractedNationalId ? (
+                              <div className="space-y-0.5">
+                                <span className="font-bold text-amber-300 text-xs">🪪 {r.extractedNationalId}</span>
+                                {r.extractedGovernorate && (
+                                  <div className="text-[10px] text-slate-400">{r.extractedGovernorate}</div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-500">غير مستخرج</span>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            <div className="font-bold text-white text-xs flex items-center gap-1">
+                              <BadgeCheck className="w-3.5 h-3.5 text-amber-400" />
+                              <span>{r.verificationTypeName}</span>
                             </div>
-                            <div className="text-xs text-gray-500">شارة: {r.badgeName}</div>
+                            <div className="text-[10px] text-slate-400">شارة: {r.badgeName}</div>
                           </td>
-                          <td>
-                            <div className="font-medium text-gray-800">{r.planName || `${r.requestedDurationDays} يوم`}</div>
-                            <div className="text-xs text-gray-500">
-                              {r.planPrice ? `${r.planPrice} ج.م` : 'مجاني / حسب الطلب'}
+                          <td className="p-4 font-mono">
+                            <div className="font-bold text-emerald-400">
+                              {r.planPrice ? `${r.planPrice} ج.م` : 'مجاني'}
                             </div>
+                            <div className="text-[10px] text-slate-400">{r.requestedDurationDays} يوم</div>
                           </td>
-                          <td className="text-xs text-gray-500 whitespace-nowrap">
-                            {new Date(r.requestedAt).toLocaleDateString('ar-EG', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </td>
-                          <td>
-                            <span className="admin-badge admin-badge-nile">
-                              <FileText className="w-3.5 h-3.5" />
-                              {r.documentsCount} مرفق
+                          <td className="p-4">
+                            <span className="px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-bold inline-flex items-center gap-1 text-[11px]">
+                              <FileText className="w-3 h-3" />
+                              <span>{r.documentsCount} مرفق</span>
                             </span>
                           </td>
-                          <td>{getStatusBadge(r.status, r.statusName)}</td>
-                          <td>
+                          <td className="p-4">{getStatusBadge(r.status, r.statusName)}</td>
+                          <td className="p-4">
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               <button
                                 type="button"
                                 onClick={() => setSelectedRequestId(r.id)}
-                                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-cyan-950/60 text-cyan-300 hover:bg-cyan-900/60 border border-cyan-500/30 text-xs font-bold transition inline-flex items-center gap-1"
-                                title="عرض التفاصيل والمستندات"
+                                className="px-2.5 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition flex items-center gap-1"
                               >
-                                <Eye className="w-4 h-4" />
-                                <span className="hidden xl:inline">المعاينة</span>
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>فحص</span>
                               </button>
-                              {normalizeStatus(r.status, r.statusName) === 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => reviewMutation.mutate(r.id)}
-                                  disabled={reviewMutation.isPending}
-                                  className="px-2.5 py-1.5 text-xs rounded-lg bg-sky-950/70 text-sky-300 hover:bg-sky-900/80 border border-sky-500/40 font-bold transition inline-flex items-center gap-1"
-                                  title="نقل الطلب لقيد المراجعة"
-                                >
-                                  <ScanSearch className="w-3.5 h-3.5" />
-                                  <span>مراجعة</span>
-                                </button>
-                              )}
                               {isActionableStatus(r.status, r.statusName) && (
                                 <>
                                   <button
@@ -959,11 +1003,9 @@ export default function AdminVerificationPage() {
                                       setIsFreeApprove(false);
                                       setAdminNotes('');
                                     }}
-                                    className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow-md inline-flex items-center gap-1"
-                                    title="قبول واعتماد التوثيق"
+                                    className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm"
                                   >
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                    <span>قبول واعتماد</span>
+                                    اعتماد
                                   </button>
                                   <button
                                     type="button"
@@ -971,80 +1013,82 @@ export default function AdminVerificationPage() {
                                       setRejectModalRequest(r);
                                       setRejectReason('');
                                     }}
-                                    className="px-2.5 py-1.5 text-xs rounded-lg bg-rose-950/60 text-rose-300 hover:bg-rose-900/60 border border-rose-500/40 font-bold transition inline-flex items-center gap-1"
-                                    title="رفض الطلب"
+                                    className="px-2.5 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-xs font-bold transition"
                                   >
-                                    <XCircle className="w-3.5 h-3.5" />
-                                    <span>رفض</span>
+                                    رفض
                                   </button>
                                 </>
                               )}
                               <button
                                 type="button"
-                                onClick={() => {
-                                  if (
-                                    confirm(
-                                      `هل أنت متأكد من مسح طلب التوثيق للمستخدم (${r.userName || r.userPhoneNumber}) نهائياً من قاعدة البيانات؟`
-                                    )
-                                  ) {
-                                    deleteRequestMutation.mutate(r.id);
-                                  }
-                                }}
-                                className="p-1.5 rounded-lg text-gray-400 hover:bg-rose-950/60 hover:text-rose-400 border border-transparent hover:border-rose-500/30 transition"
-                                title="مسح طلب التوثيق نهائياً"
+                                onClick={() => handleDeleteRequest(r.id, r.userName || r.userPhoneNumber)}
+                                className="p-1.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition"
+                                title="حذف"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-              {/* Pagination */}
-              {requestsData && requestsData.totalPages > 1 && (
-                <div className="p-3 sm:p-4 admin-card flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-sm">
-                  <div className="text-gray-500 text-xs sm:text-sm text-center sm:text-right">
-                    صفحة {requestsData.page} من {requestsData.totalPages} (إجمالي {requestsData.totalCount} طلب)
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      disabled={!requestsData.hasPreviousPage}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      className="admin-touch-btn border border-gray-300 disabled:opacity-40"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                      السابق
-                    </button>
-                    <button
-                      disabled={!requestsData.hasNextPage}
-                      onClick={() => setPage((p) => p + 1)}
-                      className="admin-touch-btn border border-gray-300 disabled:opacity-40"
-                    >
-                      التالي
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </div>
+            )}
+
+            {/* PAGINATION TOOLBAR */}
+            {requestsData && requestsData.totalPages > 1 && (
+              <div className="p-4 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="text-slate-400">
+                  صفحة <span className="font-bold text-white">{requestsData.page}</span> من{' '}
+                  <span className="font-bold text-white">{requestsData.totalPages}</span> (إجمالي{' '}
+                  <span className="font-mono font-bold text-amber-400">{requestsData.totalCount}</span> طلب)
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={!requestsData.hasPreviousPage}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 disabled:opacity-40 font-bold transition-colors flex items-center gap-1"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    <span>السابق</span>
+                  </button>
+                  <button
+                    disabled={!requestsData.hasNextPage}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 disabled:opacity-40 font-bold transition-colors flex items-center gap-1"
+                  >
+                    <span>التالي</span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* TAB 2: VERIFICATION TYPES */}
         {activeTab === 'types' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 admin-card p-4">
-              <div className="min-w-0">
-                <h2 className="font-bold text-gray-900 text-sm sm:text-base">أنواع وشارات التوثيق المعرفة في النظام</h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  تحديد فئات الحسابات التي يمكن توثيقها (مواطن، مراسل، مؤسسة...).
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 p-5 sm:p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <BadgeCheck className="w-5 h-5" />
+                  </div>
+                  <h2 className="font-black text-white text-base sm:text-lg">أنواع وشارات التوثيق المعتمدة</h2>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-black">
+                    {typesData?.length ?? 0} أنواع
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 pr-11">
+                  تحديد فئات الحسابات التي يمكن توثيقها، متطلبات الوثائق، والشارة الظاهرة بجوار الاسم.
                 </p>
               </div>
+
               <button
+                type="button"
                 onClick={() => {
                   setEditingType(null);
                   setTypeFormData({
@@ -1058,119 +1102,78 @@ export default function AdminVerificationPage() {
                   });
                   setTypeModalOpen(true);
                 }}
-                className="admin-touch-btn shrink-0 bg-[#1F6B7A] text-white shadow self-stretch sm:self-auto"
+                className="py-3 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm transition-all duration-300 shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 shrink-0 self-stretch sm:self-auto"
               >
                 <Plus className="w-4 h-4" />
-                إضافة نوع جديد
+                <span>إضافة نوع توثيق جديد</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {typesData?.map((t) => (
-                <div
-                  key={t.id}
-                  className="admin-card rounded-2xl p-5 border border-white/15 text-white transition flex flex-col justify-between shadow-lg hover:border-[#C4A35A]/50"
-                >
-                  <div>
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-10 h-10 rounded-xl bg-[#C4A35A]/20 text-[#C4A35A] flex items-center justify-center font-bold shadow-sm">
-                          <BadgeCheck className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-white text-base">{t.name}</h3>
-                          <div className="text-xs text-cyan-400 font-semibold">شارة: {t.badgeName}</div>
-                        </div>
-                      </div>
-
-                      <span
-                        className={`px-2.5 py-0.5 text-xs rounded-full font-bold ${
-                          t.isActive
-                            ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/40'
-                            : 'bg-white/10 text-gray-400 border border-white/10'
-                        }`}
-                      >
-                        {t.isActive ? 'مفعل' : 'معطل'}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-gray-300 mt-3 line-clamp-2 leading-relaxed">{t.description || 'لا يوجد وصف متاح لهذا النوع.'}</p>
-
-                    <div className="mt-4 pt-3 border-t border-white/10 grid grid-cols-2 gap-2 text-xs text-gray-300">
-                      <div>
-                        الوثائق: <span className="font-bold text-white">{t.requiresDocuments ? 'مطلوبة 📄' : 'اختيارية'}</span>
-                      </div>
-                      <div>
-                        التقديم من التطبيق: <span className="font-bold text-white">{t.allowUserRequest ? 'متاح ✅' : 'إدارة فقط 🔒'}</span>
-                      </div>
-                      <div>
-                        الخطط الفعالة: <span className="font-bold text-cyan-400">{t.activePlansCount} باقة</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between">
-                    <button
-                      onClick={() => verificationAdminApi.toggleTypeStatus(t.id, !t.isActive).then(() => refetchTypes())}
-                      className="text-xs text-gray-300 hover:text-white font-semibold underline transition"
-                    >
-                      {t.isActive ? 'تعطيل النوع' : 'تفعيل النوع'}
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingType(t);
-                          setTypeFormData({
-                            name: t.name,
-                            description: t.description || '',
-                            badgeName: t.badgeName,
-                            badgeIcon: t.badgeIcon || 'BadgeCheck',
-                            requiresDocuments: t.requiresDocuments,
-                            requiresReview: t.requiresReview,
-                            allowUserRequest: t.allowUserRequest,
-                          });
-                          setTypeModalOpen(true);
-                        }}
-                        className="p-1.5 rounded-lg text-gray-400 hover:bg-white/10 hover:text-cyan-400 transition"
-                        title="تعديل"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          if (confirm(`هل أنت متأكد من رغبتك في حذف أو تعطيل النوع (${t.name})؟`)) {
-                            verificationAdminApi.deleteType(t.id).then(() => {
-                              showToast('تم حذف/تعطيل النوع بنجاح');
-                              refetchTypes();
-                            });
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-gray-400 hover:bg-rose-950/60 hover:text-rose-400 transition"
-                        title="حذف"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {typesLoading ? (
+              <div className="p-12 text-center rounded-3xl bg-slate-900/60 border border-slate-800 text-slate-400 text-sm font-bold flex flex-col items-center justify-center gap-3">
+                <RefreshCw className="w-6 h-6 animate-spin text-emerald-400" />
+                <span>جاري تحميل أنواع التوثيق...</span>
+              </div>
+            ) : !typesData?.length ? (
+              <div className="p-12 text-center rounded-3xl bg-slate-900/60 border border-slate-800 text-slate-400 space-y-3">
+                <BadgeCheck className="w-10 h-10 mx-auto text-emerald-400 opacity-50" />
+                <h4 className="font-black text-white text-base">لا توجد أنواع توثيق معرفة</h4>
+                <p className="text-xs text-slate-400">ابدأ بإضافة أول نوع توثيق وشارة في النظام الآن.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {typesData.map((t) => (
+                  <VerificationTypeCard
+                    key={t.id}
+                    type={t}
+                    onEdit={(item) => {
+                      setEditingType(item);
+                      setTypeFormData({
+                        name: item.name,
+                        description: item.description || '',
+                        badgeName: item.badgeName,
+                        badgeIcon: item.badgeIcon || 'BadgeCheck',
+                        requiresDocuments: item.requiresDocuments,
+                        requiresReview: item.requiresReview,
+                        allowUserRequest: item.allowUserRequest,
+                      });
+                      setTypeModalOpen(true);
+                    }}
+                    onDelete={handleDeleteType}
+                    onToggleStatus={(id, currentStatus) => {
+                      verificationAdminApi.toggleTypeStatus(id, !currentStatus).then(() => {
+                        showToast(!currentStatus ? 'تم تفعيل النوع بنجاح' : 'تم تعطيل النوع بنجاح');
+                        refetchTypes();
+                      });
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {/* TAB 3: PLANS & OFFERS */}
         {activeTab === 'plans' && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 admin-card p-4">
-              <div className="min-w-0">
-                <h2 className="font-bold text-gray-900 text-sm sm:text-base">باقات وخطط التوثيق والعروض</h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  مدد التوثيق، الأسعار، والعروض المجانية.
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 p-5 sm:p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl">
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <Tag className="w-5 h-5" />
+                  </div>
+                  <h2 className="font-black text-white text-base sm:text-lg">باقات وخطط التوثيق والعروض</h2>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-black">
+                    {plansData?.length ?? 0} باقات
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 pr-11">
+                  تحديد أسعار ومدد الاشتراكات والعروض الترويجية المجانية لكل فئة توثيق.
                 </p>
               </div>
+
               <button
+                type="button"
                 onClick={() => {
                   setEditingPlan(null);
                   setPlanFormData({
@@ -1186,106 +1189,56 @@ export default function AdminVerificationPage() {
                   });
                   setPlanModalOpen(true);
                 }}
-                className="admin-touch-btn shrink-0 bg-[#1F6B7A] text-white shadow self-stretch sm:self-auto"
+                className="py-3 px-5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm transition-all duration-300 shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 shrink-0 self-stretch sm:self-auto"
               >
                 <Plus className="w-4 h-4" />
-                إنشاء باقة جديدة
+                <span>إنشاء باقة جديدة</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {plansData?.map((p) => (
-                <div
-                  key={p.id}
-                  className={`admin-card rounded-2xl p-5 border text-white transition relative flex flex-col justify-between shadow-lg ${
-                    p.isFree
-                      ? 'border-[#C4A35A]/60 bg-gradient-to-b from-[#C4A35A]/15 to-[#162232]'
-                      : 'border-white/15'
-                  }`}
-                >
-                  {p.isFree && (
-                    <div className="absolute -top-3 left-4 px-3 py-0.5 rounded-full bg-[#C4A35A] text-[#0F1B2D] text-xs font-black shadow-lg flex items-center gap-1">
-                      <Gift className="w-3.5 h-3.5" />
-                      عرض مجاني
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <span className="text-xs font-bold text-cyan-400">{p.verificationTypeName || 'نوع عام'}</span>
-                        <h3 className="text-lg font-bold text-white mt-0.5">{p.name}</h3>
-                      </div>
-                      <span
-                        className={`px-2.5 py-0.5 text-xs rounded-full font-bold ${
-                          p.isActive
-                            ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/40'
-                            : 'bg-white/10 text-gray-400 border border-white/10'
-                        }`}
-                      >
-                        {p.isActive ? 'نشطة' : 'معطلة'}
-                      </span>
-                    </div>
-
-                    <div className="my-4 flex items-baseline gap-1">
-                      <span className="text-3xl font-black text-white">{p.isFree ? 'مجاناً' : p.price}</span>
-                      {!p.isFree && <span className="text-xs text-gray-300 font-bold">{p.currency}</span>}
-                      <span className="text-xs text-gray-400 mr-2">/ لمدة {p.durationDays} يوم</span>
-                    </div>
-
-                    <p className="text-xs text-gray-300 line-clamp-2 leading-relaxed">{p.description || 'باقة توثيق معتمدة.'}</p>
-                  </div>
-
-                  <div className="mt-5 pt-3 border-t border-white/10 flex items-center justify-between">
-                    <button
-                      onClick={() => verificationAdminApi.togglePlanStatus(p.id, !p.isActive).then(() => refetchPlans())}
-                      className="text-xs text-gray-300 hover:text-white font-semibold underline transition"
-                    >
-                      {p.isActive ? 'تعطيل الباقة' : 'تفعيل الباقة'}
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingPlan(p);
-                          setPlanFormData({
-                            verificationTypeId: p.verificationTypeId,
-                            name: p.name,
-                            description: p.description || '',
-                            durationDays: p.durationDays,
-                            price: p.price,
-                            currency: p.currency,
-                            isActive: p.isActive,
-                            isFree: p.isFree,
-                            sortOrder: p.sortOrder,
-                          });
-                          setPlanModalOpen(true);
-                        }}
-                        className="p-1.5 rounded-lg text-gray-400 hover:bg-white/10 hover:text-cyan-400 transition"
-                        title="تعديل السعر أو المدة"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          if (confirm(`هل أنت متأكد من رغبتك في حذف أو تعطيل الباقة (${p.name})؟`)) {
-                            verificationAdminApi.deletePlan(p.id).then(() => {
-                              showToast('تم حذف/تعطيل الباقة بنجاح');
-                              refetchPlans();
-                            });
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-gray-400 hover:bg-rose-950/60 hover:text-rose-400 transition"
-                        title="حذف الباقة"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {plansLoading ? (
+              <div className="p-12 text-center rounded-3xl bg-slate-900/60 border border-slate-800 text-slate-400 text-sm font-bold flex flex-col items-center justify-center gap-3">
+                <RefreshCw className="w-6 h-6 animate-spin text-amber-400" />
+                <span>جاري تحميل باقات التوثيق...</span>
+              </div>
+            ) : !plansData?.length ? (
+              <div className="p-12 text-center rounded-3xl bg-slate-900/60 border border-slate-800 text-slate-400 space-y-3">
+                <Tag className="w-10 h-10 mx-auto text-amber-400 opacity-50" />
+                <h4 className="font-black text-white text-base">لا توجد باقات معرفة</h4>
+                <p className="text-xs text-slate-400">أنشئ باقتك الأولى لتفعيل خيارات الاشتراك للمستخدمين.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {plansData.map((p) => (
+                  <VerificationPlanCard
+                    key={p.id}
+                    plan={p}
+                    onEdit={(item) => {
+                      setEditingPlan(item);
+                      setPlanFormData({
+                        verificationTypeId: item.verificationTypeId,
+                        name: item.name,
+                        description: item.description || '',
+                        durationDays: item.durationDays,
+                        price: item.price,
+                        currency: item.currency,
+                        isActive: item.isActive,
+                        isFree: item.isFree,
+                        sortOrder: item.sortOrder,
+                      });
+                      setPlanModalOpen(true);
+                    }}
+                    onDelete={handleDeletePlan}
+                    onToggleStatus={(id, currentStatus) => {
+                      verificationAdminApi.togglePlanStatus(id, !currentStatus).then(() => {
+                        showToast(!currentStatus ? 'تم تفعيل الباقة بنجاح' : 'تم تعطيل الباقة بنجاح');
+                        refetchPlans();
+                      });
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1295,24 +1248,32 @@ export default function AdminVerificationPage() {
             {/* Active verifications — Nile Vault */}
             <div
               id="active-verifications-panel"
-              className="verif-vault"
-              data-focus={focusActiveList ? 'true' : 'false'}
+              className="p-5 sm:p-7 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 shadow-2xl"
             >
-              <div className="verif-vault-head">
-                <div className="verif-vault-title">
-                  <span className="verif-vault-seal" aria-hidden>
-                    <Crown className="w-5 h-5" strokeWidth={2.4} />
-                  </span>
-                  <div className="min-w-0">
-                    <h3>التوثيقات النشطة</h3>
-                    <p>
-                      خزنة الشارات الحية — اسحب التوثيق دون مسح الطلب التاريخي. بعد السحب تظهر الحالة «تم سحب
-                      التوثيق» وليست قيد الانتظار.
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 shadow-md">
+                    <Crown className="w-6 h-6" strokeWidth={2.4} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-black text-white text-base sm:text-lg">
+                        خزنة التوثيقات والشارات الحية
+                      </h3>
+                      {activeVerifications?.totalCount !== undefined && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-black">
+                          {activeVerifications.totalCount} حساب موثق
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      سحب الشارة فورياً دون مسح السجل التاريخي للطلب، مع تدقيق المدة المتبقية لكل مستخدم.
                     </p>
                   </div>
                 </div>
-                <div className="verif-vault-search">
-                  <Search className="w-4 h-4" />
+
+                <div className="relative min-w-[280px]">
+                  <Search className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="بحث في التوثيقات النشطة..."
@@ -1321,135 +1282,49 @@ export default function AdminVerificationPage() {
                       setActiveSearch(e.target.value);
                       setActivePage(1);
                     }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl pr-10 pl-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
                   />
                 </div>
               </div>
 
               {activeLoading ? (
-                <div className="verif-empty">
-                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#1F6B7A]" />
-                  جاري تحميل التوثيقات النشطة...
+                <div className="p-12 text-center text-slate-400 text-sm font-bold flex flex-col items-center justify-center gap-3">
+                  <RefreshCw className="w-6 h-6 animate-spin text-purple-400" />
+                  <span>جاري تحميل التوثيقات النشطة...</span>
                 </div>
               ) : !activeVerifications?.items?.length ? (
-                <div className="verif-empty">
-                  <Gem className="w-7 h-7 mx-auto mb-2 text-[#C4A35A]" />
-                  لا توجد توثيقات نشطة حالياً.
+                <div className="p-12 text-center text-slate-400 space-y-3 bg-slate-950/40 rounded-2xl border border-slate-800/80">
+                  <Gem className="w-10 h-10 mx-auto text-purple-400 opacity-50" />
+                  <h4 className="font-black text-white text-base">لا توجد توثيقات نشطة حالياً</h4>
+                  <p className="text-xs text-slate-500">
+                    يمكنك منح توثيق مباشر بالأسفل أو مراجعة واعتماد الطلبات المعلقة.
+                  </p>
                 </div>
               ) : (
-                <div className="verif-active-grid">
-                  {activeVerifications.items.map((uv: ActiveVerificationItem) => {
-                    const progress = activeDaysProgress(uv);
-                    const circumference = 2 * Math.PI * 18;
-                    const dash = (progress.pct / 100) * circumference;
-                    const ringColor = progress.urgent ? '#c23a4d' : '#1F6B7A';
-                    return (
-                      <article key={uv.id} className="verif-active-card">
-                        <div className="verif-active-top">
-                          <div className="verif-active-identity">
-                            <span className="verif-mono" aria-hidden>
-                              {userInitials(uv.userName)}
-                            </span>
-                            <div className="min-w-0">
-                              <div className="name">{uv.userName}</div>
-                              <div className="phone">{uv.userPhoneNumber}</div>
-                            </div>
-                          </div>
-                          <div className="verif-day-ring" title={`متبقي ${progress.remaining} يوم`}>
-                            <svg viewBox="0 0 44 44" aria-hidden>
-                              <circle cx="22" cy="22" r="18" fill="none" stroke="rgba(31,107,122,0.12)" strokeWidth="4" />
-                              <circle
-                                cx="22"
-                                cy="22"
-                                r="18"
-                                fill="none"
-                                stroke={ringColor}
-                                strokeWidth="4"
-                                strokeLinecap="round"
-                                strokeDasharray={`${dash} ${circumference}`}
-                              />
-                            </svg>
-                            <div className="label">
-                              <strong>{progress.remaining}</strong>
-                              <span>يوم</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="verif-chip-row">
-                          <span className="verif-chip verif-chip-live">
-                            <Sparkles className="w-3.5 h-3.5" />
-                            نشط
-                          </span>
-                          <span className="verif-chip verif-chip-gold">
-                            <Award className="w-3.5 h-3.5" />
-                            {uv.badgeName || uv.verificationTypeName}
-                          </span>
-                          {uv.isFree && (
-                            <span className="verif-chip verif-chip-free">
-                              <Ticket className="w-3.5 h-3.5" />
-                              مجاني
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="verif-meta">
-                          <span>
-                            يبدأ <em>{new Date(uv.startedAt).toLocaleDateString('ar-EG')}</em>
-                          </span>
-                          <span>
-                            ينتهي <em>{new Date(uv.expiresAt).toLocaleDateString('ar-EG')}</em>
-                          </span>
-                          {uv.grantedByUserName && (
-                            <span>
-                              بواسطة <em>{uv.grantedByUserName}</em>
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="verif-actions">
-                          {uv.verificationRequestId && (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedRequestId(uv.verificationRequestId!)}
-                              className="admin-touch-btn verif-btn-docs"
-                            >
-                              <Eye className="w-4 h-4" />
-                              الطلب والمستندات
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            disabled={revokeMutation.isPending}
-                            onClick={() => {
-                              const reason = window.prompt(
-                                `سبب سحب توثيق (${uv.userName}) — لن يُحذف الطلب وسيظهر كـ «تم سحب التوثيق»:`
-                              );
-                              if (!reason?.trim()) return;
-                              revokeMutation.mutate({ verificationId: uv.id, reason: reason.trim() });
-                            }}
-                            className="admin-touch-btn verif-btn-revoke"
-                          >
-                            <ShieldOff className="w-4 h-4" />
-                            سحب التوثيق
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  })}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {activeVerifications.items.map((uv: ActiveVerificationItem) => (
+                    <ActiveVerificationCard
+                      key={uv.id}
+                      uv={uv}
+                      onInspectDocs={(reqId) => setSelectedRequestId(reqId)}
+                      onRevoke={handleRevokeActive}
+                      isRevoking={revokeMutation.isPending}
+                    />
+                  ))}
                 </div>
               )}
 
               {activeVerifications && activeVerifications.totalPages > 1 && (
-                <div className="flex items-center justify-between gap-2 pt-3">
-                  <span className="text-xs font-bold text-[var(--egypt-muted)]">
-                    صفحة {activeVerifications.page} / {activeVerifications.totalPages}
+                <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-800/80">
+                  <span className="text-xs font-bold text-slate-400">
+                    صفحة {activeVerifications.page} من {activeVerifications.totalPages}
                   </span>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       disabled={!activeVerifications.hasPreviousPage}
                       onClick={() => setActivePage((p) => Math.max(1, p - 1))}
-                      className="admin-touch-btn border border-[rgba(31,107,122,0.25)] disabled:opacity-40"
+                      className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white disabled:opacity-40"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -1457,7 +1332,7 @@ export default function AdminVerificationPage() {
                       type="button"
                       disabled={!activeVerifications.hasNextPage}
                       onClick={() => setActivePage((p) => p + 1)}
-                      className="admin-touch-btn border border-[rgba(31,107,122,0.25)] disabled:opacity-40"
+                      className="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white disabled:opacity-40"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -1466,672 +1341,172 @@ export default function AdminVerificationPage() {
               )}
             </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Direct Grant Card */}
-            <div className="verif-ops-card" data-tone="grant">
-              <div className="verif-ops-head">
-                <span className="verif-ops-icon">
-                  <Gift className="w-5 h-5" strokeWidth={2.4} />
-                </span>
-                <h4>منح توثيق مباشر</h4>
-              </div>
-              <p className="lead">
-                شارة فورية بأي حساب عبر الموبايل أو اسم المستخدم — بدون ID وبدون رفع وثائق.
-              </p>
+            {/* Direct Grant & Revoke / Extend Deck */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <DirectGrantPanel
+                typesData={typesData}
+                grantUserIdentifier={grantUserIdentifier}
+                setGrantUserIdentifier={setGrantUserIdentifier}
+                grantMatchedUser={grantMatchedUser}
+                setGrantMatchedUser={setGrantMatchedUser}
+                grantSuggestions={grantSuggestions}
+                grantTypeId={grantTypeId}
+                setGrantTypeId={setGrantTypeId}
+                grantDays={grantDays}
+                setGrantDays={setGrantDays}
+                grantIsFree={grantIsFree}
+                setGrantIsFree={setGrantIsFree}
+                grantNotes={grantNotes}
+                setGrantNotes={setGrantNotes}
+                onSubmit={() => directGrantMutation.mutate()}
+                isPending={directGrantMutation.isPending}
+              />
 
-              <div className="space-y-4">
-                <div className="relative">
-                  <label className="block text-xs font-bold text-gray-200 mb-1">
-                    اسم المستخدم أو رقم الموبايل (Username or Phone Number)
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="مثال: 01012345678 أو ahmed_soliman أو المعرف..."
-                      value={grantUserIdentifier}
-                      onChange={(e) => {
-                        setGrantUserIdentifier(e.target.value);
-                        setGrantMatchedUser(null);
-                      }}
-                      className="w-full px-3.5 py-2.5 pl-8 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 font-medium focus:ring-2 focus:ring-[#1F6B7A] outline-none"
-                    />
-                    <User className="w-4 h-4 text-gray-400 absolute left-2.5 top-3" />
-                  </div>
-
-                  {/* Live Suggestions Dropdown */}
-                  {grantSuggestions && grantSuggestions.length > 0 && !grantMatchedUser && (
-                    <div className="mt-1.5 p-1.5 bg-[#0F1724] border border-white/20 rounded-xl shadow-2xl max-h-48 overflow-y-auto space-y-1 z-20 relative">
-                      <div className="text-[11px] font-bold text-gray-400 px-2 py-0.5">اختر المستخدم من نتائج البحث:</div>
-                      {grantSuggestions.map((u) => (
-                        <div
-                          key={u.id}
-                          onClick={() => {
-                            setGrantUserIdentifier(u.phoneNumber || u.username || u.id);
-                            setGrantMatchedUser(u);
-                          }}
-                          className="p-2 rounded-lg hover:bg-white/10 border border-transparent hover:border-white/10 cursor-pointer transition flex items-center justify-between text-xs"
-                        >
-                          <div>
-                            <span className="font-bold text-white">{u.name}</span>
-                            {u.username && <span className="text-gray-400 mr-1.5">(@{u.username})</span>}
-                            <span className="text-cyan-400 mr-2 font-mono">📱 {u.phoneNumber}</span>
-                          </div>
-                          {u.hasActiveVerification ? (
-                            <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-950/80 text-emerald-300 font-bold border border-emerald-500/40">
-                              موثق: {u.badgeName}
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 text-[10px] rounded-full bg-white/10 text-gray-400 font-bold">
-                              غير موثق
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {grantMatchedUser && (
-                    <div className="mt-2 p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-between text-xs text-emerald-200">
-                      <div>
-                        تم تحديد: <span className="font-black text-white">{grantMatchedUser.name}</span> ({grantMatchedUser.phoneNumber})
-                      </div>
-                      <button
-                        onClick={() => {
-                          setGrantMatchedUser(null);
-                          setGrantUserIdentifier('');
-                        }}
-                        className="text-emerald-400 hover:text-emerald-300 font-bold"
-                      >
-                        تغيير
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-200 mb-1">نوع وشارة التوثيق</label>
-                    <select
-                      value={grantTypeId}
-                      onChange={(e) => setGrantTypeId(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-[#1F6B7A] outline-none"
-                    >
-                      <option value="" className="bg-[#0F1724] text-gray-400">-- اختر نوع التوثيق --</option>
-                      {typesData?.map((t) => (
-                        <option key={t.id} value={t.id} className="bg-[#0F1724] text-white">
-                          {t.name} ({t.badgeName})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-200 mb-1">المدة الممنوحة (بالأيام)</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={grantDays}
-                      onChange={(e) => setGrantDays(parseInt(e.target.value) || 30)}
-                      className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold text-center"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="checkbox"
-                    id="grantIsFree"
-                    checked={grantIsFree}
-                    onChange={(e) => setGrantIsFree(e.target.checked)}
-                    className="rounded text-[#1F6B7A] focus:ring-[#1F6B7A] bg-[#0F1724] border-white/20"
-                  />
-                  <label htmlFor="grantIsFree" className="text-xs font-bold text-gray-200 cursor-pointer">
-                    منح مجاني بالكامل (بدون رسوم أو مدفوعات)
-                  </label>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-200 mb-1">ملاحظات الإدارة وسبب المنح</label>
-                  <textarea
-                    rows={2}
-                    placeholder="شخصية عامة، دعوة شرفية، مراسل رسمي..."
-                    value={grantNotes}
-                    onChange={(e) => setGrantNotes(e.target.value)}
-                    className="w-full px-3.5 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
-                  />
-                </div>
-
-                <button
-                  disabled={!grantUserIdentifier.trim() || !grantTypeId || directGrantMutation.isPending}
-                  onClick={() => directGrantMutation.mutate()}
-                  className="w-full py-3 rounded-xl bg-gradient-to-l from-[#1F6B7A] to-[#2D8A9C] hover:from-[#185561] hover:to-[#1F6B7A] text-white font-black text-sm transition shadow-lg shadow-[rgba(31,107,122,0.35)] disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <UserCheck className="w-4 h-4" />
-                  {directGrantMutation.isPending ? 'جاري المنح...' : 'تأكيد منح التوثيق فوراً'}
-                </button>
-              </div>
+              <RevokeExtendPanel
+                actionIdentifier={actionIdentifier}
+                setActionIdentifier={setActionIdentifier}
+                actionMatchedUser={actionMatchedUser}
+                setActionMatchedUser={setActionMatchedUser}
+                actionSuggestions={actionSuggestions}
+                actionReason={actionReason}
+                setActionReason={setActionReason}
+                extendDays={extendDays}
+                setExtendDays={setExtendDays}
+                onRevoke={handlePanelRevoke}
+                onExtend={() => extendMutation.mutate()}
+                isRevoking={revokeMutation.isPending}
+                isExtending={extendMutation.isPending}
+              />
             </div>
-
-            {/* Revoke & Extend Card */}
-            <div className="verif-ops-card" data-tone="revoke">
-              <div className="verif-ops-head">
-                <span className="verif-ops-icon">
-                  <ShieldOff className="w-5 h-5" strokeWidth={2.4} />
-                </span>
-                <h4>سحب التوثيق أو تمديده</h4>
-              </div>
-              <p className="lead">
-                إلغاء الشارة الفعالة أو تمديدها مباشرة باسم المستخدم أو رقم الموبايل.
-              </p>
-
-                <div className="space-y-4">
-                  <div className="relative">
-                    <label className="block text-xs font-bold text-gray-200 mb-1">
-                      اسم المستخدم أو رقم الموبايل أو المعرف
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="مثال: 01012345678 أو ahmed_soliman أو معرف التوثيق..."
-                        value={actionIdentifier}
-                        onChange={(e) => {
-                          setActionIdentifier(e.target.value);
-                          setActionMatchedUser(null);
-                        }}
-                        className="w-full px-3.5 py-2.5 pl-8 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 font-medium focus:ring-2 focus:ring-rose-500 outline-none"
-                      />
-                      <Phone className="w-4 h-4 text-gray-400 absolute left-2.5 top-3" />
-                    </div>
-
-                    {/* Suggestions for Revoke / Extend */}
-                    {actionSuggestions && actionSuggestions.length > 0 && !actionMatchedUser && (
-                      <div className="mt-1.5 p-1.5 bg-[#0F1724] border border-white/20 rounded-xl shadow-2xl max-h-48 overflow-y-auto space-y-1 z-20 relative">
-                        <div className="text-[11px] font-bold text-gray-400 px-2 py-0.5">المستخدمون المطابقون:</div>
-                        {actionSuggestions.map((u) => (
-                          <div
-                            key={u.id}
-                            onClick={() => {
-                              setActionIdentifier(u.phoneNumber || u.username || u.id);
-                              setActionMatchedUser(u);
-                            }}
-                            className="p-2 rounded-lg hover:bg-rose-950/40 border border-transparent hover:border-rose-500/30 cursor-pointer transition flex items-center justify-between text-xs"
-                          >
-                            <div>
-                              <span className="font-bold text-white">{u.name}</span>
-                              {u.username && <span className="text-gray-400 mr-1.5">(@{u.username})</span>}
-                              <span className="text-cyan-400 mr-2 font-mono">📱 {u.phoneNumber}</span>
-                            </div>
-                            {u.hasActiveVerification ? (
-                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-emerald-950/80 text-emerald-300 font-bold border border-emerald-500/40">
-                                سارٍ: {u.badgeName} ({u.daysRemaining} يوم)
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 text-[10px] rounded-full bg-white/10 text-gray-400 font-medium">
-                                لا يوجد توثيق سارٍ
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {actionMatchedUser && (
-                      <div className="mt-2 p-2.5 rounded-lg bg-rose-950/60 border border-rose-500/40 flex items-center justify-between text-xs text-rose-200">
-                        <div>
-                          الحساب المحدد: <span className="font-black text-white">{actionMatchedUser.name}</span> (
-                          {actionMatchedUser.hasActiveVerification ? `شارة: ${actionMatchedUser.badgeName}` : 'غير موثق'}
-                          )
-                        </div>
-                        <button
-                          onClick={() => {
-                            setActionMatchedUser(null);
-                            setActionIdentifier('');
-                          }}
-                          className="text-rose-400 hover:text-rose-300 font-bold"
-                        >
-                          تغيير
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-200 mb-1">السبب / الملاحظات (إلزامي للسحب)</label>
-                    <input
-                      type="text"
-                      placeholder="مخالفة معايير المجتمع، انتحال صفة، أو رغبة المستخدم..."
-                      value={actionReason}
-                      onChange={(e) => setActionReason(e.target.value)}
-                      className="w-full px-3.5 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-rose-500 outline-none"
-                    />
-                  </div>
-
-                  <div className="pt-2 flex flex-col sm:flex-row gap-3">
-                    <button
-                      disabled={!actionIdentifier.trim() || !actionReason || revokeMutation.isPending}
-                      onClick={() => {
-                        if (confirm(`هل أنت متأكد من رغبتك في سحب وإلغاء شارة التوثيق للحساب (${actionIdentifier})؟`)) {
-                          revokeMutation.mutate({ reason: actionReason });
-                        }
-                      }}
-                      className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm transition shadow disabled:opacity-50"
-                    >
-                      {revokeMutation.isPending ? 'جاري السحب...' : 'سحب التوثيق الفعال'}
-                    </button>
-
-                    <div className="flex items-center gap-2 flex-1">
-                      <input
-                        type="number"
-                        min={1}
-                        value={extendDays}
-                        onChange={(e) => setExtendDays(parseInt(e.target.value) || 30)}
-                        className="w-20 px-2.5 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white outline-none text-center font-bold"
-                        title="عدد الأيام الإضافية"
-                      />
-                      <button
-                        disabled={!actionIdentifier.trim() || extendMutation.isPending}
-                        onClick={() => extendMutation.mutate()}
-                        className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition shadow disabled:opacity-50"
-                      >
-                        {extendMutation.isPending ? 'جاري التمديد...' : 'تمديد الصلاحية'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              <div className="mt-6 bg-[rgba(31,107,122,0.15)] p-3 rounded-xl border border-[rgba(31,107,122,0.3)] text-xs font-bold text-gray-300">
-                يمكنك كتابة رقم الموبايل أو اسم المستخدم وسيتعرف النظام على الحساب فوراً.
-              </div>
-            </div>
-          </div>
           </div>
         )}
 
         {/* TAB 5: SECURITY POLICIES & ENGINE STATUS */}
-        {activeTab === 'settings' && (
-          <div className="admin-card rounded-2xl border border-white/15 p-6 shadow-xl space-y-6 text-white">
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Shield className="w-5 h-5 text-[#5EEAD4]" />
-                سياسات أمان منظومة التوثيق والخدمات الخلفية
-              </h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                قواعد الحماية الصارمة المحققة 100% على مستوى خادم الـ API وقاعدة البيانات.
-              </p>
-            </div>
+        {activeTab === 'settings' && <VerificationSecurityPanel />}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
-                <div className="font-bold text-sm text-white flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  حماية الأسعار والمدد
-                </div>
-                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
-                  لا يثق الخادم بأي سعر أو مدة أو حالة مرسلة من جانب العميل أو التطبيق، وتُحدد الأسعار من قاعدة البيانات فقط.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
-                <div className="font-bold text-sm text-white flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  خدمة انتهاء الصلاحية الخلفية
-                </div>
-                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
-                  محرك خلفي دوري يتفقد انتهاء الصلاحية ويرسل تذكيراً واحداً قبل الانتهاء بـ 7 أيام مع منع التكرار.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
-                <div className="font-bold text-sm text-white flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  التوثيق ببطاقة الرقم القومي
-                </div>
-                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
-                  يتم رفع صورة البطاقة (وش وضهر) في أول مرة فقط، وتُستعار تلقائياً في التجديدات اللاحقة دون إرهاق المستخدم.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
-                <div className="font-bold text-sm text-white flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  بث SignalR اللحظي
-                </div>
-                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
-                  تحديث فوري لجميع الأحداث (تقديم، مراجعة، اعتماد، رفض، سحب، تمديد) لجميع شاشات الإدارة والتطبيق.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
-                <div className="font-bold text-sm text-white flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  سرية المستندات
-                </div>
-                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
-                  مفاتيح Backblaze B2 ووسائط التوثيق لا تخرج أبداً من الخادم ولا يمكن لأي مستخدم آخر الوصول لمستندات غيره.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl border border-white/10 bg-[#0F1724]/70">
-                <div className="font-bold text-sm text-white flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  سجل تدقيق زمني غير قابل للمحو
-                </div>
-                <p className="text-xs text-gray-300 mt-1.5 leading-relaxed">
-                  تسجيل هوية المسؤول وتاريخ كل إجراء بدقة لمنع التلاعب وحفظ حقوق المستخدمين والإدارة.
-                </p>
-              </div>
-            </div>
-          </div>
+        {/* SMART NATIONAL ID & OCR INSPECTOR MODAL */}
+        {selectedRequestId && selectedRequestDetail && (
+          <NationalIdInspectorModal
+            request={selectedRequestDetail}
+            isLoading={detailsLoading}
+            onClose={() => {
+              setSelectedRequestId(null);
+              setPreviewDocUrl(null);
+            }}
+            onApprove={(req) => {
+              setApproveModalRequest(req);
+              setApprovedDuration(req.requestedDurationDays || 30);
+              setIsFreeApprove(false);
+              setAdminNotes('');
+            }}
+            onReject={(req) => {
+              setRejectModalRequest(req);
+              setRejectReason('');
+            }}
+            onReview={(id) => reviewMutation.mutate(id)}
+            onDelete={(id) =>
+              handleDeleteRequest(id, selectedRequestDetail.userName || selectedRequestDetail.userPhoneNumber)
+            }
+            isActionable={isActionableStatus(selectedRequestDetail.status, selectedRequestDetail.statusName)}
+            isPending={normalizeStatus(selectedRequestDetail.status, selectedRequestDetail.statusName) === 1}
+          />
         )}
 
-        {/* DETAILS & DOCUMENT PREVIEW MODAL */}
-        {selectedRequestId && (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-[#162232] border border-white/15 text-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 text-right animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between pb-4 border-b border-white/10">
-                <div className="flex items-center gap-2">
-                  <BadgeCheck className="w-6 h-6 text-[#C4A35A]" />
-                  <h3 className="font-bold text-lg text-white">تفاصيل طلب التوثيق وفحص الوثائق</h3>
-                </div>
-                <button
-                  onClick={() => {
-                    setSelectedRequestId(null);
-                    setPreviewDocUrl(null);
-                  }}
-                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
-                >
-                  <XCircle className="w-6 h-6" />
-                </button>
-              </div>
-
-              {detailsLoading || !selectedRequestDetail ? (
-                <div className="py-16 text-center text-gray-400">
-                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#5EEAD4]" />
-                  جاري تحميل التفاصيل والمستندات...
-                </div>
-              ) : (
-                <div className="space-y-6 mt-4">
-                  {/* User Snapshot */}
-                  <div className="bg-[#0F1724] p-4 rounded-xl border border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                    <div>
-                      <span className="text-gray-400 block mb-0.5">المستخدم:</span>
-                      <span className="font-bold text-white text-sm">{selectedRequestDetail.userName}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 block mb-0.5">رقم الهاتف:</span>
-                      <span className="font-bold font-mono text-cyan-400 text-sm">{selectedRequestDetail.userPhoneNumber}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 block mb-0.5">نوع وشارة التوثيق:</span>
-                      <span className="font-bold text-[#5EEAD4] text-sm">
-                        {selectedRequestDetail.verificationTypeName} ({selectedRequestDetail.badgeName})
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 block mb-0.5">الحالة الحالية:</span>
-                      {getStatusBadge(selectedRequestDetail.status, selectedRequestDetail.statusName)}
-                    </div>
-                  </div>
-
-                  {/* Documents Section */}
-                  <div>
-                    <h4 className="font-bold text-sm text-white mb-2.5 flex items-center gap-1.5">
-                      <FileText className="w-4 h-4 text-[#5EEAD4]" />
-                      الوثائق والمستندات المرفقة بالطلب ({selectedRequestDetail.documents?.length ?? 0})
-                    </h4>
-
-                    {!selectedRequestDetail.documents?.length ? (
-                      <div className="p-4 rounded-xl bg-[#0F1724] border border-white/10 text-center text-xs text-gray-400">
-                        لم يتم إرفاق أي وثائق في هذا الطلب.
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {selectedRequestDetail.documents.map((doc) => {
-                          const rawUrl = doc.documentUrl || doc.mediaUrl || '';
-                          const imageUrl = resolveMediaUrl(rawUrl);
-                          const title = verificationDocumentTypeLabel(doc.documentType, doc.documentTypeName);
-                          const fileLabel = doc.fileName || doc.mediaFileName;
-
-                          return (
-                            <div
-                              key={doc.id}
-                              className="border border-white/10 rounded-xl overflow-hidden bg-[#0F1724] hover:border-[#1F6B7A] transition flex flex-col shadow-md"
-                            >
-                              {imageUrl ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPreviewDocUrl(imageUrl);
-                                    setPreviewDocTitle(title);
-                                  }}
-                                  className="relative group bg-black/30 aspect-[4/3] w-full overflow-hidden text-left"
-                                  title="اضغط للتكبير"
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={imageUrl}
-                                    alt={title}
-                                    className="w-full h-full object-contain"
-                                    loading="lazy"
-                                  />
-                                  <span className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center">
-                                    <span className="opacity-0 group-hover:opacity-100 transition inline-flex items-center gap-1.5 rounded-full bg-[#162232] text-white text-xs font-bold px-3 py-1.5 shadow-lg border border-white/20">
-                                      <ZoomIn className="w-3.5 h-3.5 text-[#C4A35A]" />
-                                      تكبير المعاينة
-                                    </span>
-                                  </span>
-                                </button>
-                              ) : (
-                                <div className="aspect-[4/3] w-full bg-[#121D2C] flex flex-col items-center justify-center text-gray-400 gap-2">
-                                  <ImageIcon className="w-8 h-8 opacity-60" />
-                                  <span className="text-xs">لا تتوفر معاينة للصورة</span>
-                                </div>
-                              )}
-
-                              <div className="p-3 flex flex-col gap-2">
-                                <div className="flex items-start justify-between gap-2">
-                                  <span className="text-xs font-bold text-white">{title}</span>
-                                  {fileLabel && (
-                                    <span className="text-[10px] text-gray-400 truncate max-w-[40%]" title={fileLabel}>
-                                      {fileLabel}
-                                    </span>
-                                  )}
-                                </div>
-                                {doc.notes && <p className="text-xs text-gray-300">{doc.notes}</p>}
-                                <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-400">
-                                    {new Date(doc.createdAt).toLocaleDateString('ar-EG')}
-                                  </span>
-                                  {imageUrl && (
-                                    <a
-                                      href={imageUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 hover:underline font-semibold"
-                                    >
-                                      <ExternalLink className="w-3.5 h-3.5" />
-                                      فتح في تبويب جديد
-                                    </a>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Audit Logs Timeline */}
-                  <div>
-                    <h4 className="font-bold text-sm text-white mb-2 flex items-center gap-1.5">
-                      <Clock className="w-4 h-4 text-[#C4A35A]" />
-                      سجل المراجعة والتدقيق الزمني (Audit Timeline)
-                    </h4>
-
-                    <div className="space-y-2.5 border-r-2 border-white/15 pr-4 mr-2 text-xs">
-                      {selectedRequestDetail.auditLogs?.map((log) => (
-                        <div key={log.id} className="relative">
-                          <div className="absolute -right-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#5EEAD4]" />
-                          <div className="flex items-center justify-between font-bold text-white">
-                            <span>{log.actionName}</span>
-                            <span className="text-[10px] text-gray-400 font-normal">
-                              {new Date(log.createdAt).toLocaleString('ar-EG')}
-                            </span>
-                          </div>
-                          {log.notes && <p className="text-gray-300 mt-0.5">{log.notes}</p>}
-                          {log.performedByUserName && (
-                            <span className="text-[10px] text-cyan-400 block mt-0.5">بواسطة: {log.performedByUserName}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Modal Action Footer */}
-                  <div className="pt-4 mt-6 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {isActionableStatus(selectedRequestDetail.status, selectedRequestDetail.statusName) && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setApproveModalRequest(selectedRequestDetail as any);
-                              setApprovedDuration(selectedRequestDetail.requestedDurationDays || 30);
-                              setIsFreeApprove(false);
-                              setAdminNotes('');
-                            }}
-                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-lg flex items-center gap-1.5"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                            قبول واعتماد التوثيق
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRejectModalRequest(selectedRequestDetail as any);
-                              setRejectReason('');
-                            }}
-                            className="px-4 py-2 rounded-xl bg-rose-950/70 text-rose-300 hover:bg-rose-900/80 border border-rose-500/40 text-xs font-bold transition flex items-center gap-1.5"
-                          >
-                            <XCircle className="w-4 h-4" />
-                            رفض الطلب
-                          </button>
-
-                          {normalizeStatus(selectedRequestDetail.status, selectedRequestDetail.statusName) === 1 && (
-                            <button
-                              type="button"
-                              onClick={() => reviewMutation.mutate(selectedRequestDetail.id)}
-                              disabled={reviewMutation.isPending}
-                              className="px-3.5 py-2 rounded-xl bg-sky-950/70 text-sky-300 hover:bg-sky-900/80 border border-sky-500/40 text-xs font-bold transition flex items-center gap-1.5"
-                            >
-                              <ScanSearch className="w-4 h-4" />
-                              بدء المراجعة
-                            </button>
-                          )}
-                        </>
-                      )}
-
-                      <button
-                        onClick={() => {
-                          if (confirm(`هل أنت متأكد من مسح طلب التوثيق هذا نهائياً من النظام؟ سيتم حذف جميع المستندات وسجلات التدقيق المرتبطة به.`)) {
-                            deleteRequestMutation.mutate(selectedRequestId!);
-                          }
-                        }}
-                        className="px-3.5 py-2 rounded-xl bg-rose-950/50 text-rose-400 hover:bg-rose-900/60 border border-rose-800/40 text-xs font-bold transition flex items-center gap-1.5"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        مسح الطلب نهائياً
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setSelectedRequestId(null);
-                        setPreviewDocUrl(null);
-                      }}
-                      className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white text-xs font-bold transition"
-                    >
-                      إغلاق
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* APPROVAL DIALOG */}
+        {/* APPROVAL DIALOG WITH DURATION PRESETS */}
         {approveModalRequest && (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-[#162232] border border-emerald-500/35 text-white rounded-2xl max-w-md w-full p-6 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <h3 className="font-bold text-lg text-emerald-400 flex items-center gap-2">
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-slate-900 border border-emerald-500/40 text-white rounded-2xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95 max-h-[92vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h3 className="font-black text-lg text-emerald-400 flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  اعتماد طلب التوثيق
+                  <span>اعتماد وتفعيل توثيق الحساب</span>
                 </h3>
                 <button
                   onClick={() => setApproveModalRequest(null)}
-                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
+                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition"
                 >
-                  <XCircle className="w-5 h-5" />
+                  <XCircle className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="bg-emerald-950/60 border border-emerald-500/30 p-3.5 rounded-xl text-xs text-emerald-200 space-y-1.5">
+              <div className="bg-emerald-950/40 border border-emerald-500/30 p-3.5 rounded-2xl text-xs text-emerald-200 space-y-1">
                 <div>
-                  المستخدم: <span className="font-bold text-white text-sm">{approveModalRequest.userName}</span>
+                  المستخدم: <span className="font-bold text-white">{approveModalRequest.userName}</span>
                 </div>
                 <div>
                   نوع التوثيق: <span className="font-bold text-cyan-300">{approveModalRequest.verificationTypeName}</span>
                 </div>
                 <div>
-                  الخطة المقترحة: <span className="font-bold text-[#F6E5B8]">{approveModalRequest.planName || 'افتراضية'}</span>
+                  الخطة المطلوبة: <span className="font-bold text-amber-300">{approveModalRequest.planName || 'افتراضية'}</span>
                 </div>
               </div>
 
               <div className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-bold text-gray-200 mb-1.5">مدة الصلاحية المعتمدة (بالأيام)</label>
+                {/* Duration Presets */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-300">
+                    مدة الصلاحية المعتمدة (بالأيام)
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { label: '30 يوم', days: 30 },
+                      { label: '90 يوم (3 أشهر)', days: 90 },
+                      { label: '180 يوم (6 أشهر)', days: 180 },
+                      { label: 'سنة (365 يوم)', days: 365 },
+                      { label: 'سنتين (730 يوم)', days: 730 },
+                    ].map((p) => (
+                      <button
+                        key={p.days}
+                        type="button"
+                        onClick={() => setApprovedDuration(p.days)}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                          approvedDuration === p.days
+                            ? 'bg-emerald-500 text-slate-950 font-black shadow-md'
+                            : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
                   <input
                     type="number"
                     min={1}
                     value={approvedDuration}
                     onChange={(e) => setApprovedDuration(parseInt(e.target.value) || 30)}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-center"
+                    className="w-full px-4 py-2.5 text-sm rounded-2xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-emerald-500 font-bold text-center mt-2"
                   />
                 </div>
 
-                <div className="flex items-center gap-2.5 bg-[#0F1724] p-3 rounded-lg border border-white/10">
+                <div className="flex items-center gap-2.5 bg-slate-950 p-3 rounded-2xl border border-slate-800">
                   <input
                     type="checkbox"
                     id="freeGrantApprove"
                     checked={isFreeApprove}
                     onChange={(e) => setIsFreeApprove(e.target.checked)}
-                    className="rounded text-emerald-500 focus:ring-emerald-500 bg-[#162232] border-white/20"
+                    className="rounded text-emerald-500 focus:ring-emerald-500 bg-slate-900 border-slate-700 w-4 h-4"
                   />
-                  <label htmlFor="freeGrantApprove" className="text-xs font-bold text-gray-200 cursor-pointer">
-                    اعتماد مجاني بدون دفع رسوم (Grant Free Verification)
+                  <label htmlFor="freeGrantApprove" className="text-xs font-bold text-slate-200 cursor-pointer">
+                    اعتماد مجاني بدون خصم رسوم (Free Official Grant)
                   </label>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-200 mb-1.5">ملاحظات الإدارة (اختياري)</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">ملاحظات الإدارة (اختياري)</label>
                   <input
                     type="text"
-                    placeholder="ملاحظات توثيق، استثناء مدة..."
+                    placeholder="ملاحظات توثيق، استثناء مدة، رقم قيد..."
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full px-4 py-2.5 text-xs rounded-2xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-white/10">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-800">
                 <button
                   onClick={() => setApproveModalRequest(null)}
-                  className="px-4 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition"
+                  className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition"
                 >
                   إلغاء
                 </button>
@@ -2147,57 +1522,85 @@ export default function AdminVerificationPage() {
                       },
                     })
                   }
-                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-lg disabled:opacity-50 transition"
+                  className="px-5 py-2.5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-600/30 disabled:opacity-50 transition"
                 >
-                  {approveMutation.isPending ? 'جاري الاعتماد...' : 'تأكيد الاعتماد والتفعيل'}
+                  {approveMutation.isPending ? 'جاري الاعتماد...' : 'تأكيد الاعتماد والتفعيل ✓'}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* REJECT DIALOG */}
+        {/* REJECT DIALOG WITH QUICK EGYPTIAN TEMPLATES */}
         {rejectModalRequest && (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-[#162232] border border-rose-500/35 text-white rounded-2xl max-w-md w-full p-6 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <h3 className="font-bold text-lg text-rose-400 flex items-center gap-2">
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-slate-900 border border-rose-500/40 text-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95 max-h-[92vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h3 className="font-black text-lg text-rose-400 flex items-center gap-2">
                   <XCircle className="w-5 h-5 text-rose-400" />
-                  رفض طلب التوثيق
+                  <span>رفض طلب التوثيق</span>
                 </h3>
                 <button
                   onClick={() => setRejectModalRequest(null)}
-                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
+                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition"
                 >
-                  <XCircle className="w-5 h-5" />
+                  <XCircle className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className="text-xs text-gray-300">
+              <p className="text-xs text-slate-300">
                 المستخدم: <span className="font-bold text-white">{rejectModalRequest.userName}</span>
               </p>
 
+              {/* Quick Reason Templates */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-400">
+                  قوالب أسباب الرفض الشائعة (اضغط لاختيار فوري):
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'صورة البطاقة غير واضحة أو مقصوصة',
+                    'الرقم القومي غير مطابق لبيانات الحساب',
+                    'البطاقة منتهية الصلاحية ومطلوب بطاقة سارية',
+                    'مطلوب رفع وش وظهر البطاقة الأصلية معاً',
+                    'الاسم بالبطاقة يختلف عن الاسم المسجل بالحساب',
+                    'المستند المرفق غير صالح كإثبات شخصية رسمي',
+                  ].map((tmpl) => (
+                    <button
+                      key={tmpl}
+                      type="button"
+                      onClick={() => setRejectReason(tmpl)}
+                      className="px-2.5 py-1 rounded-xl bg-slate-950 hover:bg-rose-950/60 text-slate-300 hover:text-rose-200 border border-slate-800 text-[11px] font-medium transition-colors"
+                    >
+                      {tmpl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-bold text-gray-200 mb-1.5">
-                  سبب الرفض (إلزامي — يظهر للمستخدم في الإشعار) *
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  سبب الرفض الموجه للمستخدم (إلزامي في الإشعار) *
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="مثال: صورة البطاقة غير واضحة، انتهاء صلاحية الرقم القومي، المستندات ناقصة..."
+                  placeholder="اكتب سبب الرفض هنا بوضوح ليعرف المستخدم ما المطلوب تعديله..."
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-rose-500 outline-none"
+                  className="w-full px-4 py-2.5 text-xs rounded-2xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 leading-relaxed"
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2 border-t border-white/10">
+              <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-800">
                 <button
+                  type="button"
                   onClick={() => setRejectModalRequest(null)}
-                  className="px-4 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition"
+                  className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition"
                 >
                   تراجع
                 </button>
                 <button
+                  type="button"
                   disabled={!rejectReason.trim() || rejectMutation.isPending}
                   onClick={() =>
                     rejectMutation.mutate({
@@ -2205,9 +1608,9 @@ export default function AdminVerificationPage() {
                       reason: rejectReason.trim(),
                     })
                   }
-                  className="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-lg shadow-lg disabled:opacity-50 transition"
+                  className="px-5 py-2.5 text-xs font-black text-white bg-rose-600 hover:bg-rose-500 rounded-2xl shadow-lg shadow-rose-600/30 disabled:opacity-50 transition"
                 >
-                  {rejectMutation.isPending ? 'جاري الرفض...' : 'تأكيد الرفض'}
+                  {rejectMutation.isPending ? 'جاري الرفض...' : 'تأكيد الرفض ✕'}
                 </button>
               </div>
             </div>
@@ -2216,91 +1619,94 @@ export default function AdminVerificationPage() {
 
         {/* CREATE / EDIT TYPE MODAL */}
         {typeModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-[#162232] border border-white/15 text-white rounded-2xl max-w-lg w-full p-6 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <h3 className="font-bold text-lg text-white flex items-center gap-2">
-                  <BadgeCheck className="w-5 h-5 text-[#5EEAD4]" />
-                  {editingType ? 'تعديل نوع التوثيق' : 'إضافة نوع توثيق جديد'}
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-slate-900 border border-emerald-500/40 text-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-7 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95 max-h-[92vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h3 className="font-black text-lg text-white flex items-center gap-2">
+                  <BadgeCheck className="w-5 h-5 text-emerald-400" />
+                  <span>{editingType ? 'تعديل نوع وشارة التوثيق' : 'إضافة نوع توثيق جديد'}</span>
                 </h3>
                 <button
+                  type="button"
                   onClick={() => setTypeModalOpen(false)}
-                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
+                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition"
                 >
-                  <XCircle className="w-5 h-5" />
+                  <XCircle className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="space-y-3.5">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-200 mb-1.5">اسم النوع *</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">اسم النوع بالمنظومة *</label>
                   <input
                     type="text"
-                    placeholder="مثال: مواطن موثق، مراسل صحفي معتمد..."
+                    placeholder="مثال: مواطن موثق، مراسل صحفي، جهة معتمدة..."
                     value={typeFormData.name}
                     onChange={(e) => setTypeFormData({ ...typeFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold"
+                    className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-2xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-200 mb-1.5">اسم الشارة الظاهرة بجانب الاسم *</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">اسم الشارة الظاهرة بجوار الاسم *</label>
                   <input
                     type="text"
                     placeholder="مثال: موثق، صحفي، جهة رسمية..."
                     value={typeFormData.badgeName}
                     onChange={(e) => setTypeFormData({ ...typeFormData, badgeName: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                    className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-2xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-200 mb-1.5">الوصف</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">الوصف وشروط الأهلية</label>
                   <textarea
                     rows={2}
                     placeholder="شروط ومزايا هذا النوع من التوثيق..."
                     value={typeFormData.description}
                     onChange={(e) => setTypeFormData({ ...typeFormData, description: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                    className="w-full px-4 py-2.5 text-xs rounded-2xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 leading-relaxed"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-200 cursor-pointer">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-200 cursor-pointer p-3 rounded-2xl bg-slate-950 border border-slate-800">
                     <input
                       type="checkbox"
                       checked={typeFormData.requiresDocuments}
                       onChange={(e) => setTypeFormData({ ...typeFormData, requiresDocuments: e.target.checked })}
-                      className="rounded text-[#1F6B7A] focus:ring-[#1F6B7A] bg-[#0F1724] border-white/20"
+                      className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 bg-slate-900 border-slate-700"
                     />
-                    يتطلب وثائق ثبوتية
+                    <span>يتطلب رفع وثائق ثبوتية</span>
                   </label>
 
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-200 cursor-pointer">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-200 cursor-pointer p-3 rounded-2xl bg-slate-950 border border-slate-800">
                     <input
                       type="checkbox"
                       checked={typeFormData.allowUserRequest}
                       onChange={(e) => setTypeFormData({ ...typeFormData, allowUserRequest: e.target.checked })}
-                      className="rounded text-[#1F6B7A] focus:ring-[#1F6B7A] bg-[#0F1724] border-white/20"
+                      className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 bg-slate-900 border-slate-700"
                     />
-                    متاح للتقديم من التطبيق
+                    <span>متاح للتقديم من التطبيق</span>
                   </label>
                 </div>
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-2 border-t border-white/10">
+              <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-800">
                 <button
+                  type="button"
                   onClick={() => setTypeModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition"
+                  className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition"
                 >
                   إلغاء
                 </button>
                 <button
+                  type="button"
                   disabled={!typeFormData.name.trim() || !typeFormData.badgeName.trim() || saveTypeMutation.isPending}
                   onClick={() => saveTypeMutation.mutate()}
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#1F6B7A] hover:bg-[#258294] rounded-lg shadow-lg disabled:opacity-50 transition"
+                  className="px-5 py-2.5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-600/30 disabled:opacity-50 transition"
                 >
-                  {saveTypeMutation.isPending ? 'جاري الحفظ...' : 'حفظ'}
+                  {saveTypeMutation.isPending ? 'جاري الحفظ...' : 'حفظ البيانات ✓'}
                 </button>
               </div>
             </div>
@@ -2309,74 +1715,75 @@ export default function AdminVerificationPage() {
 
         {/* CREATE / EDIT PLAN MODAL */}
         {planModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-[#162232] border border-white/15 text-white rounded-2xl max-w-lg w-full p-6 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <h3 className="font-bold text-lg text-white flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-[#C4A35A]" />
-                  {editingPlan ? 'تعديل الباقة أو العرض' : 'إنشاء باقة / عرض ترويجي جديد'}
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-slate-900 border border-amber-500/40 text-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-7 text-right shadow-2xl space-y-4 animate-in fade-in zoom-in-95 max-h-[92vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h3 className="font-black text-lg text-white flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-amber-400" />
+                  <span>{editingPlan ? 'تعديل الباقة أو العرض' : 'إنشاء باقة / عرض ترويجي جديد'}</span>
                 </h3>
                 <button
+                  type="button"
                   onClick={() => setPlanModalOpen(false)}
-                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
+                  className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition"
                 >
-                  <XCircle className="w-5 h-5" />
+                  <XCircle className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="space-y-3.5">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-200 mb-1.5">نوع التوثيق المرتبط بالباقة *</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">نوع وشارة التوثيق المستهدفة *</label>
                   <select
                     value={planFormData.verificationTypeId}
                     onChange={(e) => setPlanFormData({ ...planFormData, verificationTypeId: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                    className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-2xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-500"
                   >
                     {typesData?.map((t) => (
-                      <option key={t.id} value={t.id} className="bg-[#0F1724] text-white">
-                        {t.name}
+                      <option key={t.id} value={t.id} className="bg-slate-950 text-white">
+                        {t.name} (شارة: {t.badgeName})
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-200 mb-1.5">اسم الباقة أو العرض *</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">اسم الباقة أو العرض *</label>
                   <input
                     type="text"
-                    placeholder="مثال: باقة 30 يوم، عرض السنة الذهبي..."
+                    placeholder="مثال: باقة الشهر، العرض الذهبي السنوي..."
                     value={planFormData.name}
                     onChange={(e) => setPlanFormData({ ...planFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold"
+                    className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-2xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-bold"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-gray-200 mb-1.5">المدة (بالأيام) *</label>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">المدة (بالأيام) *</label>
                     <input
                       type="number"
                       min={1}
                       value={planFormData.durationDays}
                       onChange={(e) => setPlanFormData({ ...planFormData, durationDays: parseInt(e.target.value) || 30 })}
-                      className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold"
+                      className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-2xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-500 font-bold"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-200 mb-1.5">السعر (ج.م) *</label>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">السعر (ج.م) *</label>
                     <input
                       type="number"
                       min={0}
                       value={planFormData.isFree ? 0 : planFormData.price}
                       disabled={planFormData.isFree}
                       onChange={(e) => setPlanFormData({ ...planFormData, price: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white focus:ring-2 focus:ring-[#1F6B7A] outline-none font-bold disabled:bg-white/5 disabled:text-gray-500 disabled:border-white/10"
+                      className="w-full px-4 py-2.5 text-xs sm:text-sm rounded-2xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-500 font-bold disabled:bg-slate-950/50 disabled:text-slate-500"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-1">
+                <label className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-950 border border-slate-800 cursor-pointer">
                   <input
                     type="checkbox"
                     id="planIsFree"
@@ -2388,38 +1795,41 @@ export default function AdminVerificationPage() {
                         price: e.target.checked ? 0 : planFormData.price,
                       })
                     }
-                    className="rounded text-[#C4A35A] focus:ring-[#C4A35A] bg-[#0F1724] border-white/20"
+                    className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-slate-900 border-slate-700"
                   />
-                  <label htmlFor="planIsFree" className="text-xs font-bold text-gray-200 cursor-pointer">
-                    عرض مجاني بالكامل (0 جنيه)
-                  </label>
-                </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">عرض ترويجي مجاني (0 جنيه)</span>
+                    <span className="text-[11px] text-slate-400">تظهر الباقة بشارة مجانية مميزة للمستخدمين</span>
+                  </div>
+                </label>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-200 mb-1.5">الوصف</label>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">الوصف والمزايا الإضافية</label>
                   <textarea
                     rows={2}
                     placeholder="وصف الباقة وشروطها..."
                     value={planFormData.description}
                     onChange={(e) => setPlanFormData({ ...planFormData, description: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg bg-[#0F1724] border border-white/20 text-white placeholder-gray-400 focus:ring-2 focus:ring-[#1F6B7A] outline-none"
+                    className="w-full px-4 py-2.5 text-xs rounded-2xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 leading-relaxed"
                   />
                 </div>
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-2 border-t border-white/10">
+              <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-800">
                 <button
+                  type="button"
                   onClick={() => setPlanModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition"
+                  className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white rounded-xl transition"
                 >
                   إلغاء
                 </button>
                 <button
+                  type="button"
                   disabled={!planFormData.name.trim() || !planFormData.verificationTypeId || savePlanMutation.isPending}
                   onClick={() => savePlanMutation.mutate()}
-                  className="px-5 py-2 text-xs font-bold text-white bg-[#1F6B7A] hover:bg-[#258294] rounded-lg shadow-lg disabled:opacity-50 transition"
+                  className="px-5 py-2.5 text-xs font-black text-slate-950 bg-amber-500 hover:bg-amber-400 rounded-2xl shadow-lg shadow-amber-500/30 disabled:opacity-50 transition"
                 >
-                  {savePlanMutation.isPending ? 'جاري الحفظ...' : 'حفظ الباقة'}
+                  {savePlanMutation.isPending ? 'جاري الحفظ...' : 'حفظ الباقة ✓'}
                 </button>
               </div>
             </div>
@@ -2472,6 +1882,20 @@ export default function AdminVerificationPage() {
             </div>
           </div>
         )}
+
+        {/* REUSABLE CONFIRMATION MODAL */}
+        <VerificationConfirmModal
+          isOpen={confirmConfig.isOpen}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          confirmText={confirmConfig.confirmText}
+          isDestructive={confirmConfig.isDestructive}
+          requiresInput={confirmConfig.requiresInput}
+          inputLabel={confirmConfig.inputLabel}
+          inputPlaceholder={confirmConfig.inputPlaceholder}
+          onConfirm={(val) => confirmConfig.onConfirm(val)}
+          onClose={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
+        />
       </div>
     </AdminShell>
   );

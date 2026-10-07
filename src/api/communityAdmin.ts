@@ -9,6 +9,7 @@ import {
   BroadcastCommunityItemRequest,
   BroadcastCommunityItemResponse,
   BanCommunityItemRequest,
+  CommunitySweepResultDto,
 } from '@/types/community';
 
 export const communityAdminApi = {
@@ -138,6 +139,14 @@ export const communityAdminApi = {
     const res = await apiClient.post<ApiResponse<BroadcastCommunityItemResponse>>(
       `/admin/community/${itemType}/${id}/broadcast`,
       req
+    );
+    return res.data?.data!;
+  },
+
+  // Sweep expired carpool rides and requests into Completed status
+  sweepExpiredItems: async (): Promise<CommunitySweepResultDto> => {
+    const res = await apiClient.post<ApiResponse<CommunitySweepResultDto>>(
+      '/admin/community/sweep-expired'
     );
     return res.data?.data!;
   },

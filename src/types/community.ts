@@ -193,3 +193,10 @@ export interface BanCommunityItemRequest {
   reason?: string;
 }
 
+export interface CommunitySweepResultDto {
+  expiredRidesCompleted: number;
+  expiredRequestsCompleted: number;
+  totalSwept: number;
+  message: string;
+}
+

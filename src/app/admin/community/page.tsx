@@ -25,7 +25,6 @@ import {
   Search,
   CheckCircle,
   AlertTriangle,
-  Trash2,
   RefreshCw,
   MapPin,
   Clock,
@@ -33,11 +32,9 @@ import {
   ShieldCheck,
   User,
   HeartHandshake,
-  FileText,
   Volume2,
   VolumeX,
   Activity,
-  ExternalLink,
   X,
   Flame,
   Sparkles,
@@ -45,24 +42,24 @@ import {
   Users,
   Compass,
   CheckCircle2,
-  Shield,
-  Layers,
   Megaphone,
   Ban,
   Lock,
-  Eye,
-  Check,
   DollarSign,
   Radio,
   Send,
+  Zap,
+  Calendar,
+  ArrowRightLeft,
   Navigation,
+  CheckCheck,
 } from 'lucide-react';
 
 export default function AdminCommunityPage() {
   const adminReady = useAdminQueryEnabled();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'sos' | 'carpool' | 'lost'>('sos');
+  const [activeTab, setActiveTab] = useState<'sos' | 'carpool' | 'lost'>('carpool');
   const [carpoolSubTab, setCarpoolSubTab] = useState<'rides' | 'requests' | 'transactions'>('rides');
   const [statusFilter, setStatusFilter] = useState<string>('Active');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -273,15 +270,6 @@ export default function AdminCommunityPage() {
     },
   });
 
-  const deleteItemMutation = useMutation({
-    mutationFn: ({ type, id }: { type: 'sos' | 'carpool' | 'lost-and-found'; id: string }) =>
-      communityAdminApi.deleteItem(type, id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'community'] });
-      setSelectedModalItem(null);
-    },
-  });
-
   const banItemMutation = useMutation({
     mutationFn: ({
       itemType,
@@ -311,8 +299,20 @@ export default function AdminCommunityPage() {
       req: BroadcastCommunityItemRequest;
     }) => communityAdminApi.broadcastItemAsAd(itemType, id, req),
     onSuccess: (data) => {
-      alert(`تم إطلاق التنبيه الشامل والإعلان العاجل بنجاح 🚀!\nيصل هذا البث إلى حوالي ${data.targetRecipientsEstimate} مستخدم.`);
+      alert(`تم إطلاق التنبيه الشامل والإعلان العاجل بنجاح 🚀!\nيصل هذا البث إلى حوالي ${data.targetRecipientsEstimate} مستخدم في مصر.`);
       setBroadcastModalItem(null);
+    },
+  });
+
+  // Automated Community Sweeper Mutation
+  const sweepMutation = useMutation({
+    mutationFn: () => communityAdminApi.sweepExpiredItems(),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'community'] });
+      alert(`✨ ${res.message || 'تم تنظيف وأرشفة المشاوير المنتهية ونقلها للمكتملة بنجاح!'}`);
+    },
+    onError: () => {
+      alert('حدث خطأ أثناء تنظيف وأرشفة المشاوير.');
     },
   });
 
@@ -392,46 +392,86 @@ export default function AdminCommunityPage() {
     );
   }, [lostData, searchQuery]);
 
+  // Helper function to check if a departure time is in the past
+  const isPastDeparture = (timeStr: string) => {
+    try {
+      const depDate = new Date(timeStr);
+      return depDate.getTime() < Date.now();
+    } catch {
+      return false;
+    }
+  };
+
   return (
     <AdminShell>
       <div className="space-y-6 pb-12 font-sans" dir="rtl">
         {/* =========================================================================
-            1. CYBERPUNK HEADER (Dark Slate, Glassmorphism, Neon Accents)
+            1. CYBERPUNK RADAR COMMAND CENTER HEADER
            ========================================================================= */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#0F172A] border-2 border-slate-700/80 shadow-2xl p-6 md:p-8">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B0F19] via-[#0F172A] to-[#1E293B] border-2 border-slate-700/80 shadow-2xl p-6 md:p-8">
+          {/* Animated Background Radar Glowing Rings */}
+          <div className="absolute top-1/2 right-12 -translate-y-1/2 w-80 h-80 rounded-full border border-emerald-500/10 pointer-events-none" />
+          <div className="absolute top-1/2 right-12 -translate-y-1/2 w-56 h-56 rounded-full border border-emerald-500/20 pointer-events-none" />
+          <div className="absolute top-1/2 right-12 -translate-y-1/2 w-32 h-32 rounded-full border border-red-500/25 pointer-events-none animate-ping" />
           <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-slate-900/90 border border-slate-700 text-xs font-black shadow-inner">
-                <span
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    connectionStatus === 'connected' ? 'bg-emerald-400 animate-ping' : 'bg-rose-500'
-                  }`}
-                />
-                <span className="text-slate-300">
-                  حالة الرادار اللحظي: {connectionStatus === 'connected' ? 'متصل وحي (Live)' : 'جاري الاتصال...'}
-                </span>
-                {realtimeCounter > 0 && (
-                  <span className="bg-red-500/30 text-red-300 px-2 py-0.5 rounded-full border border-red-500/40 text-[11px]">
-                    +{realtimeCounter} أحداث جديدة
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-slate-900/95 border border-slate-700 text-xs font-black shadow-inner">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      connectionStatus === 'connected' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
+                    }`}
+                  />
+                  <span className="text-slate-200">
+                    رادار الرصد الحي: {connectionStatus === 'connected' ? 'متصل ومراقب لحظياً (Live SignalR)' : 'جاري الاتصال...'}
                   </span>
-                )}
+                  {realtimeCounter > 0 && (
+                    <span className="bg-red-500/30 text-red-300 px-2 py-0.5 rounded-full border border-red-500/40 text-[11px] font-bold">
+                      +{realtimeCounter} أحداث فورية
+                    </span>
+                  )}
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-[11px] font-bold text-emerald-300">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>الذكاء المجتمعي والأرشفة الآلية مفعلة</span>
+                </div>
               </div>
 
               <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-                <Radio className="w-8 h-8 text-red-500 animate-pulse" />
+                <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-red-600 to-rose-600 text-white shadow-lg shadow-red-950">
+                  <Radio className="w-7 h-7 animate-pulse" />
+                </div>
                 <span>غرفة عمليات المجتمع والرصد الشامل في مصر</span>
               </h1>
 
               <p className="text-sm md:text-base text-slate-300 max-w-3xl leading-relaxed font-normal">
-                الرصد الفوري والتدخل الإداري الشامل: حظر المحتوى المخالف، بث الاستغاثات والمفقودات كـ <strong className="text-amber-400 font-bold">«إعلانات عاجلة»</strong> لجميع المستخدمين، ومتابعة رحلات ومعاملات <strong className="text-emerald-400 font-bold">«عربية رايحة»</strong>.
+                مركز القيادة والرصد المدني الفوري في كافة المحافظات: إدارة وتصنيف رحلات <strong className="text-emerald-400 font-bold">«عربية رايحة»</strong> وفصل المشاوير المنتهية والمكتملة، إغاثة طوارئ <strong className="text-rose-400 font-bold">«فزعة مصر»</strong>، والرصد الذكي للمفقودات بالأرقام القومية.
               </p>
             </div>
 
-            {/* Quick Actions & Sound Controls */}
+            {/* Quick Actions & Control Tools */}
             <div className="flex flex-wrap items-center gap-3 shrink-0">
+              {/* Auto-Sweep Expired Rides Button */}
+              <button
+                id="btn-sweep-community"
+                onClick={() => sweepMutation.mutate()}
+                disabled={sweepMutation.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400/60 shadow-lg shadow-emerald-950/60 transition active:scale-95"
+                title="فحص وأرشفة المشاوير والطلبات القديمة ونقلها تلقائياً إلى خانة المنتهية والمكتملة"
+              >
+                {sweepMutation.isPending ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <Zap className="w-4 h-4 text-amber-300" />
+                )}
+                <span>أرشفة وتنظيف المنتهي</span>
+              </button>
+
+              {/* Sound Alert Toggle */}
               <button
                 id="btn-toggle-sound"
                 onClick={() => setSoundEnabled(!soundEnabled)}
@@ -445,16 +485,17 @@ export default function AdminCommunityPage() {
                 {soundEnabled ? (
                   <>
                     <Volume2 className="w-4 h-4 text-emerald-400" />
-                    <span>صوت الاستغاثة: مفعّل</span>
+                    <span>صوت الرادار: مفعّل</span>
                   </>
                 ) : (
                   <>
                     <VolumeX className="w-4 h-4 text-rose-400" />
-                    <span>صوت الاستغاثة: صامت</span>
+                    <span>صوت الرادار: صامت</span>
                   </>
                 )}
               </button>
 
+              {/* Manual Refresh */}
               <button
                 id="btn-refresh-community"
                 onClick={handleRefresh}
@@ -468,7 +509,7 @@ export default function AdminCommunityPage() {
         </div>
 
         {/* =========================================================================
-            2. REAL-TIME TOAST ALERT BANNER (High-Contrast Glowing Banner)
+            2. REAL-TIME TOAST ALERT BANNER
            ========================================================================= */}
         {liveBanner && (
           <div className="relative overflow-hidden p-4 md:p-5 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white shadow-2xl border-2 border-white/40 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4">
@@ -500,7 +541,7 @@ export default function AdminCommunityPage() {
         )}
 
         {/* =========================================================================
-            3. FOUR HIGH-CONTRAST KPI STAT CARDS (Dark Theme & Neon Contrast)
+            3. FOUR HIGH-CONTRAST KPI STAT CARDS (Dark Obsidian & Neon Contrast)
            ========================================================================= */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Active Emergencies */}
@@ -579,27 +620,6 @@ export default function AdminCommunityPage() {
             {/* Main Tabs */}
             <div className="flex flex-wrap gap-2.5">
               <button
-                id="tab-btn-sos"
-                onClick={() => {
-                  setActiveTab('sos');
-                  setStatusFilter('Active');
-                }}
-                className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl font-black text-sm transition-all border ${
-                  activeTab === 'sos'
-                    ? 'bg-gradient-to-r from-red-600 via-rose-600 to-red-600 text-white border-red-400 shadow-lg shadow-red-950'
-                    : 'bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white border-slate-800'
-                }`}
-              >
-                <Siren className="w-4 h-4 text-white" />
-                <span>🚨 فزعة مصر (طوارئ واستغاثات)</span>
-                {sosData?.totalCount != null && (
-                  <span className="text-xs bg-black/40 px-2 py-0.5 rounded-full font-mono font-bold text-white border border-white/20">
-                    {sosData.totalCount}
-                  </span>
-                )}
-              </button>
-
-              <button
                 id="tab-btn-carpool"
                 onClick={() => {
                   setActiveTab('carpool');
@@ -616,6 +636,27 @@ export default function AdminCommunityPage() {
                 {carpoolData?.totalCount != null && (
                   <span className="text-xs bg-black/40 px-2 py-0.5 rounded-full font-mono font-bold text-white border border-white/20">
                     {carpoolData.totalCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                id="tab-btn-sos"
+                onClick={() => {
+                  setActiveTab('sos');
+                  setStatusFilter('Active');
+                }}
+                className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl font-black text-sm transition-all border ${
+                  activeTab === 'sos'
+                    ? 'bg-gradient-to-r from-red-600 via-rose-600 to-red-600 text-white border-red-400 shadow-lg shadow-red-950'
+                    : 'bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white border-slate-800'
+                }`}
+              >
+                <Siren className="w-4 h-4 text-white" />
+                <span>🚨 فزعة مصر (طوارئ واستغاثات)</span>
+                {sosData?.totalCount != null && (
+                  <span className="text-xs bg-black/40 px-2 py-0.5 rounded-full font-mono font-bold text-white border border-white/20">
+                    {sosData.totalCount}
                   </span>
                 )}
               </button>
@@ -651,7 +692,7 @@ export default function AdminCommunityPage() {
                 placeholder="بحث بالاسم، المنطقة، نمرة العربية، الهاتف..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-3 pr-10 py-2.5 rounded-2xl text-xs md:text-sm bg-slate-950 border border-slate-700 text-white placeholder-slate-400 focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none transition"
+                className="w-full pl-3 pr-10 py-2.5 rounded-2xl text-xs md:text-sm bg-slate-950 border border-slate-700 text-white placeholder-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition"
               />
               {searchQuery && (
                 <button
@@ -666,37 +707,40 @@ export default function AdminCommunityPage() {
 
           {/* Sub-Tabs for Carpool */}
           {activeTab === 'carpool' && (
-            <div className="flex items-center gap-2 border-t border-slate-800 pt-3">
-              <span className="text-xs text-slate-400 font-bold ml-2">طريقة العرض:</span>
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-800 pt-3">
+              <span className="text-xs text-slate-400 font-bold ml-2">الأقسام:</span>
               <button
                 onClick={() => setCarpoolSubTab('rides')}
-                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition border ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 ${
                   carpoolSubTab === 'rides'
-                    ? 'bg-emerald-600 text-white border-emerald-400 shadow-sm'
+                    ? 'bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-950'
                     : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
                 }`}
               >
-                🚙 المشاوير المعلنة
+                <Car className="w-3.5 h-3.5" />
+                <span>مشاوير السائقين المعلنة</span>
               </button>
               <button
                 onClick={() => setCarpoolSubTab('requests')}
-                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition border ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 ${
                   carpoolSubTab === 'requests'
-                    ? 'bg-teal-600 text-white border-teal-400 shadow-sm'
+                    ? 'bg-teal-600 text-white border-teal-400 shadow-md shadow-teal-950'
                     : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
                 }`}
               >
-                🙋‍♂️ طلبات الركاب (المشاوير المطلوبة)
+                <Users className="w-3.5 h-3.5" />
+                <span>طلبات الركاب (مشاوير مطلوبة)</span>
               </button>
               <button
                 onClick={() => setCarpoolSubTab('transactions')}
-                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition border ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition border flex items-center gap-1.5 ${
                   carpoolSubTab === 'transactions'
-                    ? 'bg-blue-600 text-white border-blue-400 shadow-sm'
+                    ? 'bg-blue-600 text-white border-blue-400 shadow-md shadow-blue-950'
                     : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
                 }`}
               >
-                📜 سجل المعاملات والرحلات المنتهية (Uber-style)
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>سجل الرحلات والمعاملات المكتملة</span>
               </button>
             </div>
           )}
@@ -704,10 +748,17 @@ export default function AdminCommunityPage() {
           {/* Filter Status Pills */}
           {activeTab !== 'carpool' || carpoolSubTab === 'rides' ? (
             <div className="flex flex-wrap items-center justify-between border-t border-slate-800/80 pt-3 gap-3 text-xs">
-              <span className="font-bold text-slate-400 flex items-center gap-2">
-                <Filter className="w-3.5 h-3.5 text-amber-400" />
-                تصفية الحالة في هذا القسم:
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-amber-400" />
+                  تصنيف الحالة:
+                </span>
+                {activeTab === 'carpool' && carpoolSubTab === 'rides' && (
+                  <span className="text-[11px] text-slate-400">
+                    (يتم أرشفة المشاوير التي فات موعدها تلقائياً إلى خانة المنتهية)
+                  </span>
+                )}
+              </div>
 
               <div className="flex flex-wrap gap-2">
                 {activeTab === 'sos' &&
@@ -727,25 +778,24 @@ export default function AdminCommunityPage() {
 
                 {activeTab === 'carpool' &&
                   carpoolSubTab === 'rides' &&
-                  ['Active', 'Full', 'Departed', 'Completed', 'All'].map((st) => (
+                  [
+                    { key: 'Active', label: '🟢 النشطة والجارية' },
+                    { key: 'Completed', label: '✅ المنتهية والمكتملة' },
+                    { key: 'Departed', label: '🏎️ انطلقت على الطريق' },
+                    { key: 'Full', label: '👥 ممتلئة بالكامل' },
+                    { key: 'Cancelled', label: '❌ ملغية' },
+                    { key: 'All', label: '🌐 كافة السجلات' },
+                  ].map((filterItem) => (
                     <button
-                      key={st}
-                      onClick={() => setStatusFilter(st)}
+                      key={filterItem.key}
+                      onClick={() => setStatusFilter(filterItem.key)}
                       className={`px-3.5 py-1.5 rounded-xl font-bold transition border ${
-                        statusFilter === st
+                        statusFilter === filterItem.key
                           ? 'bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-950'
                           : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
                       }`}
                     >
-                      {st === 'Active'
-                        ? '🚙 مقاعد متاحة'
-                        : st === 'Full'
-                        ? 'مكتملة'
-                        : st === 'Departed'
-                        ? 'انطلقت'
-                        : st === 'Completed'
-                        ? 'منتهية'
-                        : 'الكل'}
+                      {filterItem.label}
                     </button>
                   ))}
 
@@ -775,7 +825,426 @@ export default function AdminCommunityPage() {
         </div>
 
         {/* =========================================================================
-            5. TAB 1: SOS & ROAD EMERGENCIES
+            5. TAB 1: CARPOOLING ("عربية رايحة") - HERO TAB
+           ========================================================================= */}
+        {activeTab === 'carpool' && (
+          <div className="space-y-4">
+            {/* View 1: Rides */}
+            {carpoolSubTab === 'rides' && (
+              <>
+                {carpoolLoading ? (
+                  <div className="p-16 text-center text-slate-300 font-bold flex flex-col items-center justify-center gap-3 bg-[#0F172A] rounded-3xl border border-slate-800">
+                    <RefreshCw className="w-8 h-8 animate-spin text-emerald-500" />
+                    <span>جاري تحميل وفحص المشاوير من السيرفر...</span>
+                  </div>
+                ) : filteredCarpoolItems.length === 0 ? (
+                  <div className="p-16 text-center bg-[#0F172A] rounded-3xl border border-slate-800 text-slate-300 space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">
+                      <Car className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="font-black text-white text-lg">
+                        {statusFilter === 'Active'
+                          ? 'لا توجد مشاوير نشطة قادمة حالياً'
+                          : statusFilter === 'Completed'
+                          ? 'لا توجد مشاوير مؤرشفة في خانة المكتملة'
+                          : 'لا توجد مشاوير مسجلة في هذا التصنيف'}
+                      </h3>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                        {statusFilter === 'Active'
+                          ? 'كافة المشاوير القديمة تم أرشفها ونقلها بنجاح إلى خانة «المنتهية والمكتملة» لحفظ دقة ونظافة البيانات.'
+                          : 'يمكنك اختيار «كافة السجلات» أو التبديل لحالات أخرى للاطلاع على التاريخ الكامل للمشاوير.'}
+                      </p>
+                    </div>
+                    {statusFilter === 'Active' && (
+                      <button
+                        onClick={() => setStatusFilter('Completed')}
+                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold text-xs border border-emerald-500/40 inline-flex items-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        عرض المشاوير المنتهية والمكتملة ({carpoolData?.totalCount || 0})
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {filteredCarpoolItems.map((ride) => {
+                      const isExpired = ride.status === 'Completed' || isPastDeparture(ride.departureTime);
+
+                      return (
+                        <div
+                          key={ride.id}
+                          className={`relative overflow-hidden p-6 rounded-3xl bg-[#0F172A] border-2 shadow-xl flex flex-col justify-between transition-all duration-300 hover:scale-[1.01] ${
+                            isExpired
+                              ? 'border-slate-800/90 bg-gradient-to-br from-[#0F172A] to-[#131B2E]'
+                              : 'border-emerald-500/40 hover:border-emerald-400 ring-1 ring-emerald-500/20 shadow-emerald-950/20'
+                          }`}
+                        >
+                          {/* Holographic Header Strip */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between gap-3">
+                              {/* Car Model & Color */}
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`p-3 rounded-2xl border ${
+                                    isExpired
+                                      ? 'bg-slate-800/80 border-slate-700 text-slate-300'
+                                      : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                                  }`}
+                                >
+                                  <Car className="w-6 h-6" />
+                                </div>
+                                <div>
+                                  <div className="text-base font-black text-white flex items-center gap-2">
+                                    <span>{ride.carModel}</span>
+                                    {ride.carColor && (
+                                      <span className="text-xs text-slate-400 font-medium">({ride.carColor})</span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-slate-400 font-semibold mt-0.5">
+                                    نوع الرحلة: {ride.isRecurringDaily ? 'مشوار يومي متكرر 🔄' : 'مشوار لمرة واحدة'}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Realistic Egyptian License Plate Badge */}
+                              {ride.carPlateNumber && (
+                                <div className="shrink-0 flex flex-col items-center justify-center px-3 py-1 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 border-2 border-slate-600 rounded-lg shadow-md font-mono text-center">
+                                  <div className="text-[9px] font-black text-blue-400 tracking-widest border-b border-slate-700 w-full pb-0.5">
+                                    EGY • مـصـر
+                                  </div>
+                                  <div className="text-xs md:text-sm font-black text-amber-300 tracking-wider pt-0.5">
+                                    {ride.carPlateNumber}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Status and Completion Badges */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                              {isExpired ? (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-800 text-slate-200 border border-slate-600 text-xs font-black shadow-inner">
+                                  <CheckCheck className="w-4 h-4 text-emerald-400" />
+                                  <span>رحلة مكتملة ومنتهية</span>
+                                </div>
+                              ) : ride.status === 'Departed' ? (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-950 text-amber-300 border border-amber-500/50 text-xs font-black animate-pulse">
+                                  <Navigation className="w-4 h-4 text-amber-400" />
+                                  <span>على الطريق الآن (انطلقت)</span>
+                                </div>
+                              ) : ride.status === 'Full' ? (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-950 text-purple-300 border border-purple-500/50 text-xs font-black">
+                                  <Users className="w-4 h-4 text-purple-400" />
+                                  <span>ممتلئة بالكامل</span>
+                                </div>
+                              ) : (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-950 text-emerald-300 border border-emerald-500/50 text-xs font-black shadow-md shadow-emerald-950">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                                  <span>نشطة ومتاحة للحجز</span>
+                                </div>
+                              )}
+
+                              {/* Price per seat */}
+                              <div className="px-3.5 py-1 rounded-xl bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 text-xs md:text-sm font-black shadow-sm">
+                                💰 {ride.pricePerSeat} ج.م / مقعد
+                              </div>
+                            </div>
+
+                            {/* Highway Route Visualizer */}
+                            <div className="p-4 bg-slate-950/90 rounded-2xl border border-slate-800 space-y-3">
+                              <div className="flex items-center justify-between text-xs text-slate-400 font-bold">
+                                <span className="flex items-center gap-1.5">
+                                  <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                                  نقطة الانطلاق:
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                  <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                                  نقطة الوصول:
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between gap-3 text-sm font-black text-white">
+                                <span className="text-blue-300 truncate max-w-[45%]">{ride.fromCityOrArea}</span>
+                                <div className="flex items-center gap-1.5 text-slate-500 shrink-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                                  <ArrowRightLeft className="w-4 h-4 text-emerald-400" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                                </div>
+                                <span className="text-emerald-300 truncate max-w-[45%] text-left">{ride.toCityOrArea}</span>
+                              </div>
+                            </div>
+
+                            {/* Trip Metadata Chips */}
+                            <div className="flex flex-wrap gap-2 text-xs">
+                              {/* Date & Time */}
+                              <span
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold ${
+                                  isExpired
+                                    ? 'bg-slate-900 text-slate-400 border-slate-800'
+                                    : 'bg-slate-800/90 text-slate-200 border-slate-700'
+                                }`}
+                              >
+                                <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                                <span>{new Date(ride.departureTime).toLocaleDateString('ar-EG')}</span>
+                                <Clock className="w-3.5 h-3.5 text-amber-400 mr-1" />
+                                <span>
+                                  {new Date(ride.departureTime).toLocaleTimeString('ar-EG', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </span>
+
+                              {/* Seats Info */}
+                              <span
+                                className={`px-3 py-1.5 rounded-xl border font-black ${
+                                  ride.availableSeats === 0 || isExpired
+                                    ? 'bg-slate-900 text-slate-400 border-slate-800'
+                                    : 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+                                }`}
+                              >
+                                {isExpired
+                                  ? `تم حجز المقاعد (${ride.totalSeats} مقاعد)`
+                                  : `المقاعد المتبقية: ${ride.availableSeats} من ${ride.totalSeats}`}
+                              </span>
+
+                              {/* Gender Preference */}
+                              <span className="bg-slate-800/80 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 font-bold">
+                                {ride.genderPreference === 'FemalesOnly'
+                                  ? 'سيدات فقط 👩'
+                                  : ride.genderPreference === 'MalesOnly'
+                                  ? 'شباب فقط 👨'
+                                  : 'متاح للجميع 👥'}
+                              </span>
+
+                              {/* Passenger Bookings Count */}
+                              {ride.bookings && ride.bookings.length > 0 && (
+                                <span className="bg-blue-950/80 text-blue-300 px-3 py-1.5 rounded-xl border border-blue-500/40 font-bold">
+                                  {ride.bookings.length} حجوزات ركاب
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Driver Info & Card Actions */}
+                          <div className="flex flex-wrap items-center justify-between pt-4 mt-4 border-t border-slate-800/80 gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-700 to-slate-800 border border-slate-600 flex items-center justify-center text-sm font-black text-white">
+                                {ride.driverName.charAt(0)}
+                              </div>
+                              <div>
+                                <div className="text-xs font-black text-white flex items-center gap-1.5">
+                                  <span>{ride.driverName}</span>
+                                  {ride.driverHasNationalId && (
+                                    <span
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[10px]"
+                                      title="سائق موثق بالرقم القومي"
+                                    >
+                                      <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                                      موثق
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-slate-400 font-mono">
+                                  رقم المشوار: {ride.id.substring(0, 8)}...
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {/* Broadcast as Flash Urgent Ad Button */}
+                              {!isExpired && (
+                                <button
+                                  onClick={() => {
+                                    setBroadcastModalItem({
+                                      itemType: 'carpool',
+                                      id: ride.id,
+                                      title: `مشوار من ${ride.fromCityOrArea} إلى ${ride.toCityOrArea}`,
+                                      description: `سائق: ${ride.driverName} - المقاعد: ${ride.availableSeats}`,
+                                    });
+                                    setBroadcastTitle(`🚙 إعلان مشوار عاجل: ${ride.fromCityOrArea} ➔ ${ride.toCityOrArea}`);
+                                    setBroadcastMessage(
+                                      `نشر السائق ${ride.driverName} مشواراً بسعر ${ride.pricePerSeat} ج.م في موعد ${new Date(
+                                        ride.departureTime
+                                      ).toLocaleTimeString('ar-EG')}. احجز مقعدك الآن!`
+                                    );
+                                  }}
+                                  className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 transition active:scale-95"
+                                  title="ترقية إلى إعلان عاجل للمشوار"
+                                >
+                                  <Megaphone className="w-3.5 h-3.5" />
+                                  <span>إعلان 📢</span>
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => setSelectedModalItem({ type: 'carpool', data: ride })}
+                                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-black rounded-xl border border-slate-700 transition"
+                              >
+                                التفاصيل
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  setBanModalItem({
+                                    itemType: 'carpool',
+                                    id: ride.id,
+                                    title: `مشوار ${ride.fromCityOrArea} إلى ${ride.toCityOrArea}`,
+                                    authorName: ride.driverName,
+                                  })
+                                }
+                                className="p-1.5 text-rose-400 hover:bg-rose-950/60 rounded-xl border border-rose-500/30 transition"
+                                title="حظر أو إلغاء المشوار"
+                              >
+                                <Ban className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* View 2: Passenger Ride Requests */}
+            {carpoolSubTab === 'requests' && (
+              <div className="space-y-4">
+                {carpoolRequestsLoading ? (
+                  <div className="p-16 text-center text-slate-300 font-bold flex flex-col items-center justify-center gap-3 bg-[#0F172A] rounded-3xl border border-slate-800">
+                    <RefreshCw className="w-8 h-8 animate-spin text-teal-500" />
+                    <span>جاري تحميل طلبات الركاب وفحصها...</span>
+                  </div>
+                ) : !carpoolRequestsData?.items?.length ? (
+                  <div className="p-16 text-center bg-[#0F172A] rounded-3xl border border-slate-800 text-slate-300 space-y-3">
+                    <Users className="w-12 h-12 text-teal-400 mx-auto" />
+                    <h3 className="font-black text-white text-lg">لا توجد طلبات ركاب معلقة حالياً</h3>
+                    <p className="text-xs text-slate-400">
+                      تمت أرشفة وتحديث أي طلبات قديمة انقضى موعدها تلقائياً.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {carpoolRequestsData.items.map((req) => {
+                      const isReqExpired = req.status === 'Completed' || isPastDeparture(req.preferredDepartureTime);
+
+                      return (
+                        <div
+                          key={req.id}
+                          className={`p-6 rounded-3xl bg-[#0F172A] border-2 shadow-xl space-y-4 transition ${
+                            isReqExpired
+                              ? 'border-slate-800 opacity-90'
+                              : 'border-teal-500/40 hover:border-teal-400'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span
+                              className={`text-xs font-black px-3 py-1 rounded-xl border ${
+                                isReqExpired
+                                  ? 'bg-slate-800 text-slate-300 border-slate-700'
+                                  : 'bg-teal-950 text-teal-300 border border-teal-500/50'
+                              }`}
+                            >
+                              {isReqExpired ? '✅ طلب مكتمل / منتهي' : `مطلوب ${req.seatsNeeded} مقعد`}
+                            </span>
+                            <span className="text-xs font-mono text-slate-300 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                              {new Date(req.preferredDepartureTime).toLocaleString('ar-EG')}
+                            </span>
+                          </div>
+
+                          <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-sm font-black text-white">
+                            <div>من: <span className="text-blue-400">{req.fromCityOrArea}</span></div>
+                            <div>إلى: <span className="text-emerald-400">{req.toCityOrArea}</span></div>
+                          </div>
+
+                          {req.notes && (
+                            <div className="text-xs text-slate-400 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                              ملاحظات الراكب: {req.notes}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-800">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-white">{req.passengerName}</span>
+                              {req.passengerHasNationalId && (
+                                <span title="موثق بالرقم القومي"><ShieldCheck className="w-4 h-4 text-emerald-400" /></span>
+                              )}
+                            </div>
+                            {req.passengerPhoneNumber && (
+                              <a href={`tel:${req.passengerPhoneNumber}`} className="text-cyan-400 font-mono font-bold hover:underline">
+                                📞 {req.passengerPhoneNumber}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* View 3: Ride Transactions (Uber Style) */}
+            {carpoolSubTab === 'transactions' && (
+              <div className="space-y-4">
+                {carpoolTransactionsLoading ? (
+                  <div className="p-16 text-center text-slate-300 font-bold flex flex-col items-center justify-center gap-3 bg-[#0F172A] rounded-3xl border border-slate-800">
+                    <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
+                    <span>جاري تحميل سجل المعاملات...</span>
+                  </div>
+                ) : !carpoolTransactionsData?.items?.length ? (
+                  <div className="p-16 text-center bg-[#0F172A] rounded-3xl border border-slate-800 text-slate-300 space-y-3">
+                    <DollarSign className="w-12 h-12 text-blue-400 mx-auto" />
+                    <h3 className="font-black text-white text-lg">لا توجد رحلات منتهية في سجل المعاملات بعد</h3>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {carpoolTransactionsData.items.map((tx) => (
+                      <div
+                        key={tx.transactionId}
+                        className="p-6 rounded-3xl bg-[#0F172A] border-2 border-slate-800 hover:border-blue-500/50 shadow-xl space-y-4"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black px-3 py-1 rounded-xl bg-blue-950 text-blue-300 border border-blue-500/50">
+                              {tx.role === 'Driver' ? 'سائق' : 'راكب'}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {new Date(tx.departureTime).toLocaleDateString('ar-EG')}
+                            </span>
+                          </div>
+                          <span className="text-base font-black text-emerald-400">
+                            {tx.totalAmount} {tx.currency}
+                          </span>
+                        </div>
+
+                        <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">المسار:</span>
+                            <span className="font-bold text-white">{tx.fromCityOrArea} ➔ {tx.toCityOrArea}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">السيارة والنمرة:</span>
+                            <span className="font-bold text-amber-300">{tx.carModel} {tx.carPlateNumber ? `[${tx.carPlateNumber}]` : ''}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">الطرف الآخر:</span>
+                            <span className="font-bold text-cyan-300">{tx.counterpartName}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            6. TAB 2: SOS & ROAD EMERGENCIES ("فزعة مصر")
            ========================================================================= */}
         {activeTab === 'sos' && (
           <div className="space-y-4">
@@ -790,7 +1259,7 @@ export default function AdminCommunityPage() {
                 <h3 className="font-black text-white text-lg">لا توجد استغاثات مطابقة في هذا النطاق</h3>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {filteredSosItems.map((alert) => (
                   <div
                     key={alert.id}
@@ -967,281 +1436,7 @@ export default function AdminCommunityPage() {
         )}
 
         {/* =========================================================================
-            6. TAB 2: CARPOOLING ("عربية رايحة")
-           ========================================================================= */}
-        {activeTab === 'carpool' && (
-          <div className="space-y-4">
-            {/* View 1: Rides */}
-            {carpoolSubTab === 'rides' && (
-              <>
-                {carpoolLoading ? (
-                  <div className="p-16 text-center text-slate-300 font-bold flex flex-col items-center justify-center gap-3 bg-[#0F172A] rounded-3xl border border-slate-800">
-                    <RefreshCw className="w-8 h-8 animate-spin text-emerald-500" />
-                    <span>جاري تحميل المشاوير من السيرفر...</span>
-                  </div>
-                ) : filteredCarpoolItems.length === 0 ? (
-                  <div className="p-16 text-center bg-[#0F172A] rounded-3xl border border-slate-800 text-slate-300 space-y-3">
-                    <Car className="w-12 h-12 text-emerald-400 mx-auto" />
-                    <h3 className="font-black text-white text-lg">لا توجد مشاوير مسجلة في هذا القسم</h3>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredCarpoolItems.map((ride) => (
-                      <div
-                        key={ride.id}
-                        className="p-6 rounded-3xl bg-[#0F172A] border-2 border-slate-800 hover:border-emerald-500/50 shadow-xl flex flex-col justify-between transition-all hover:scale-[1.01]"
-                      >
-                        <div className="space-y-3.5">
-                          {/* Car Header & Plate & Price */}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2.5">
-                              <div className="p-2.5 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                                <Car className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <span className="text-sm font-black text-white">{ride.carModel}</span>
-                                {ride.carColor && (
-                                  <span className="text-xs text-slate-400 mr-2 font-medium">({ride.carColor})</span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {/* Car Plate Number Metallic Badge */}
-                              {ride.carPlateNumber && (
-                                <span className="font-mono text-xs font-black px-2.5 py-1 rounded-lg bg-slate-900 text-amber-300 border border-amber-500/50 shadow-sm tracking-wider">
-                                  {ride.carPlateNumber}
-                                </span>
-                              )}
-
-                              <span className="text-xs md:text-sm font-black px-3 py-1 rounded-xl bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 shadow-sm">
-                                {ride.pricePerSeat} ج.م / مقعد
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Route Timeline Banner */}
-                          <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-2.5">
-                            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-black text-slate-100">
-                              <span className="w-3 h-3 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50 shrink-0" />
-                              <span>من: {ride.fromCityOrArea}</span>
-                            </div>
-                            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-black text-slate-100">
-                              <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50 shrink-0" />
-                              <span>إلى: {ride.toCityOrArea}</span>
-                            </div>
-                          </div>
-
-                          {/* Metadata Chips */}
-                          <div className="flex flex-wrap gap-2 text-xs">
-                            <span className="flex items-center gap-1.5 bg-slate-800/80 text-slate-200 px-3 py-1.5 rounded-xl border border-slate-700 font-bold">
-                              <Clock className="w-3.5 h-3.5 text-amber-400" />
-                              {new Date(ride.departureTime).toLocaleTimeString('ar-EG', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-
-                            <span className="font-black bg-emerald-950/80 text-emerald-300 px-3 py-1.5 rounded-xl border border-emerald-500/40">
-                              المقاعد المتبقية: {ride.availableSeats} من {ride.totalSeats}
-                            </span>
-
-                            <span className="bg-slate-800/80 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 font-bold">
-                              {ride.genderPreference === 'FemalesOnly'
-                                ? 'سيدات فقط 👩'
-                                : ride.genderPreference === 'MalesOnly'
-                                ? 'شباب فقط 👨'
-                                : 'متاح للجميع'}
-                            </span>
-
-                            <span className="bg-slate-800/80 text-cyan-300 px-3 py-1.5 rounded-xl border border-slate-700 font-bold">
-                              الحالة: {ride.status}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Driver & Footer */}
-                        <div className="flex flex-wrap items-center justify-between pt-4 mt-4 border-t border-slate-800/80 gap-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-white">
-                              {ride.driverName.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                                {ride.driverName}
-                                {ride.driverHasNationalId && (
-                                  <span title="موثق بالرقم القومي"><ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /></span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => {
-                                setBroadcastModalItem({
-                                  itemType: 'carpool',
-                                  id: ride.id,
-                                  title: `مشوار من ${ride.fromCityOrArea} إلى ${ride.toCityOrArea}`,
-                                  description: `سائق: ${ride.driverName} - المقاعد: ${ride.availableSeats}`,
-                                });
-                                setBroadcastTitle(`🚙 إعلان مشوار عاجل: ${ride.fromCityOrArea} ➔ ${ride.toCityOrArea}`);
-                                setBroadcastMessage(
-                                  `نشر السائق ${ride.driverName} مشواراً بسعر ${ride.pricePerSeat} ج.م في موعد ${new Date(
-                                    ride.departureTime
-                                  ).toLocaleTimeString('ar-EG')}. احجز مقعدك الآن!`
-                                );
-                              }}
-                              className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 transition"
-                              title="ترقية إلى إعلان عاجل للمشوار"
-                            >
-                              <Megaphone className="w-3.5 h-3.5" />
-                              <span>إعلان 📢</span>
-                            </button>
-
-                            <button
-                              onClick={() => setSelectedModalItem({ type: 'carpool', data: ride })}
-                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-black rounded-xl border border-slate-700 transition"
-                            >
-                              معاينة
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                setBanModalItem({
-                                  itemType: 'carpool',
-                                  id: ride.id,
-                                  title: `مشوار ${ride.fromCityOrArea} إلى ${ride.toCityOrArea}`,
-                                  authorName: ride.driverName,
-                                })
-                              }
-                              className="p-1.5 text-rose-400 hover:bg-rose-950/60 rounded-xl border border-rose-500/30 transition"
-                              title="حظر المشوار"
-                            >
-                              <Ban className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* View 2: Passenger Ride Requests */}
-            {carpoolSubTab === 'requests' && (
-              <div className="space-y-4">
-                {carpoolRequestsLoading ? (
-                  <div className="p-16 text-center text-slate-300 font-bold flex flex-col items-center justify-center gap-3 bg-[#0F172A] rounded-3xl border border-slate-800">
-                    <RefreshCw className="w-8 h-8 animate-spin text-teal-500" />
-                    <span>جاري تحميل طلبات الركاب...</span>
-                  </div>
-                ) : !carpoolRequestsData?.items?.length ? (
-                  <div className="p-16 text-center bg-[#0F172A] rounded-3xl border border-slate-800 text-slate-300 space-y-3">
-                    <Users className="w-12 h-12 text-teal-400 mx-auto" />
-                    <h3 className="font-black text-white text-lg">لا توجد طلبات ركاب معلنة حالياً</h3>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {carpoolRequestsData.items.map((req) => (
-                      <div
-                        key={req.id}
-                        className="p-6 rounded-3xl bg-[#0F172A] border-2 border-slate-800 hover:border-teal-500/50 shadow-xl space-y-4"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-black px-3 py-1 rounded-xl bg-teal-950 text-teal-300 border border-teal-500/50">
-                            مطلوب {req.seatsNeeded} مقعد
-                          </span>
-                          <span className="text-xs font-mono text-slate-400">
-                            {new Date(req.preferredDepartureTime).toLocaleString('ar-EG')}
-                          </span>
-                        </div>
-
-                        <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-sm font-black text-white">
-                          <div>من: <span className="text-blue-400">{req.fromCityOrArea}</span></div>
-                          <div>إلى: <span className="text-emerald-400">{req.toCityOrArea}</span></div>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-800">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-white">{req.passengerName}</span>
-                            {req.passengerHasNationalId && (
-                              <span title="موثق بالرقم القومي"><ShieldCheck className="w-4 h-4 text-emerald-400" /></span>
-                            )}
-                          </div>
-                          {req.passengerPhoneNumber && (
-                            <a href={`tel:${req.passengerPhoneNumber}`} className="text-cyan-400 font-mono font-bold hover:underline">
-                              📞 {req.passengerPhoneNumber}
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* View 3: Ride Transactions (Uber Style) */}
-            {carpoolSubTab === 'transactions' && (
-              <div className="space-y-4">
-                {carpoolTransactionsLoading ? (
-                  <div className="p-16 text-center text-slate-300 font-bold flex flex-col items-center justify-center gap-3 bg-[#0F172A] rounded-3xl border border-slate-800">
-                    <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
-                    <span>جاري تحميل سجل المعاملات...</span>
-                  </div>
-                ) : !carpoolTransactionsData?.items?.length ? (
-                  <div className="p-16 text-center bg-[#0F172A] rounded-3xl border border-slate-800 text-slate-300 space-y-3">
-                    <DollarSign className="w-12 h-12 text-blue-400 mx-auto" />
-                    <h3 className="font-black text-white text-lg">لا توجد رحلات منتهية في سجل المعاملات بعد</h3>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {carpoolTransactionsData.items.map((tx) => (
-                      <div
-                        key={tx.transactionId}
-                        className="p-6 rounded-3xl bg-[#0F172A] border-2 border-slate-800 hover:border-blue-500/50 shadow-xl space-y-4"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black px-3 py-1 rounded-xl bg-blue-950 text-blue-300 border border-blue-500/50">
-                              {tx.role === 'Driver' ? 'سائق' : 'راكب'}
-                            </span>
-                            <span className="text-xs text-slate-400">
-                              {new Date(tx.departureTime).toLocaleDateString('ar-EG')}
-                            </span>
-                          </div>
-                          <span className="text-base font-black text-emerald-400">
-                            {tx.totalAmount} {tx.currency}
-                          </span>
-                        </div>
-
-                        <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-400">المسار:</span>
-                            <span className="font-bold text-white">{tx.fromCityOrArea} ➔ {tx.toCityOrArea}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-400">السيارة والنمرة:</span>
-                            <span className="font-bold text-amber-300">{tx.carModel} {tx.carPlateNumber ? `[${tx.carPlateNumber}]` : ''}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-400">الطرف الآخر:</span>
-                            <span className="font-bold text-cyan-300">{tx.counterpartName}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* =========================================================================
-            7. TAB 3: LOST & FOUND WITH PRIVACY BADGES & MAP COORDINATES
+            7. TAB 3: LOST & FOUND WITH SMART MATCHING
            ========================================================================= */}
         {activeTab === 'lost' && (
           <div className="space-y-4">
@@ -1256,7 +1451,7 @@ export default function AdminCommunityPage() {
                 <h3 className="font-black text-white text-lg">لا توجد بلاغات مفقودات مسجلة حالياً</h3>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {filteredLostItems.map((item) => (
                   <div
                     key={item.id}
@@ -1292,7 +1487,7 @@ export default function AdminCommunityPage() {
                         <div className="flex items-center gap-2">
                           {item.isReceived && (
                             <span className="text-xs font-bold px-2.5 py-0.5 rounded-lg bg-teal-900 text-teal-200 border border-teal-500/50 flex items-center gap-1">
-                              <Check className="w-3 h-3 text-teal-300" />
+                              <CheckCheck className="w-3 h-3 text-teal-300" />
                               تم الاستلام
                             </span>
                           )}
@@ -1702,8 +1897,17 @@ export default function AdminCommunityPage() {
                 {/* Carpool Details */}
                 {selectedModalItem.type === 'carpool' && (() => {
                   const ride = selectedModalItem.data as CarpoolRideDto;
+                  const isExpired = ride.status === 'Completed' || isPastDeparture(ride.departureTime);
+
                   return (
                     <div className="space-y-4">
+                      {isExpired && (
+                        <div className="p-3 bg-emerald-950/70 border border-emerald-500/50 rounded-2xl flex items-center gap-2.5 text-xs font-bold text-emerald-300">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span>هذه الرحلة مصنفة كـ «منتهية ومكتملة» لأن موعد انطلاقها انقضى.</span>
+                        </div>
+                      )}
+
                       <div className="p-5 bg-slate-950 border border-emerald-500/40 rounded-2xl space-y-2">
                         <div className="text-xs text-emerald-400 font-black">مسار المشوار المشترك:</div>
                         <div className="text-lg font-black text-white flex items-center gap-3">

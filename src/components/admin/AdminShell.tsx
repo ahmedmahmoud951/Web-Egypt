@@ -26,10 +26,16 @@ import {
   Megaphone,
   ChevronRight,
   Siren,
+  ShieldAlert,
+  ShoppingBag,
+  Wallet,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'لوحة القيادة', shortLabel: 'لوحة', icon: LayoutDashboard, exact: true },
+  { href: '/admin/moderation', label: 'الرقابة الذكية AI', shortLabel: 'رقابة AI', icon: ShieldAlert },
+  { href: '/admin/marketplace', label: 'سوق مصر والخدمات', shortLabel: 'سوق مصر', icon: ShoppingBag },
+  { href: '/admin/marketplace/packages', label: 'ترويج الماركات (Brand Boosts)', shortLabel: 'ترويج ماركات', icon: Sparkles },
   { href: '/admin/community', label: 'المجتمع والطوارئ والمفقودات', shortLabel: 'طوارئ', icon: Siren },
   { href: '/admin/advertising', label: 'منصة الإعلانات', shortLabel: 'إعلانات', icon: Megaphone },
   { href: '/admin/chat', label: 'مراقبة المحادثات', shortLabel: 'محادثات', icon: MessageCircle },

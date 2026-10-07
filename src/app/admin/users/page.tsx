@@ -121,6 +121,7 @@ export default function AdminUsersPage() {
                   <th className="text-right">الاسم</th>
                   <th className="text-right">الموبايل</th>
                   <th className="text-right">الدور</th>
+                  <th className="text-right">النوع والملف</th>
                   <th className="text-right">منشورات</th>
                   <th className="text-right">الحالة</th>
                   <th className="text-center">إجراءات</th>
@@ -129,7 +130,7 @@ export default function AdminUsersPage() {
               <tbody>
                 {isLoading && (
                   <tr>
-                    <td colSpan={6} className="p-10 text-center text-[#8A9AAB]">جاري التحميل...</td>
+                    <td colSpan={7} className="p-10 text-center text-[#8A9AAB]">جاري التحميل...</td>
                   </tr>
                 )}
                 {data?.items?.map((user) => (
@@ -166,6 +167,28 @@ export default function AdminUsersPage() {
                     <td className="admin-cell-mono">{user.phoneNumber}</td>
                     <td>
                       <span className="admin-badge admin-badge-nile">{user.role}</span>
+                    </td>
+                    <td>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {user.gender === 'Male' ? (
+                          <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 inline-flex items-center gap-1">
+                            <span>👨</span> ذكر
+                          </span>
+                        ) : user.gender === 'Female' ? (
+                          <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-pink-500/10 text-pink-400 border border-pink-500/20 inline-flex items-center gap-1">
+                            <span>👩</span> أنثى
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 inline-flex items-center gap-1" title="لم يستكمل بيانات النوع بعد">
+                            <span>⚠️</span> ناقص
+                          </span>
+                        )}
+                        {user.nationalId && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" title={`الرقم القومي: ${user.nationalId}`}>
+                            🪪 بطاقة
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="tabular-nums font-bold text-[#F2F6FA]">{user.eventsCount}</td>
                     <td>

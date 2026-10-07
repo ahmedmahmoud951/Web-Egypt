@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --font-cairo: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
   --egypt-red: #9E1B2C;
   --egypt-gold: #C4A35A;
   --egypt-navy: #0F1B2D;
