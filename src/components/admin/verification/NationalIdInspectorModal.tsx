@@ -36,6 +36,7 @@ import {
   Send,
 } from 'lucide-react';
 import { auditVerificationDocument } from '@/lib/verificationAuditHelper';
+import { AvatarZoomModal } from './AvatarZoomModal';
 
 const EGYPT_GOVERNORATES_MAP: Record<string, string> = {
   '01': 'القاهرة',
@@ -171,6 +172,12 @@ export function NationalIdInspectorModal({
     }
   };
 
+  const [showAvatarZoom, setShowAvatarZoom] = useState(false);
+  const userAvatar =
+    request.userAvatarUrl ||
+    (request.userAvatarMediaId ? `/api/media/${request.userAvatarMediaId}/file` : null);
+  const resolvedUserAvatar = resolveMediaUrl(userAvatar);
+
   const docs = request.documents || [];
   const currentDoc = docs[selectedDocIndex];
   const currentDocUrl = currentDoc ? resolveMediaUrl(currentDoc.documentUrl || currentDoc.mediaUrl || '') : null;
@@ -187,29 +194,65 @@ export function NationalIdInspectorModal({
       >
         {/* TOP HEADER */}
         <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-4 sm:pb-5">
-          <div className="space-y-1 min-w-0">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] sm:text-xs font-black">
-              <Sparkles className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">فاحص الهوية والتوثيق الحكومي الذكي (Smart OCR Inspector)</span>
-            </div>
-            <h2 className="text-lg sm:text-2xl font-black text-white flex flex-wrap items-center gap-2 mt-1">
-              <span>طلب توثيق: {request.userName}</span>
-              {request.isAutoVerified && (
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold inline-flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" />
-                  توثيق فوري ذكي
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            {/* User Avatar with Zoom */}
+            {resolvedUserAvatar ? (
+              <div
+                onClick={() => setShowAvatarZoom(true)}
+                className="group/avatar relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden border-2 border-amber-500/40 hover:border-amber-400 bg-slate-950 shrink-0 cursor-pointer shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-amber-500/25 ring-2 ring-black/40"
+                title="انقر لتكبير صورة المستخدم 🔍"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolvedUserAvatar}
+                  alt={request.userName || 'صورة المستخدم'}
+                  className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity text-amber-300">
+                  <ZoomIn className="w-5 h-5 drop-shadow" />
+                </div>
+              </div>
+            ) : (
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-slate-800 to-cyan-500/20 border border-white/10 flex items-center justify-center font-black text-amber-300 text-lg sm:text-xl shrink-0 shadow-md">
+                {(request.userName || 'م').charAt(0)}
+              </div>
+            )}
+
+            <div className="space-y-1 min-w-0">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] sm:text-xs font-black">
+                <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">فاحص الهوية والتوثيق الحكومي الذكي (Smart OCR Inspector)</span>
+              </div>
+              <h2 className="text-lg sm:text-2xl font-black text-white flex flex-wrap items-center gap-2 mt-1">
+                <span>طلب توثيق: {request.userName}</span>
+                {request.isAutoVerified && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[11px] font-bold inline-flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" />
+                    توثيق فوري ذكي
+                  </span>
+                )}
+                {resolvedUserAvatar && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAvatarZoom(true)}
+                    className="inline-flex items-center gap-1 text-[11px] text-amber-300 hover:text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 px-2.5 py-1 rounded-xl border border-amber-500/30 font-bold transition shadow-sm cursor-pointer"
+                    title="تكبير صورة المستخدم ومطابقتها مع البطاقة"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                    <span>تكبير صورة المستخدم 🔍</span>
+                  </button>
+                )}
+              </h2>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-slate-400 font-mono mt-1">
+                <span className="flex items-center gap-1 text-cyan-400">
+                  <Phone className="w-3 h-3" />
+                  <span dir="ltr">{request.userPhoneNumber}</span>
                 </span>
-              )}
-            </h2>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-slate-400 font-mono mt-1">
-              <span className="flex items-center gap-1 text-cyan-400">
-                <Phone className="w-3 h-3" />
-                <span dir="ltr">{request.userPhoneNumber}</span>
-              </span>
-              <span>•</span>
-              <span>تاريخ التقديم: {new Date(request.requestedAt).toLocaleDateString('ar-EG')}</span>
-              <span>•</span>
-              <span className="text-amber-400 font-bold">{request.verificationTypeName} ({request.badgeName})</span>
+                <span>•</span>
+                <span>تاريخ التقديم: {new Date(request.requestedAt).toLocaleDateString('ar-EG')}</span>
+                <span>•</span>
+                <span className="text-amber-400 font-bold">{request.verificationTypeName} ({request.badgeName})</span>
+              </div>
             </div>
           </div>
 
@@ -771,6 +814,17 @@ export function NationalIdInspectorModal({
             إغلاق
           </button>
         </div>
+
+        {/* AVATAR ZOOM MODAL */}
+        <AvatarZoomModal
+          isOpen={showAvatarZoom}
+          onClose={() => setShowAvatarZoom(false)}
+          imageUrl={resolvedUserAvatar}
+          userName={request.userName}
+          userPhoneNumber={request.userPhoneNumber}
+          badgeName={request.badgeName}
+          title="فحص وتكبير صورة المستخدم لمطابقتها مع بطاقة الرقم القومي"
+        />
       </div>
     </div>
   );

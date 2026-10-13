@@ -1,7 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ActiveVerificationItem } from '@/api/verificationAdmin';
+import { resolveMediaUrl } from '@/lib/media';
+import { AvatarZoomModal } from './AvatarZoomModal';
 import {
   Crown,
   Award,
@@ -15,6 +17,7 @@ import {
   MessageCircle,
   User,
   AlertTriangle,
+  ZoomIn,
 } from 'lucide-react';
 
 interface ActiveVerificationCardProps {
@@ -47,10 +50,16 @@ export function ActiveVerificationCard({
   onRevoke,
   isRevoking = false,
 }: ActiveVerificationCardProps) {
+  const [avatarZoomOpen, setAvatarZoomOpen] = useState(false);
   const progress = activeDaysProgress(uv);
   const circumference = 2 * Math.PI * 18;
   const dash = (progress.pct / 100) * circumference;
   const ringColor = progress.urgent ? '#f43f5e' : '#10b981';
+
+  const userAvatar =
+    uv.userAvatarUrl ||
+    (uv.userAvatarMediaId ? `/api/media/${uv.userAvatarMediaId}/file` : null);
+  const resolvedAvatarUrl = resolveMediaUrl(userAvatar);
 
   return (
     <article
@@ -71,14 +80,45 @@ export function ActiveVerificationCard({
         {/* Top Header: Identity & Circular Remaining Ring */}
         <div className="flex items-start justify-between gap-2.5 sm:gap-3">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-purple-500/20 via-sky-500/15 to-emerald-500/20 border border-white/10 flex items-center justify-center font-black text-purple-300 text-xs sm:text-sm shrink-0 shadow-md">
-              {userInitials(uv.userName)}
-            </div>
+            {resolvedAvatarUrl ? (
+              <div
+                onClick={() => setAvatarZoomOpen(true)}
+                className="group/avatar relative w-10 h-10 sm:w-12 sm:h-12 rounded-2xl overflow-hidden border border-purple-500/40 hover:border-purple-300 bg-slate-950 shrink-0 cursor-pointer shadow-md transition-all hover:scale-105"
+                title="انقر لتكبير صورة المستخدم 🔍"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolvedAvatarUrl}
+                  alt={uv.userName}
+                  className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity text-purple-300">
+                  <ZoomIn className="w-3.5 h-3.5 drop-shadow" />
+                </div>
+              </div>
+            ) : (
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-purple-500/20 via-sky-500/15 to-emerald-500/20 border border-white/10 flex items-center justify-center font-black text-purple-300 text-xs sm:text-sm shrink-0 shadow-md">
+                {userInitials(uv.userName)}
+              </div>
+            )}
 
             <div className="min-w-0 space-y-0.5">
-              <h4 className="font-black text-white text-sm sm:text-base truncate group-hover:text-purple-300 transition-colors">
-                {uv.userName}
-              </h4>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h4 className="font-black text-white text-sm sm:text-base truncate group-hover:text-purple-300 transition-colors">
+                  {uv.userName}
+                </h4>
+                {resolvedAvatarUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setAvatarZoomOpen(true)}
+                    className="inline-flex items-center gap-1 text-[10px] text-purple-300 hover:text-purple-200 bg-purple-500/15 hover:bg-purple-500/25 px-1.5 py-0.5 rounded-md border border-purple-500/30 transition-colors cursor-pointer"
+                    title="تكبير الصورة"
+                  >
+                    <ZoomIn className="w-2.5 h-2.5" />
+                    <span>تكبير</span>
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
                 <span dir="ltr" className="text-cyan-400 font-semibold">{uv.userPhoneNumber}</span>
                 {uv.userPhoneNumber && (
@@ -221,6 +261,16 @@ export function ActiveVerificationCard({
           <span>سحب الشارة</span>
         </button>
       </div>
+
+      {/* AVATAR ZOOM MODAL */}
+      <AvatarZoomModal
+        isOpen={avatarZoomOpen}
+        onClose={() => setAvatarZoomOpen(false)}
+        imageUrl={resolvedAvatarUrl}
+        userName={uv.userName}
+        userPhoneNumber={uv.userPhoneNumber}
+        badgeName={uv.badgeName}
+      />
     </article>
   );
 }

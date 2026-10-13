@@ -80,6 +80,7 @@ import { DirectGrantPanel } from '@/components/admin/verification/DirectGrantPan
 import { RevokeExtendPanel } from '@/components/admin/verification/RevokeExtendPanel';
 import { VerificationSecurityPanel } from '@/components/admin/verification/VerificationSecurityPanel';
 import { VerificationConfirmModal } from '@/components/admin/verification/VerificationConfirmModal';
+import { AvatarZoomModal } from '@/components/admin/verification/AvatarZoomModal';
 
 function activeDaysProgress(uv: ActiveVerificationItem) {
   const start = new Date(uv.startedAt).getTime();
@@ -122,6 +123,7 @@ export default function AdminVerificationPage() {
 
   // Selected Request for Modal Details
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [zoomAvatarUser, setZoomAvatarUser] = useState<VerificationRequestItem | null>(null);
   const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
   const [previewDocTitle, setPreviewDocTitle] = useState<string>('');
 
@@ -1165,6 +1167,7 @@ export default function AdminVerificationPage() {
                           key={`user-${r.id}`}
                           request={r}
                           onInspect={(req) => setSelectedRequestId(req.id)}
+                          onPreviewAvatar={(req) => setZoomAvatarUser(req)}
                           onApprove={(req) => {
                             setApproveModalRequest(req);
                             setApprovedDuration(req.requestedDurationDays || 30);
@@ -1342,11 +1345,53 @@ export default function AdminVerificationPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-800/60">
-                            {requestsData?.items?.map((r) => (
+                            {requestsData?.items?.map((r) => {
+                              const userAvatar =
+                                r.userAvatarUrl ||
+                                (r.userAvatarMediaId ? `/api/media/${r.userAvatarMediaId}/file` : null);
+                              const resolvedAvatar = resolveMediaUrl(userAvatar);
+                              return (
                               <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
                                 <td className="p-4">
-                                  <div className="font-bold text-white text-xs">{r.userName || 'مستخدم بدون اسم'}</div>
-                                  <div className="font-mono text-cyan-400 text-[11px] mt-0.5">{r.userPhoneNumber}</div>
+                                  <div className="flex items-center gap-2.5">
+                                    {resolvedAvatar ? (
+                                      <div
+                                        onClick={() => setZoomAvatarUser(r)}
+                                        className="group/avatar relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border border-amber-500/40 hover:border-amber-300 bg-slate-950 shrink-0 cursor-pointer shadow-md transition-all hover:scale-105"
+                                        title="انقر لتكبير صورة المستخدم 🔍"
+                                      >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={resolvedAvatar}
+                                          alt={r.userName || 'المستخدم'}
+                                          className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity text-amber-300">
+                                          <ZoomIn className="w-3.5 h-3.5" />
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center font-bold text-amber-300 text-xs shrink-0 shadow-sm">
+                                        {(r.userName || 'م').charAt(0)}
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-bold text-white text-xs truncate">{r.userName || 'مستخدم بدون اسم'}</span>
+                                        {resolvedAvatar && (
+                                          <button
+                                            type="button"
+                                            onClick={() => setZoomAvatarUser(r)}
+                                            className="text-[10px] text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 px-1 py-0.5 rounded border border-amber-500/20 cursor-pointer transition-colors"
+                                            title="تكبير الصورة"
+                                          >
+                                            <ZoomIn className="w-2.5 h-2.5" />
+                                          </button>
+                                        )}
+                                      </div>
+                                      <div className="font-mono text-cyan-400 text-[11px] mt-0.5">{r.userPhoneNumber}</div>
+                                    </div>
+                                  </div>
                                 </td>
                                 <td className="p-4 font-mono">
                                   {r.extractedNationalId ? (
@@ -1427,7 +1472,8 @@ export default function AdminVerificationPage() {
                                   </div>
                                 </td>
                               </tr>
-                            ))}
+                            );
+                          })}
                           </tbody>
                         </table>
                       </div>
@@ -2339,6 +2385,21 @@ export default function AdminVerificationPage() {
           onConfirm={(val) => confirmConfig.onConfirm(val)}
           onClose={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
         />
+
+        {/* GLOBAL USER AVATAR ZOOM MODAL */}
+        {zoomAvatarUser && (
+          <AvatarZoomModal
+            isOpen={!!zoomAvatarUser}
+            onClose={() => setZoomAvatarUser(null)}
+            imageUrl={resolveMediaUrl(
+              zoomAvatarUser.userAvatarUrl ||
+                (zoomAvatarUser.userAvatarMediaId ? `/api/media/${zoomAvatarUser.userAvatarMediaId}/file` : null)
+            )}
+            userName={zoomAvatarUser.userName}
+            userPhoneNumber={zoomAvatarUser.userPhoneNumber}
+            badgeName={zoomAvatarUser.badgeName}
+          />
+        )}
       </div>
     </AdminShell>
   );

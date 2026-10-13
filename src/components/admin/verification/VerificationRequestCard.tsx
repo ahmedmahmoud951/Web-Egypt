@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   VerificationRequestItem,
   verificationDocumentTypeLabel,
@@ -30,8 +30,10 @@ import {
   AlertTriangle,
   Bell,
   Smartphone,
+  ZoomIn,
 } from 'lucide-react';
 import { auditVerificationDocument } from '@/lib/verificationAuditHelper';
+import { AvatarZoomModal } from './AvatarZoomModal';
 
 const EGYPT_GOVERNORATES_MAP: Record<string, string> = {
   '01': 'القاهرة',
@@ -86,6 +88,7 @@ interface VerificationRequestCardProps {
   onReview: (requestId: string) => void;
   onDelete: (requestId: string) => void;
   onRequestReupload?: (request: VerificationRequestItem) => void;
+  onPreviewAvatar?: (request: VerificationRequestItem) => void;
   normalizeStatus: (status: any, name?: string) => number;
   isActionable: boolean;
 }
@@ -98,13 +101,20 @@ export function VerificationRequestCard({
   onReview,
   onDelete,
   onRequestReupload,
+  onPreviewAvatar,
   normalizeStatus,
   isActionable,
 }: VerificationRequestCardProps) {
+  const [avatarZoomOpen, setAvatarZoomOpen] = useState(false);
   const statusCode = normalizeStatus(request.status, request.statusName);
   const rawId = request.extractedNationalId;
   const parsed = parseQuickNationalId(rawId);
   const docAudit = auditVerificationDocument(request);
+
+  const userAvatar =
+    request.userAvatarUrl ||
+    (request.userAvatarMediaId ? `/api/media/${request.userAvatarMediaId}/file` : null);
+  const resolvedAvatarUrl = resolveMediaUrl(userAvatar);
 
   // Status Badge Helper
   const renderStatusBadge = () => {
@@ -178,14 +188,62 @@ export function VerificationRequestCard({
         {/* TOP ROW: USER IDENTITY & STATUS */}
         <div className="flex items-start justify-between gap-2.5 sm:gap-3">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-slate-800 to-cyan-500/20 border border-white/10 flex items-center justify-center font-black text-amber-300 text-base shrink-0 shadow-md">
-              {(request.userName || 'م').charAt(0)}
-              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-900" />
-            </div>
+            {/* USER AVATAR WITH CLICK-TO-ENLARGE */}
+            {resolvedAvatarUrl ? (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onPreviewAvatar) {
+                    onPreviewAvatar(request);
+                  } else {
+                    setAvatarZoomOpen(true);
+                  }
+                }}
+                className="group/avatar relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden border-2 border-amber-500/40 hover:border-amber-400 bg-slate-950 shrink-0 cursor-pointer shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-amber-500/25 ring-2 ring-black/40"
+                title="انقر لتكبير صورة المستخدم 🔍"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolvedAvatarUrl}
+                  alt={request.userName || 'المستخدم'}
+                  className="w-full h-full object-cover group-hover/avatar:scale-110 transition-transform duration-300"
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity text-amber-300">
+                  <ZoomIn className="w-4 h-4 drop-shadow" />
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-slate-900 shadow" />
+              </div>
+            ) : (
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-slate-800 to-cyan-500/20 border border-white/10 flex items-center justify-center font-black text-amber-300 text-base sm:text-lg shrink-0 shadow-md">
+                {(request.userName || 'م').charAt(0)}
+                <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-slate-900 shadow" />
+              </div>
+            )}
+
             <div className="min-w-0 space-y-0.5">
-              <h4 className="font-black text-white text-xs sm:text-sm truncate group-hover:text-amber-300 transition-colors">
-                {request.userName || 'مستخدم بدون اسم'}
-              </h4>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h4 className="font-black text-white text-xs sm:text-sm truncate group-hover:text-amber-300 transition-colors">
+                  {request.userName || 'مستخدم بدون اسم'}
+                </h4>
+                {resolvedAvatarUrl && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onPreviewAvatar) {
+                        onPreviewAvatar(request);
+                      } else {
+                        setAvatarZoomOpen(true);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-[10px] text-amber-300 hover:text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 px-1.5 py-0.5 rounded-md border border-amber-500/30 transition-colors cursor-pointer"
+                    title="تكبير صورة المستخدم"
+                  >
+                    <ZoomIn className="w-2.5 h-2.5" />
+                    <span>تكبير الصورة</span>
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
                 <span dir="ltr" className="text-cyan-400 font-semibold">{request.userPhoneNumber}</span>
                 {request.userPhoneNumber && (
@@ -451,6 +509,16 @@ export function VerificationRequestCard({
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {/* AVATAR ZOOM LIGHTBOX MODAL */}
+      <AvatarZoomModal
+        isOpen={avatarZoomOpen}
+        onClose={() => setAvatarZoomOpen(false)}
+        imageUrl={resolvedAvatarUrl}
+        userName={request.userName}
+        userPhoneNumber={request.userPhoneNumber}
+        badgeName={request.badgeName}
+      />
     </div>
   );
 }

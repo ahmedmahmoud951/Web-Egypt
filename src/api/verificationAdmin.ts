@@ -121,6 +121,8 @@ export interface VerificationRequestItem {
   userId: string;
   userName: string;
   userPhoneNumber: string;
+  userAvatarUrl?: string;
+  userAvatarMediaId?: string;
   verificationTypeId: string;
   verificationTypeName: string;
   badgeName: string;
@@ -202,6 +204,8 @@ export interface ActiveVerificationItem {
   userId: string;
   userName: string;
   userPhoneNumber: string;
+  userAvatarUrl?: string;
+  userAvatarMediaId?: string;
   verificationTypeId: string;
   verificationTypeName: string;
   badgeName: string;
