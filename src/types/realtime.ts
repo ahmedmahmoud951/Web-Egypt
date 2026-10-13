@@ -226,6 +226,19 @@ export interface CommunityLostAndFoundRealTimeMessage {
   createdAt: string;
 }
 
+export interface VerificationEventMessage {
+  verificationId?: string | null;
+  requestId?: string | null;
+  userId: string;
+  type: string;
+  status: string;
+  notes?: string | null;
+  timestamp?: string;
+}
 
-
-
+export interface ReportUpdatedRealTimeMessage {
+  reportId: string;
+  status: string;
+  notes?: string | null;
+  updatedAt: string;
+}

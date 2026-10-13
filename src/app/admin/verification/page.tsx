@@ -249,6 +249,33 @@ export default function AdminVerificationPage() {
     enabled: !!selectedRequestId,
   });
 
+  // Real-Time SignalR synchronization for Verification Events
+  useEffect(() => {
+    signalRService.start();
+
+    const unsubs = [
+      signalRService.onVerificationEvent((msg) => {
+        queryClient.invalidateQueries({ queryKey: ['admin', 'verification'] });
+        queryClient.invalidateQueries({ queryKey: ['admin', 'pages', 'verification-requests'] });
+        queryClient.invalidateQueries({ queryKey: ['admin', 'verification', 'dashboard'] });
+        if (msg.requestId) {
+          queryClient.invalidateQueries({ queryKey: ['admin', 'verification', 'request', msg.requestId] });
+        }
+        const actionLabel =
+          msg.status === 'Approved' ? 'تم اعتماد التوثيق رسمياً' :
+          msg.status === 'Rejected' ? 'تم رفض طلب التوثيق' :
+          msg.status === 'UnderReview' ? 'تم نقل الطلب لقيد المراجعة' :
+          msg.status === 'ReuploadRequested' ? 'تم إرسال إشعار للمستخدم بإعادة رفع البطاقة' :
+          msg.status;
+        showToast(`تحديث فوري (Real-Time): ${actionLabel} 🔔`);
+      }),
+    ];
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, [queryClient]);
+
   // Mutations
   const approveMutation = useMutation({
     mutationFn: (vars: { id: string; payload: any }) => verificationAdminApi.approveRequest(vars.id, vars.payload),
@@ -284,9 +311,11 @@ export default function AdminVerificationPage() {
   const requestReuploadMutation = useMutation({
     mutationFn: (vars: { id: string; message?: string; reason?: string }) =>
       verificationAdminApi.requestReupload(vars.id, { message: vars.message, reason: vars.reason }),
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       showToast('تم إرسال إشعار للمستخدم على هاتفه لإعادة رفع صورة البطاقة بنجاح 🔔');
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'verification', 'request', vars.id] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'verification', 'dashboard'] });
     },
     onError: (err: any) => showToast(err?.response?.data?.message || 'فشل إرسال الإشعار للمستخدم', 'error'),
   });
@@ -732,6 +761,8 @@ export default function AdminVerificationPage() {
                 <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 text-[#C4A35A] text-[11px] sm:text-xs font-bold backdrop-blur-md mb-2">
                   <Sparkles className="w-3.5 h-3.5 shrink-0" />
                   <span className="truncate">منظومة التوثيق والشارات الرسمية</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mr-1" />
+                  <span className="text-[10px] text-emerald-300 font-bold">Real-Time مفعّل</span>
                 </div>
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-snug">
                   إدارة ومراجعة طلبات التوثيق

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { CentralReportDto } from '@/types/social';
 import { socialAdminApi } from '@/api/socialAdmin';
 import { formatArabicDate } from '@/lib/utils';
@@ -46,6 +47,7 @@ export function ReportDetailModal({
   const [warningText, setWarningText] = useState('');
   const [showWarningInput, setShowWarningInput] = useState(false);
   const flash = useFlash();
+  const queryClient = useQueryClient();
 
   if (!isOpen || !report) return null;
 
@@ -53,6 +55,7 @@ export function ReportDetailModal({
     try {
       await socialAdminApi.resolveReport(report.id, adminNotes);
       flash.success('تم حل البلاغ واعتماد الإجراء.');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
       onReportUpdated?.();
       onClose();
     } catch {
@@ -64,6 +67,7 @@ export function ReportDetailModal({
     try {
       await socialAdminApi.rejectReport(report.id, adminNotes);
       flash.success('تم رفض البلاغ وتجاهله.');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
       onReportUpdated?.();
       onClose();
     } catch {

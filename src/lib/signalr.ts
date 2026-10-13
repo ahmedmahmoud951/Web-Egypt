@@ -29,6 +29,7 @@ import {
   CommunitySosAlertRealTimeMessage,
   CommunityCarpoolRideRealTimeMessage,
   CommunityLostAndFoundRealTimeMessage,
+  ReportUpdatedRealTimeMessage,
 } from '@/types/realtime';
 
 export type SignalRConnectionStatus =
@@ -366,6 +367,10 @@ class SignalRService {
     return this.registerHandler('CommunityLostAndFoundItemCreated', callback);
   }
 
+  // Reports Moderation Real-Time Events
+  public onReportUpdated(callback: (msg: ReportUpdatedRealTimeMessage) => void): () => void {
+    return this.registerHandler('ReportUpdated', callback);
+  }
 
   public async joinLocationGroup(locationId: number): Promise<void> {
     if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {

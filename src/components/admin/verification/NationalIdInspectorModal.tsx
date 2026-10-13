@@ -133,6 +133,12 @@ export function NationalIdInspectorModal({
   // Re-upload notification states
   const [isSendingReupload, setIsSendingReupload] = useState(false);
   const [reuploadSuccess, setReuploadSuccess] = useState(false);
+  const isAlreadyNotified = Boolean(
+    request.adminNotes?.includes('إعادة رفع') ||
+    (request as any).status === 2 ||
+    (request as any).status === 'UnderReview'
+  );
+  const [showManualReuploadForm, setShowManualReuploadForm] = useState(false);
   const [reuploadMessage, setReuploadMessage] = useState(
     'يرجى إعادة رفع صورة واضحة لوجه وظهر بطاقة الرقم القومي الأصلية لاستكمال توثيق حسابك.'
   );
@@ -165,6 +171,7 @@ export function NationalIdInspectorModal({
         });
       }
       setReuploadSuccess(true);
+      setShowManualReuploadForm(false);
     } catch (err: any) {
       setReuploadError(err?.response?.data?.message || err?.message || 'فشل إرسال الإشعار، يرجى المحاولة ثانية');
     } finally {
@@ -548,65 +555,102 @@ export function NationalIdInspectorModal({
             </div>
 
             {/* INTERACTIVE NOTIFICATION ACTION PANEL */}
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-900/95 border border-amber-500/30 space-y-3 shadow-lg">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-white/10 pb-2">
-                <div className="text-xs font-black text-amber-400 flex items-center gap-1.5">
-                  <Bell className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
-                  <span>الإجراء المطلوب: إرسال إشعار لصاحب الحساب لإلزامه برفع الوجه والظهر للبطاقة القومية الأصلية</span>
+            {(reuploadSuccess || isAlreadyNotified) && !showManualReuploadForm ? (
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-in fade-in zoom-in-95">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-emerald-300 flex items-center gap-1.5">
+                      <span>تم إرسال إشعار للمستخدم لإعادة رفع البطاقة بنجاح ✓</span>
+                    </div>
+                    <div className="text-[11px] text-slate-300 font-medium">
+                      تم تنبيه هاتف المستخدم عبر Push Notification و SignalR، وبانتظار رفع صورة الوجه والظهر للبطاقة.
+                    </div>
+                  </div>
                 </div>
-                <span className="text-[10px] text-slate-400 font-medium">
-                  يصل الإشعار كتنبيه فوري عبر الموبايل (Push Notification + SignalR)
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-300 block">
-                  نص الرسالة والتوجيه المرسل لهاتف المستخدم:
-                </label>
-                <textarea
-                  rows={2}
-                  value={reuploadMessage}
-                  onChange={(e) => setReuploadMessage(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-slate-700 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-amber-500 leading-relaxed font-medium"
-                  placeholder="اكتب التوجيه المطلوب للمستخدم..."
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                 <button
                   type="button"
-                  disabled={isSendingReupload || !reuploadMessage.trim()}
-                  onClick={handleSendReupload}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-black transition-all shadow-md shadow-amber-500/20 flex items-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  onClick={() => setShowManualReuploadForm(true)}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0 self-start sm:self-auto border border-white/10 active:scale-95 cursor-pointer"
                 >
-                  {isSendingReupload ? (
-                    <>
-                      <RotateCw className="w-4 h-4 animate-spin text-slate-950" />
-                      <span>جاري إرسال الإشعار والتنبيه للموبايل...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Smartphone className="w-4 h-4 text-slate-950" />
-                      <span>إرسال إشعار فوري لموبايل المستخدم 📲</span>
-                    </>
-                  )}
+                  <Bell className="w-3.5 h-3.5 text-amber-400" />
+                  <span>إرسال إشعار إضافي</span>
                 </button>
-
-                {reuploadSuccess && (
-                  <div className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>تم إرسال الإشعار والتنبيه لهاتف العميل بنجاح ✓</span>
-                  </div>
-                )}
-
-                {reuploadError && (
-                  <div className="px-3 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
-                    <XCircle className="w-4 h-4 text-rose-400" />
-                    <span>{reuploadError}</span>
-                  </div>
-                )}
               </div>
-            </div>
+            ) : (
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-900/95 border border-amber-500/30 space-y-3 shadow-lg animate-in fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-white/10 pb-2">
+                  <div className="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                    <Bell className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+                    <span>الإجراء المطلوب: إرسال إشعار لصاحب الحساب لإلزامه برفع الوجه والظهر للبطاقة القومية الأصلية</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                      (Push Notification + SignalR)
+                    </span>
+                    {(reuploadSuccess || isAlreadyNotified) && (
+                      <button
+                        type="button"
+                        onClick={() => setShowManualReuploadForm(false)}
+                        className="text-[11px] text-slate-400 hover:text-white px-2 py-0.5 rounded-lg hover:bg-white/5 transition"
+                      >
+                        إلغاء وإخفاء ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-300 block">
+                    نص الرسالة والتوجيه المرسل لهاتف المستخدم:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={reuploadMessage}
+                    onChange={(e) => setReuploadMessage(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-slate-700 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-amber-500 leading-relaxed font-medium"
+                    placeholder="اكتب التوجيه المطلوب للمستخدم..."
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={isSendingReupload || !reuploadMessage.trim()}
+                    onClick={handleSendReupload}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-black transition-all shadow-md shadow-amber-500/20 flex items-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSendingReupload ? (
+                      <>
+                        <RotateCw className="w-4 h-4 animate-spin text-slate-950" />
+                        <span>جاري إرسال الإشعار والتنبيه للموبايل...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Smartphone className="w-4 h-4 text-slate-950" />
+                        <span>إرسال إشعار فوري لموبايل المستخدم 📲</span>
+                      </>
+                    )}
+                  </button>
+
+                  {reuploadSuccess && (
+                    <div className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>تم إرسال الإشعار والتنبيه لهاتف العميل بنجاح ✓</span>
+                    </div>
+                  )}
+
+                  {reuploadError && (
+                    <div className="px-3 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
+                      <XCircle className="w-4 h-4 text-rose-400" />
+                      <span>{reuploadError}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -787,13 +831,37 @@ export function NationalIdInspectorModal({
 
                 <button
                   type="button"
-                  onClick={handleSendReupload}
+                  onClick={() => {
+                    if (reuploadSuccess || isAlreadyNotified) {
+                      setShowManualReuploadForm(true);
+                    } else {
+                      handleSendReupload();
+                    }
+                  }}
                   disabled={isSendingReupload}
-                  className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-2xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-black transition flex items-center justify-center gap-1.5 min-h-[40px] active:scale-95 disabled:opacity-50"
+                  className={`flex-1 sm:flex-none px-3.5 py-2.5 rounded-2xl text-xs font-black transition flex items-center justify-center gap-1.5 min-h-[40px] active:scale-95 disabled:opacity-50 cursor-pointer ${
+                    reuploadSuccess || isAlreadyNotified
+                      ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900/60'
+                      : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40'
+                  }`}
                   title="إرسال إشعار للمستخدم لتغيير صورة البطاقة"
                 >
-                  <Bell className="w-4 h-4 shrink-0 text-amber-400" />
-                  <span>{isSendingReupload ? 'جاري الإشعار...' : 'إشعار بتغيير البطاقة 🔔'}</span>
+                  {isSendingReupload ? (
+                    <>
+                      <RotateCw className="w-4 h-4 animate-spin text-amber-400" />
+                      <span>جاري الإشعار...</span>
+                    </>
+                  ) : reuploadSuccess || isAlreadyNotified ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                      <span>تم الإشعار بنجاح ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bell className="w-4 h-4 shrink-0 text-amber-400" />
+                      <span>إشعار بتغيير البطاقة 🔔</span>
+                    </>
+                  )}
                 </button>
               </>
             )}

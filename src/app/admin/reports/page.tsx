@@ -44,9 +44,9 @@ function AdminReportsContent() {
   const queryClient = useQueryClient();
   const flash = useFlash();
 
-  // Filter State
+  // Filter State (Default to Pending so actionable reports show first and disappear when resolved)
   const [contentType, setContentType] = useState<string>('');
-  const [status, setStatus] = useState<string>('');
+  const [status, setStatus] = useState<string>('Pending');
   const [reason, setReason] = useState<string>('');
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
@@ -106,6 +106,10 @@ function AdminReportsContent() {
       }),
       signalRService.onStatusDeleted(() => {
         refreshLive();
+      }),
+      signalRService.onReportUpdated((msg) => {
+        refreshLive();
+        flash.info(`تحديث فوري للبلاغ: ${msg.status === 'ActionTaken' ? 'تم اتخاذ إجراء' : msg.status === 'Dismissed' ? 'تم رفض البلاغ' : msg.status}`);
       }),
     ];
 
@@ -178,9 +182,15 @@ function AdminReportsContent() {
               <ShieldAlert className="w-6 h-6" strokeWidth={2.2} />
             </span>
             <div className="admin-col gap-0.5">
-              <h1 className="text-xl sm:text-2xl font-black text-[#F2F6FA] flex items-center gap-2">
-                المركز المركزي للبلاغات والإشراف (Central Moderation)
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-[#F2F6FA] flex items-center gap-2">
+                  المركز المركزي للبلاغات والإشراف (Central Moderation)
+                </h1>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Real-Time متصل
+                </span>
+              </div>
               <p className="text-xs text-[#8B9CB0]">
                 منظومة موحدة لإدارة وفحص بلاغات المجتمع على المنشورات، الريلز، الحالات، التعليقات، والحسابات
               </p>
@@ -215,6 +225,36 @@ function AdminReportsContent() {
               >
                 <Icon className="w-3.5 h-3.5" />
                 {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Quick Review Status Tabs (Pending / ActionTaken / Dismissed / All) */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {[
+            { key: 'Pending', label: 'قيد الانتظار (جديدة لم تحل)', color: 'amber' },
+            { key: 'ActionTaken', label: 'تم اتخاذ إجراء (تم حلها)', color: 'emerald' },
+            { key: 'Dismissed', label: 'مرفوضة / متجاهلة', color: 'rose' },
+            { key: '', label: 'جميع الحالات', color: 'slate' },
+          ].map((stTab) => {
+            const isSelected = status === stTab.key;
+            return (
+              <button
+                key={stTab.key}
+                type="button"
+                onClick={() => {
+                  setStatus(stTab.key);
+                  setPage(1);
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap active:scale-95 cursor-pointer ${
+                  isSelected
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                    : 'bg-slate-900/80 text-slate-400 hover:text-white border border-white/5'
+                }`}
+              >
+                {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-pulse" />}
+                <span>{stTab.label}</span>
               </button>
             );
           })}

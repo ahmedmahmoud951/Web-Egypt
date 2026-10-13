@@ -110,6 +110,12 @@ export function VerificationRequestCard({
   const rawId = request.extractedNationalId;
   const parsed = parseQuickNationalId(rawId);
   const docAudit = auditVerificationDocument(request);
+  const isReuploadSent = Boolean(
+    request.adminNotes?.includes('إعادة رفع') ||
+    statusCode === 2 ||
+    request.status === 2 ||
+    (request as any).status === 'UnderReview'
+  );
 
   const userAvatar =
     request.userAvatarUrl ||
@@ -356,22 +362,31 @@ export function VerificationRequestCard({
             </span>
           </div>
 
-          {docAudit.isDummy && (
+          {docAudit.isDummy && isActionable && (
             <div className="flex items-center justify-between gap-2 pt-1 border-t border-rose-500/20 text-[10px]">
-              <span className="text-rose-200 truncate font-semibold">الصورة المرفوعة ليست بطاقة هوية رسمية</span>
-              {onRequestReupload && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRequestReupload(request);
-                  }}
-                  className="px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-black flex items-center gap-1 transition shadow-sm active:scale-95 shrink-0 cursor-pointer"
-                  title="إرسال إشعار للمستخدم لتغيير صورة البطاقة"
-                >
-                  <Bell className="w-3 h-3" />
-                  <span>إشعار بتغيير البطاقة 🔔</span>
-                </button>
+              {isReuploadSent ? (
+                <div className="flex items-center gap-1.5 text-emerald-300 font-bold">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>تم إرسال الإشعار للمستخدم لإعادة رفع البطاقة (بانتظار العميل)</span>
+                </div>
+              ) : (
+                <>
+                  <span className="text-rose-200 truncate font-semibold">الصورة المرفوعة ليست بطاقة هوية رسمية</span>
+                  {onRequestReupload && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRequestReupload(request);
+                      }}
+                      className="px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-black flex items-center gap-1 transition shadow-sm active:scale-95 shrink-0 cursor-pointer"
+                      title="إرسال إشعار للمستخدم لتغيير صورة البطاقة"
+                    >
+                      <Bell className="w-3 h-3" />
+                      <span>إشعار بتغيير البطاقة 🔔</span>
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -466,14 +481,18 @@ export function VerificationRequestCard({
           <span>فحص ومعاينة</span>
         </button>
 
-        {onRequestReupload && (
+        {onRequestReupload && isActionable && (
           <button
             type="button"
             onClick={() => onRequestReupload(request)}
-            className="p-2 rounded-xl text-amber-300 hover:text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 transition min-h-[38px] min-w-[38px] flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
-            title="إرسال إشعار للمستخدم لتغيير صورة البطاقة 🔔"
+            className={`p-2 rounded-xl border transition min-h-[38px] min-w-[38px] flex items-center justify-center shrink-0 active:scale-95 cursor-pointer ${
+              isReuploadSent
+                ? 'text-emerald-300 bg-emerald-500/15 border-emerald-500/35 hover:bg-emerald-500/25'
+                : 'text-amber-300 bg-amber-500/15 border-amber-500/35 hover:bg-amber-500/25'
+            }`}
+            title={isReuploadSent ? "تم إرسال الإشعار للمستخدم ✓ (اضغط لإعادة الإشعار)" : "إرسال إشعار للمستخدم لتغيير صورة البطاقة 🔔"}
           >
-            <Bell className="w-3.5 h-3.5" />
+            {isReuploadSent ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Bell className="w-3.5 h-3.5" />}
           </button>
         )}
 
