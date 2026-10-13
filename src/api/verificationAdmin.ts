@@ -217,6 +217,57 @@ export interface ActiveVerificationItem {
   grantedByUserName?: string;
 }
 
+export interface PageVerificationRequestItem {
+  id: string;
+  pageId: string;
+  pageName: string;
+  status: string; // 'Pending' | 'Approved' | 'Rejected'
+  verificationPlanId?: string;
+  planName?: string;
+  price?: number;
+  durationDays?: number;
+  verificationCategory?: string;
+  commercialRegister?: string;
+  taxNumber?: string;
+  applicantName?: string;
+  applicantNationalId?: string;
+  nationalIdFrontUrl?: string;
+  nationalIdBackUrl?: string;
+  commercialRegisterDocumentUrl?: string;
+  taxCardDocumentUrl?: string;
+  businessLicenseUrl?: string;
+  officialLetterUrl?: string;
+  officialWebsiteUrl?: string;
+  officialEmail?: string;
+  officialPhone?: string;
+  notabilityLinks?: string;
+  documentUrl?: string;
+  notes?: string;
+  rejectionReason?: string;
+  paymentStatus?: string;
+  createdAt: string;
+  message?: string;
+  pageAvatarUrl?: string;
+  pageCategory?: string;
+  pageSlug?: string;
+  followersCount?: number;
+  ownerUserId?: string;
+  ownerName?: string;
+  ownerPhoneNumber?: string;
+  ownerAvatarUrl?: string;
+  ownerNationalId?: string;
+  hasOwnerNationalIdOnFile?: boolean;
+}
+
+export interface ReviewPageVerificationPayload {
+  approved: boolean;
+  rejectionReason?: string;
+  verificationCategory?: string;
+  verificationBadge?: string; // 'blue' | 'gold'
+  customDurationDays?: number;
+  adminNotes?: string;
+}
+
 export const verificationAdminApi = {
   getDashboard: async (signal?: AbortSignal): Promise<VerificationDashboardStats> => {
     const res = await apiClient.get<ApiResponse<VerificationDashboardStats>>('/admin/verification/dashboard', { signal });
@@ -277,6 +328,17 @@ export const verificationAdminApi = {
 
   rejectRequest: async (id: string, payload: RejectVerificationPayload): Promise<VerificationRequestItem> => {
     const res = await apiClient.post<ApiResponse<VerificationRequestItem>>(`/admin/verification/requests/${id}/reject`, payload);
+    return res.data.data!;
+  },
+
+  requestReupload: async (
+    id: string,
+    payload?: { message?: string; reason?: string }
+  ): Promise<VerificationRequestItem> => {
+    const res = await apiClient.post<ApiResponse<VerificationRequestItem>>(
+      `/admin/verification/requests/${id}/request-reupload`,
+      payload || {}
+    );
     return res.data.data!;
   },
 
@@ -391,5 +453,28 @@ export const verificationAdminApi = {
 
   deletePlan: async (id: string): Promise<void> => {
     await apiClient.delete(`/admin/verification/plans/${id}`);
+  },
+
+  // Page Verification Requests Management
+  getPageRequests: async (params?: {
+    status?: string;
+    page?: number;
+    pageSize?: number;
+    signal?: AbortSignal;
+  }): Promise<PageVerificationRequestItem[]> => {
+    const res = await apiClient.get<ApiResponse<PageVerificationRequestItem[]>>('/pages/admin/verification-requests', {
+      params: {
+        status: params?.status,
+        page: params?.page ?? 1,
+        pageSize: params?.pageSize ?? 20,
+      },
+      signal: params?.signal,
+    });
+    return res.data.data || [];
+  },
+
+  reviewPageRequest: async (requestId: string, payload: ReviewPageVerificationPayload): Promise<boolean> => {
+    const res = await apiClient.post<ApiResponse<boolean>>(`/pages/admin/verification-requests/${requestId}/review`, payload);
+    return res.data.data!;
   },
 };

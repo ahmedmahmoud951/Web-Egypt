@@ -39,6 +39,11 @@ import {
   Clock,
   Edit3,
   Trash2,
+  Briefcase,
+  GraduationCap,
+  MapPin,
+  Home,
+  CheckCircle2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { EditUserModal } from '@/components/admin/EditUserModal';
@@ -95,9 +100,8 @@ export default function AdminUserDetailPage() {
   });
 
   const coverUrl = useMemo(() => {
-    const firstPhoto = photosData?.items?.[0]?.url;
-    return firstPhoto || user?.avatarUrl || null;
-  }, [photosData?.items, user?.avatarUrl]);
+    return user?.coverUrl || photosData?.items?.[0]?.url || user?.avatarUrl || null;
+  }, [user?.coverUrl, photosData?.items, user?.avatarUrl]);
 
   const openLightbox = (items: ProfileLightboxItem[], index: number) => {
     if (!items.length) return;
@@ -316,9 +320,18 @@ export default function AdminUserDetailPage() {
                   {user.phoneNumber}
                 </span>
                 {user.email && (
-                  <span className="inline-flex items-center gap-1">
-                    <Mail className="w-3 h-3" />
-                    {user.email}
+                  <span className="inline-flex items-center gap-1.5">
+                    <Mail className="w-3 h-3 text-[#1F6B7A]" />
+                    <span>{user.email}</span>
+                    {user.isEmailVerified ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-0.5">
+                        <CheckCircle2 className="w-2.5 h-2.5" /> مؤكّد
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                        غير مؤكّد
+                      </span>
+                    )}
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1">
@@ -389,6 +402,146 @@ export default function AdminUserDetailPage() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Facebook-style About / Profile Details Card */}
+        <div className="my-4 p-5 rounded-3xl bg-[#0E1A2B]/80 border border-slate-700/60 shadow-xl backdrop-blur-md">
+          <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2.5">
+            <div className="flex items-center gap-2 text-sm font-black text-[#F2F6FA]">
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+              <span>نبذة وتفاصيل الملف الشخصي (About & Details)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="text-xs text-[#2AA9B9] hover:underline flex items-center gap-1 font-bold"
+            >
+              <Edit3 className="w-3 h-3" />
+              تعديل التفاصيل
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+            {/* Workplace */}
+            <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-2.5">
+              <Briefcase className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="text-[#8B9CB0] font-bold">جهة العمل / الوظيفة</div>
+                <div className="text-white font-medium mt-0.5">{user.workplace || 'غير محدد'}</div>
+              </div>
+            </div>
+
+            {/* Education */}
+            <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-2.5">
+              <GraduationCap className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="text-[#8B9CB0] font-bold">التعليم / الجامعة</div>
+                <div className="text-white font-medium mt-0.5">{user.education || 'غير محدد'}</div>
+              </div>
+            </div>
+
+            {/* City */}
+            <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-2.5">
+              <MapPin className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="text-[#8B9CB0] font-bold">المدينة والإقامة الحالية</div>
+                <div className="text-white font-medium mt-0.5">{user.city || 'غير محدد'}</div>
+              </div>
+            </div>
+
+            {/* Hometown */}
+            <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-2.5">
+              <Home className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="text-[#8B9CB0] font-bold">الموطن الأصلي / مسقط الرأس</div>
+                <div className="text-white font-medium mt-0.5">{user.hometown || 'غير محدد'}</div>
+              </div>
+            </div>
+
+            {/* Relationship Status */}
+            <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-2.5">
+              <Heart className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="text-[#8B9CB0] font-bold">الحالة الاجتماعية</div>
+                <div className="text-white font-medium mt-0.5">{user.relationshipStatus || 'غير محدد'}</div>
+              </div>
+            </div>
+
+            {/* Website */}
+            <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-2.5">
+              <Globe className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="truncate">
+                <div className="text-[#8B9CB0] font-bold">الموقع الإلكتروني</div>
+                {user.website ? (
+                  <a
+                    href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-400 hover:underline flex items-center gap-1 font-mono mt-0.5 truncate"
+                  >
+                    {user.website}
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                  </a>
+                ) : (
+                  <div className="text-slate-400 mt-0.5">لا يوجد</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Social Links Row */}
+          {(user.facebookUrl || user.instagramUrl || user.twitterUrl || user.linkedinUrl) && (
+            <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-[#8B9CB0] flex items-center gap-1 ml-2">
+                <Share2 className="w-3.5 h-3.5 text-cyan-400" />
+                حسابات التواصل:
+              </span>
+              {user.facebookUrl && (
+                <a
+                  href={user.facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-300 hover:bg-blue-600/25 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                >
+                  Facebook
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+              {user.instagramUrl && (
+                <a
+                  href={user.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded-xl bg-pink-600/15 border border-pink-500/30 text-pink-300 hover:bg-pink-600/25 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                >
+                  Instagram
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+              {user.twitterUrl && (
+                <a
+                  href={user.twitterUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded-xl bg-sky-600/15 border border-sky-500/30 text-sky-300 hover:bg-sky-600/25 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                >
+                  Twitter / X
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+              {user.linkedinUrl && (
+                <a
+                  href={user.linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded-xl bg-indigo-600/15 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/25 transition-colors flex items-center gap-1.5 text-xs font-semibold"
+                >
+                  LinkedIn
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Stats */}

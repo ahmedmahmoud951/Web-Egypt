@@ -18,6 +18,13 @@ import {
   Share2,
   Sparkles,
   Loader2,
+  Briefcase,
+  GraduationCap,
+  MapPin,
+  Home,
+  Heart,
+  Globe,
+  CheckCheck,
 } from 'lucide-react';
 import { adminApi } from '@/api/admin';
 import { useFlash } from '@/components/ui/FlashProvider';
@@ -54,6 +61,20 @@ export function EditUserModal({
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referralsCount, setReferralsCount] = useState<number>(0);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
+
+  // Facebook-Style Profile Details
+  const [workplace, setWorkplace] = useState('');
+  const [education, setEducation] = useState('');
+  const [city, setCity] = useState('');
+  const [hometown, setHometown] = useState('');
+  const [relationshipStatus, setRelationshipStatus] = useState('');
+  const [website, setWebsite] = useState('');
+  const [facebookUrl, setFacebookUrl] = useState('');
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [twitterUrl, setTwitterUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -69,12 +90,25 @@ export function EditUserModal({
       setBlockReason(user.blockReason || '');
       setNewPassword('');
 
-      // Initial assignment from list row
+      // Extended Profile
       setGender(user.gender || '');
       setNationalId(user.nationalId || '');
       setNeedsProfileCompletion(user.needsProfileCompletion ?? !user.gender);
       setReferralCode(user.referralCode || null);
       setReferralsCount(user.referralsCount || 0);
+
+      // Facebook details
+      setWorkplace(user.workplace || '');
+      setEducation(user.education || '');
+      setCity(user.city || '');
+      setHometown(user.hometown || '');
+      setRelationshipStatus(user.relationshipStatus || '');
+      setWebsite(user.website || '');
+      setFacebookUrl(user.facebookUrl || '');
+      setInstagramUrl(user.instagramUrl || '');
+      setTwitterUrl(user.twitterUrl || '');
+      setLinkedinUrl(user.linkedinUrl || '');
+      setIsEmailVerified(user.isEmailVerified || false);
 
       // Fetch fresh complete user details
       setLoadingDetails(true);
@@ -94,6 +128,18 @@ export function EditUserModal({
             setNeedsProfileCompletion(fullUser.needsProfileCompletion ?? !fullUser.gender);
             setReferralCode(fullUser.referralCode || null);
             setReferralsCount(fullUser.referralsCount || 0);
+
+            setWorkplace(fullUser.workplace || '');
+            setEducation(fullUser.education || '');
+            setCity(fullUser.city || '');
+            setHometown(fullUser.hometown || '');
+            setRelationshipStatus(fullUser.relationshipStatus || '');
+            setWebsite(fullUser.website || '');
+            setFacebookUrl(fullUser.facebookUrl || '');
+            setInstagramUrl(fullUser.instagramUrl || '');
+            setTwitterUrl(fullUser.twitterUrl || '');
+            setLinkedinUrl(fullUser.linkedinUrl || '');
+            setIsEmailVerified(fullUser.isEmailVerified || false);
           }
         })
         .catch(() => {
@@ -140,6 +186,19 @@ export function EditUserModal({
         isBlocked,
         blockReason: isBlocked ? (blockReason.trim() || 'تم الإيقاف بواسطة الإدارة') : null,
         password: newPassword.trim() || null,
+
+        // Facebook Profile fields
+        workplace: workplace.trim() || null,
+        education: education.trim() || null,
+        city: city.trim() || null,
+        hometown: hometown.trim() || null,
+        relationshipStatus: relationshipStatus.trim() || null,
+        website: website.trim() || null,
+        facebookUrl: facebookUrl.trim() || null,
+        instagramUrl: instagramUrl.trim() || null,
+        twitterUrl: twitterUrl.trim() || null,
+        linkedinUrl: linkedinUrl.trim() || null,
+        isEmailVerified,
       });
 
       flash.success('تم حفظ وتحديث بيانات المستخدم والملف الشخصي بنجاح.');
@@ -387,7 +446,20 @@ export function EditUserModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">البريد الإلكتروني</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-[#8B9CB0]">البريد الإلكتروني</label>
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-[#8B9CB0] hover:text-white">
+                  <input
+                    type="checkbox"
+                    checked={isEmailVerified}
+                    onChange={(e) => setIsEmailVerified(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded border-gray-700 text-emerald-500 focus:ring-emerald-500 bg-[#0E1A2B]"
+                  />
+                  <span className={isEmailVerified ? 'text-emerald-400 font-bold' : ''}>
+                    {isEmailVerified ? 'مفعّل ومؤكد ✓' : 'تأكيد البريد؟'}
+                  </span>
+                </label>
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#1F6B7A]" />
                 <input
@@ -413,6 +485,163 @@ export function EditUserModal({
                 className="admin-input pr-10 min-h-[60px] resize-none"
                 placeholder="نبذة عن المستخدم..."
               />
+            </div>
+          </div>
+
+          {/* Facebook-style About Details */}
+          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
+              <Briefcase className="w-3.5 h-3.5" />
+              <span>بيانات الملف الشخصي الموسعة (Facebook-Style Profile)</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">جهة العمل / الوظيفة (Workplace)</label>
+                <div className="relative">
+                  <Briefcase className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#1F6B7A]" />
+                  <input
+                    type="text"
+                    value={workplace}
+                    onChange={(e) => setWorkplace(e.target.value)}
+                    className="admin-input pr-10 text-xs"
+                    placeholder="مثال: مطور برمجيات في شركة..."
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">التعليم / الجامعة (Education)</label>
+                <div className="relative">
+                  <GraduationCap className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#1F6B7A]" />
+                  <input
+                    type="text"
+                    value={education}
+                    onChange={(e) => setEducation(e.target.value)}
+                    className="admin-input pr-10 text-xs"
+                    placeholder="مثال: هندسة القاهرة..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">المدينة الحالية / الإقامة (City)</label>
+                <div className="relative">
+                  <MapPin className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#1F6B7A]" />
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="admin-input pr-10 text-xs"
+                    placeholder="مثال: القاهرة، مصر"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">الموطن الأصلي / مسقط الرأس (Hometown)</label>
+                <div className="relative">
+                  <Home className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#1F6B7A]" />
+                  <input
+                    type="text"
+                    value={hometown}
+                    onChange={(e) => setHometown(e.target.value)}
+                    className="admin-input pr-10 text-xs"
+                    placeholder="مثال: الإسكندرية"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">الحالة الاجتماعية (Relationship)</label>
+                <div className="relative">
+                  <Heart className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#1F6B7A]" />
+                  <input
+                    type="text"
+                    value={relationshipStatus}
+                    onChange={(e) => setRelationshipStatus(e.target.value)}
+                    className="admin-input pr-10 text-xs"
+                    placeholder="أعزب / متزوج / مرتبط..."
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">الموقع الإلكتروني (Website)</label>
+                <div className="relative">
+                  <Globe className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-[#1F6B7A]" />
+                  <input
+                    type="text"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    className="admin-input pr-10 text-xs font-mono text-left"
+                    placeholder="https://example.com"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Social Links */}
+          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
+              <Share2 className="w-3.5 h-3.5" />
+              <span>روابط التواصل الاجتماعي (Social Links)</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">رابط Facebook</label>
+                <input
+                  type="text"
+                  value={facebookUrl}
+                  onChange={(e) => setFacebookUrl(e.target.value)}
+                  className="admin-input text-xs font-mono text-left"
+                  placeholder="https://facebook.com/..."
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">رابط Instagram</label>
+                <input
+                  type="text"
+                  value={instagramUrl}
+                  onChange={(e) => setInstagramUrl(e.target.value)}
+                  className="admin-input text-xs font-mono text-left"
+                  placeholder="https://instagram.com/..."
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">رابط Twitter / X</label>
+                <input
+                  type="text"
+                  value={twitterUrl}
+                  onChange={(e) => setTwitterUrl(e.target.value)}
+                  className="admin-input text-xs font-mono text-left"
+                  placeholder="https://x.com/..."
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#8B9CB0] mb-1.5">رابط LinkedIn</label>
+                <input
+                  type="text"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  className="admin-input text-xs font-mono text-left"
+                  placeholder="https://linkedin.com/in/..."
+                  dir="ltr"
+                />
+              </div>
             </div>
           </div>
 

@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { AdminShell } from '@/components/admin/AdminShell';
 import { financialAdminApi } from '@/api/financialAdmin';
 import { AdminWalletListItemDto, AdminLedgerEntryDto } from '@/types/financial';
+import { CreditCard, Scale, Landmark, Wallet, CircleDollarSign } from 'lucide-react';
 
 export default function AdminWalletsPage() {
   const [wallets, setWallets] = useState<AdminWalletListItemDto[]>([]);
@@ -126,14 +129,65 @@ export default function AdminWalletsPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">إدارة محافظ المستخدمين والأرصدة</h1>
-          <p className="text-sm text-zinc-400 mt-1">متابعة دقيقة للأرصدة المتاحة، المعلقة، المقفولة، وإجراء التسويات المحاسبية المعيارية</p>
+    <AdminShell>
+      <div className="p-6 max-w-7xl mx-auto space-y-6 pb-16" dir="rtl">
+        {/* Navigation Breadcrumbs & Financial Section Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-3.5 rounded-2xl border border-white/10 backdrop-blur-md">
+          <div className="flex items-center gap-2 text-xs text-slate-300">
+            <Link href="/admin" className="text-cyan-400 hover:underline flex items-center gap-1 font-bold">
+              لوحة القيادة
+            </Link>
+            <span className="text-slate-600">/</span>
+            <Link href="/admin/payments" className="text-cyan-400 hover:underline">
+              المالية
+            </Link>
+            <span className="text-slate-600">/</span>
+            <span className="text-white font-black">إدارة محافظ المستخدمين والأرصدة</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+            <Link
+              href="/admin/payments"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/5 transition flex items-center gap-1.5"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-cyan-400" />
+              <span>سجل العمليات</span>
+            </Link>
+            <Link
+              href="/admin/payments/reconciliation"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/5 transition flex items-center gap-1.5"
+            >
+              <Scale className="w-3.5 h-3.5 text-amber-400" />
+              <span>المطابقة المالية</span>
+            </Link>
+            <Link
+              href="/admin/payment-providers"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/5 transition flex items-center gap-1.5"
+            >
+              <Landmark className="w-3.5 h-3.5 text-cyan-400" />
+              <span>بوابات الدفع والرسوم</span>
+            </Link>
+            <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.3)] flex items-center gap-1.5">
+              <Wallet className="w-3.5 h-3.5 text-emerald-300" />
+              <span>المحافظ والأرصدة</span>
+            </span>
+            <Link
+              href="/admin/withdrawals"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/5 transition flex items-center gap-1.5"
+            >
+              <CircleDollarSign className="w-3.5 h-3.5 text-rose-400" />
+              <span>السحوبات</span>
+            </Link>
+          </div>
         </div>
-      </div>
+
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800 pb-5">
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">إدارة محافظ المستخدمين والأرصدة</h1>
+            <p className="text-sm text-zinc-400 mt-1">متابعة دقيقة للأرصدة المتاحة، المعلقة، المقفولة، وإجراء التسويات المحاسبية المعيارية</p>
+          </div>
+        </div>
 
       {/* Filter Bar */}
       <form onSubmit={handleFilterSubmit} className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row gap-3">
@@ -563,6 +617,7 @@ export default function AdminWalletsPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AdminShell>
   );
 }

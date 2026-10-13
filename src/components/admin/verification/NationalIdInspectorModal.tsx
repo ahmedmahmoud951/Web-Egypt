@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import {
   VerificationRequestItem,
   verificationDocumentTypeLabel,
+  verificationAdminApi,
 } from '@/api/verificationAdmin';
 import { resolveMediaUrl } from '@/lib/media';
 import {
@@ -30,7 +31,11 @@ import {
   Shield,
   RotateCw,
   MessageCircle,
+  Bell,
+  Smartphone,
+  Send,
 } from 'lucide-react';
+import { auditVerificationDocument } from '@/lib/verificationAuditHelper';
 
 const EGYPT_GOVERNORATES_MAP: Record<string, string> = {
   '01': 'القاهرة',
@@ -78,10 +83,21 @@ function parseEgyptianNationalId(id?: string) {
   const gender = genderDigit % 2 === 1 ? 'ذكر' : 'أنثى';
   const age = new Date().getFullYear() - year;
 
-  // Format with friendly spaces: 2 98 01 01 01 01234
+  // LTR Segments: [0] Century, [1..3] Year, [3..5] Month, [5..7] Day, [7..9] Gov, [9..14] Sequence
+  const segments = {
+    century: clean[0],
+    centuryYear: centuryDigit === 3 ? '2000+' : '1900+',
+    year: clean.slice(1, 3),
+    month: clean.slice(3, 5),
+    day: clean.slice(5, 7),
+    govCode,
+    sequence: clean.slice(9),
+  };
+
+  // Space-delimited string
   const formatted = `${clean[0]} ${clean.slice(1, 3)} ${clean.slice(3, 5)} ${clean.slice(5, 7)} ${clean.slice(7, 9)} ${clean.slice(9)}`;
 
-  return { year, month, day, governorate, gender, age, formatted };
+  return { year, month, day, governorate, gender, age, formatted, clean, segments };
 }
 
 interface NationalIdInspectorModalProps {
@@ -92,6 +108,7 @@ interface NationalIdInspectorModalProps {
   onReject: (request: VerificationRequestItem) => void;
   onReview: (requestId: string) => void;
   onDelete: (requestId: string) => void;
+  onRequestReupload?: (requestId: string, message?: string) => Promise<void> | void;
   isActionable: boolean;
   isPending: boolean;
 }
@@ -104,6 +121,7 @@ export function NationalIdInspectorModal({
   onReject,
   onReview,
   onDelete,
+  onRequestReupload,
   isActionable,
   isPending,
 }: NationalIdInspectorModalProps) {
@@ -111,15 +129,45 @@ export function NationalIdInspectorModal({
   const [selectedDocIndex, setSelectedDocIndex] = useState(0);
   const [imageRotation, setImageRotation] = useState(0);
 
+  // Re-upload notification states
+  const [isSendingReupload, setIsSendingReupload] = useState(false);
+  const [reuploadSuccess, setReuploadSuccess] = useState(false);
+  const [reuploadMessage, setReuploadMessage] = useState(
+    'يرجى إعادة رفع صورة واضحة لوجه وظهر بطاقة الرقم القومي الأصلية لاستكمال توثيق حسابك.'
+  );
+  const [reuploadError, setReuploadError] = useState<string | null>(null);
+
   // Parse National ID data
-  const rawId = request.extractedNationalId;
+  const rawId = request.extractedNationalId || (request as any).applicantNationalId || (request as any).ownerNationalId;
   const parsedId = parseEgyptianNationalId(rawId);
+  const docAudit = auditVerificationDocument(request);
 
   const handleCopyId = () => {
-    if (rawId) {
-      navigator.clipboard.writeText(rawId);
+    const textToCopy = parsedId?.clean || rawId;
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy);
       setCopiedId(true);
       setTimeout(() => setCopiedId(false), 2500);
+    }
+  };
+
+  const handleSendReupload = async () => {
+    setIsSendingReupload(true);
+    setReuploadError(null);
+    try {
+      if (onRequestReupload) {
+        await onRequestReupload(request.id, reuploadMessage);
+      } else {
+        await verificationAdminApi.requestReupload(request.id, {
+          message: reuploadMessage,
+          reason: docAudit.reason,
+        });
+      }
+      setReuploadSuccess(true);
+    } catch (err: any) {
+      setReuploadError(err?.response?.data?.message || err?.message || 'فشل إرسال الإشعار، يرجى المحاولة ثانية');
+    } finally {
+      setIsSendingReupload(false);
     }
   };
 
@@ -215,60 +263,161 @@ export function NationalIdInspectorModal({
 
           {/* Extracted National ID Display */}
           {rawId ? (
-            <div className="space-y-3 sm:space-y-4 relative z-10">
-              <div className="p-3 sm:p-4 rounded-2xl bg-black/40 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1 min-w-0">
-                  <div className="text-[10px] sm:text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 shrink-0" />
-                    الرقم القومي المستخرج (14 رقم):
+            <div className="space-y-4 relative z-10">
+              <div className="p-3.5 sm:p-5 rounded-2xl bg-black/60 border border-amber-500/30 backdrop-blur-sm space-y-3.5 shadow-inner">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2.5">
+                  <div className="text-xs font-black text-amber-400 flex items-center gap-2">
+                    <Cpu className="w-4 h-4 shrink-0 text-amber-400" />
+                    <span>الرقم القومي المستخرج (14 رقم - قراءة صحيحة من اليسار لليمين):</span>
                   </div>
-                  <div className="text-base sm:text-2xl font-mono font-black tracking-widest text-white select-all break-all">
-                    {parsedId?.formatted || rawId}
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {request.ocrConfidenceScore && (
+                      <div className="px-2.5 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold text-center">
+                        <span className="text-[10px] text-slate-400 ml-1">دقة الفحص الذكي:</span>
+                        <span className="font-mono font-black">{Math.round(request.ocrConfidenceScore)}%</span>
+                      </div>
+                    )}
+                    {parsedId && (
+                      <div className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold text-center">
+                        📍 {parsedId.governorate}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                  {request.ocrConfidenceScore && (
-                    <div className="px-2.5 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold text-center">
-                      <div className="text-[9px] text-slate-400">دقة القراءة</div>
-                      <div className="font-mono font-black">{Math.round(request.ocrConfidenceScore)}%</div>
+                {/* Segmented Smart Chip National ID Display (Strict LTR - Never inverted) */}
+                {parsedId ? (
+                  <div className="space-y-2.5">
+                    <div
+                      dir="ltr"
+                      style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+                      className="flex items-center justify-center gap-1 sm:gap-2 flex-wrap font-mono select-all py-1.5"
+                    >
+                      {/* Century */}
+                      <div className="flex flex-col items-center">
+                        <span className="min-w-[34px] sm:min-w-[40px] text-center px-2 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 font-black text-base sm:text-2xl shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+                          {parsedId.segments.century}
+                        </span>
+                        <span className="text-[9px] text-amber-400/90 font-sans mt-0.5 font-bold">القرن</span>
+                      </div>
+
+                      <span className="text-slate-600 font-black text-lg select-none pb-3">·</span>
+
+                      {/* Year */}
+                      <div className="flex flex-col items-center">
+                        <span className="min-w-[38px] sm:min-w-[46px] text-center px-2 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-black text-base sm:text-2xl shadow-inner">
+                          {parsedId.segments.year}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-sans mt-0.5">السنة</span>
+                      </div>
+
+                      {/* Month */}
+                      <div className="flex flex-col items-center">
+                        <span className="min-w-[38px] sm:min-w-[46px] text-center px-2 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-black text-base sm:text-2xl shadow-inner">
+                          {parsedId.segments.month}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-sans mt-0.5">الشهر</span>
+                      </div>
+
+                      {/* Day */}
+                      <div className="flex flex-col items-center">
+                        <span className="min-w-[38px] sm:min-w-[46px] text-center px-2 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-black text-base sm:text-2xl shadow-inner">
+                          {parsedId.segments.day}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-sans mt-0.5">اليوم</span>
+                      </div>
+
+                      <span className="text-slate-600 font-black text-lg select-none pb-3">·</span>
+
+                      {/* Governorate */}
+                      <div className="flex flex-col items-center">
+                        <span className="min-w-[38px] sm:min-w-[46px] text-center px-2 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 font-black text-base sm:text-2xl shadow-[0_0_12px_rgba(6,182,212,0.2)]">
+                          {parsedId.segments.govCode}
+                        </span>
+                        <span className="text-[9px] text-cyan-400 font-sans mt-0.5 font-bold truncate max-w-[55px]">{parsedId.governorate}</span>
+                      </div>
+
+                      <span className="text-slate-600 font-black text-lg select-none pb-3">·</span>
+
+                      {/* Sequence & Checksum */}
+                      <div className="flex flex-col items-center">
+                        <span className="min-w-[70px] sm:min-w-[90px] text-center px-2.5 py-1.5 rounded-xl bg-slate-900 border border-amber-500/30 text-amber-200 font-black text-base sm:text-2xl tracking-widest shadow-inner">
+                          {parsedId.segments.sequence}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-sans mt-0.5">المسلسل والتحقق</span>
+                      </div>
                     </div>
-                  )}
-                  {parsedId && (
-                    <div className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold text-center">
-                      <div className="text-[9px] text-slate-400">المحافظة</div>
-                      <div className="text-xs">{parsedId.governorate}</div>
+
+                    {/* Compact LTR Formatted String with Copy button */}
+                    <div className="flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-black/40 border border-white/5 text-xs">
+                      <span className="text-slate-400 text-[11px] font-medium">الرقم القومي مجمع:</span>
+                      <span
+                        dir="ltr"
+                        style={{ direction: 'ltr', unicodeBidi: 'bidi-override' }}
+                        className="font-mono font-black text-amber-300 tracking-[0.25em] text-sm sm:text-base select-all"
+                      >
+                        {parsedId.formatted}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyId}
+                        className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-bold active:scale-95 transition"
+                      >
+                        {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedId ? 'تم النسخ' : 'نسخ'}</span>
+                      </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div
+                    dir="ltr"
+                    style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+                    className="text-center font-mono font-black text-xl text-white tracking-widest py-2 select-all"
+                  >
+                    {rawId}
+                  </div>
+                )}
               </div>
 
               {/* Data Grid Extracted from National ID */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
-                <div className="p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1 min-w-0">
-                  <span className="text-slate-400 text-[10px] sm:text-[11px] block">الاسم بالبطاقة:</span>
-                  <span className="font-black text-white text-xs sm:text-sm truncate block">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
+                <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1 min-w-0">
+                  <span className="text-slate-400 text-[11px] flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-amber-400" />
+                    <span>الاسم بالبطاقة:</span>
+                  </span>
+                  <span className="font-black text-white text-xs sm:text-sm truncate block pt-0.5">
                     {request.extractedFullName || request.userName}
                   </span>
                 </div>
 
-                <div className="p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1 min-w-0">
-                  <span className="text-slate-400 text-[10px] sm:text-[11px] block">تاريخ الميلاد والسن:</span>
-                  <span className="font-bold text-white text-xs sm:text-sm truncate block">
+                <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1 min-w-0">
+                  <span className="text-slate-400 text-[11px] flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>تاريخ الميلاد والسن:</span>
+                  </span>
+                  <span className="font-bold text-white text-xs sm:text-sm truncate block font-mono pt-0.5">
                     {parsedId ? `${parsedId.year}/${parsedId.month}/${parsedId.day} (${parsedId.age}س)` : 'غير متوفر'}
                   </span>
                 </div>
 
-                <div className="p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1 min-w-0">
-                  <span className="text-slate-400 text-[10px] sm:text-[11px] block">النوع (الجنس):</span>
-                  <span className="font-bold text-cyan-400 text-xs sm:text-sm truncate block">
+                <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1 min-w-0">
+                  <span className="text-slate-400 text-[11px] flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>النوع (الجنس):</span>
+                  </span>
+                  <span className="font-bold text-cyan-300 text-xs sm:text-sm truncate block pt-0.5">
                     {parsedId?.gender || request.extractedGender || 'غير محدد'}
                   </span>
                 </div>
 
-                <div className="p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1 min-w-0">
-                  <span className="text-slate-400 text-[10px] sm:text-[11px] block">محل الإقامة / المحافظة:</span>
-                  <span className="font-bold text-amber-300 text-xs sm:text-sm truncate block">
+                <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1 min-w-0">
+                  <span className="text-slate-400 text-[11px] flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                    <span>محل الإقامة / المحافظة:</span>
+                  </span>
+                  <span className="font-bold text-amber-300 text-xs sm:text-sm truncate block pt-0.5">
                     {parsedId?.governorate || request.extractedGovernorate || 'غير محدد'}
                   </span>
                 </div>
@@ -291,6 +440,131 @@ export function NationalIdInspectorModal({
               </p>
             </div>
           )}
+        </div>
+
+        {/* SECTION 1.5: DOCUMENT AUTHENTICITY & FRAUD AUDIT */}
+        <div
+          className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border transition-all space-y-3.5 ${
+            docAudit.isDummy
+              ? 'bg-gradient-to-r from-rose-950/70 via-slate-900 to-rose-950/70 border-rose-500/50 shadow-[0_0_25px_rgba(244,63,94,0.18)] ring-1 ring-rose-500/30'
+              : docAudit.isVerifiedId
+              ? 'bg-gradient-to-r from-emerald-950/70 via-slate-900 to-emerald-950/70 border-emerald-500/50 shadow-[0_0_25px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/30'
+              : 'bg-slate-950 border-slate-800'
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2.5">
+              {docAudit.isDummy ? (
+                <div className="w-9 h-9 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+                  <AlertTriangle className="w-5 h-5 animate-bounce" />
+                </div>
+              ) : docAudit.isVerifiedId ? (
+                <div className="w-9 h-9 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+              ) : (
+                <div className="w-9 h-9 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+              )}
+              <div>
+                <h4 className="font-black text-white text-xs sm:text-sm flex items-center gap-2">
+                  <span>فاحص أصالة المستند (Document Authenticity & Fraud Detection)</span>
+                </h4>
+                <div className="text-[10px] sm:text-[11px] text-slate-400">
+                  فحص الصور المرفوعة والتأكد من مطابقتها لبطاقة الرقم القومي الحقيقية
+                </div>
+              </div>
+            </div>
+
+            <div className="self-start sm:self-auto">
+              <span
+                className={`px-3 py-1.5 rounded-full text-xs font-black inline-flex items-center gap-1.5 border shadow-sm ${
+                  docAudit.isDummy
+                    ? 'bg-rose-500/25 text-rose-200 border-rose-500/50 animate-pulse'
+                    : docAudit.isVerifiedId
+                    ? 'bg-emerald-500/25 text-emerald-200 border-emerald-500/50'
+                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                }`}
+              >
+                {docAudit.isDummy ? '⚠️ مستند تجريبي (غير صالح)' : docAudit.isVerifiedId ? '✅ بطاقة رسمية معتمدة' : '📄 بانتظار الفحص'}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2.5 text-xs">
+            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 space-y-1.5">
+              <p className={`font-bold leading-relaxed text-xs sm:text-sm ${docAudit.isDummy ? 'text-rose-200' : docAudit.isVerifiedId ? 'text-emerald-200' : 'text-slate-300'}`}>
+                {docAudit.reason}
+              </p>
+              {docAudit.details && (
+                <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">
+                  {docAudit.details}
+                </p>
+              )}
+            </div>
+
+            {/* INTERACTIVE NOTIFICATION ACTION PANEL */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-900/95 border border-amber-500/30 space-y-3 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-white/10 pb-2">
+                <div className="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                  <Bell className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+                  <span>الإجراء المطلوب: إرسال إشعار لصاحب الحساب لإلزامه برفع الوجه والظهر للبطاقة القومية الأصلية</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  يصل الإشعار كتنبيه فوري عبر الموبايل (Push Notification + SignalR)
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-300 block">
+                  نص الرسالة والتوجيه المرسل لهاتف المستخدم:
+                </label>
+                <textarea
+                  rows={2}
+                  value={reuploadMessage}
+                  onChange={(e) => setReuploadMessage(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-slate-700 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-amber-500 leading-relaxed font-medium"
+                  placeholder="اكتب التوجيه المطلوب للمستخدم..."
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={isSendingReupload || !reuploadMessage.trim()}
+                  onClick={handleSendReupload}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-black transition-all shadow-md shadow-amber-500/20 flex items-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {isSendingReupload ? (
+                    <>
+                      <RotateCw className="w-4 h-4 animate-spin text-slate-950" />
+                      <span>جاري إرسال الإشعار والتنبيه للموبايل...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone className="w-4 h-4 text-slate-950" />
+                      <span>إرسال إشعار فوري لموبايل المستخدم 📲</span>
+                    </>
+                  )}
+                </button>
+
+                {reuploadSuccess && (
+                  <div className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>تم إرسال الإشعار والتنبيه لهاتف العميل بنجاح ✓</span>
+                  </div>
+                )}
+
+                {reuploadError && (
+                  <div className="px-3 py-1.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
+                    <XCircle className="w-4 h-4 text-rose-400" />
+                    <span>{reuploadError}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* SECTION 2: ATTACHED DOCUMENTS GALLERY & LIGHTBOX */}
@@ -363,6 +637,19 @@ export function NationalIdInspectorModal({
               {currentDoc && (
                 <div className="rounded-2xl bg-slate-950 border border-slate-800 p-3 sm:p-4 space-y-2.5 sm:space-y-3">
                   <div className="relative aspect-[4/3] sm:aspect-[16/10] w-full bg-black/60 rounded-xl overflow-hidden flex items-center justify-center border border-white/5">
+                    {/* Floating Authenticity Badge on Image */}
+                    {docAudit.isDummy ? (
+                      <div className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-xl bg-rose-600/90 backdrop-blur-md text-white text-[11px] font-black border border-white/20 shadow-2xl flex items-center gap-1.5 animate-pulse">
+                        <AlertTriangle className="w-3.5 h-3.5 text-white" />
+                        <span>⚠️ صورة تجريبية (ليست بطاقة هوية رسمية)</span>
+                      </div>
+                    ) : docAudit.isVerifiedId ? (
+                      <div className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-xl bg-emerald-600/90 backdrop-blur-md text-white text-[11px] font-black border border-white/20 shadow-2xl flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                        <span>✅ بطاقة هوية رسمية سليمة ومطابقة</span>
+                      </div>
+                    ) : null}
+
                     {currentDocUrl ? (
                       <img
                         src={currentDocUrl}
@@ -454,6 +741,17 @@ export function NationalIdInspectorModal({
                     <span>نقل لقيد المراجعة</span>
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={handleSendReupload}
+                  disabled={isSendingReupload}
+                  className="flex-1 sm:flex-none px-3.5 py-2.5 rounded-2xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-black transition flex items-center justify-center gap-1.5 min-h-[40px] active:scale-95 disabled:opacity-50"
+                  title="إرسال إشعار للمستخدم لتغيير صورة البطاقة"
+                >
+                  <Bell className="w-4 h-4 shrink-0 text-amber-400" />
+                  <span>{isSendingReupload ? 'جاري الإشعار...' : 'إشعار بتغيير البطاقة 🔔'}</span>
+                </button>
               </>
             )}
 

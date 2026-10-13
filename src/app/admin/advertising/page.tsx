@@ -80,6 +80,17 @@ import {
 
 type TabType = 'dashboard' | 'campaigns' | 'payments' | 'plans' | 'accounts' | 'videoAds';
 
+const parseAllowedAdTypes = (val: unknown): string[] => {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return val.map((x) => String(x).trim()).filter(Boolean);
+  }
+  if (typeof val === 'string') {
+    return val.split(',').map((x) => x.trim()).filter(Boolean);
+  }
+  return [];
+};
+
 export default function AdvertisingAdminPage() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [loading, setLoading] = useState(false);
@@ -108,6 +119,7 @@ export default function AdvertisingAdminPage() {
   // Campaigns
   const [campaigns, setCampaigns] = useState<AdvertisingCampaignSummary[]>([]);
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<string>('');
+  const [campaignTypeFilter, setCampaignTypeFilter] = useState<string>('');
   const [selectedCampaign, setSelectedCampaign] = useState<AdvertisingCampaignDetails | null>(null);
   const [loadingCampaignDetails, setLoadingCampaignDetails] = useState(false);
 
@@ -145,7 +157,7 @@ export default function AdvertisingAdminPage() {
     price: 500,
     currency: 'EGP',
     durationDays: 7,
-    allowedAdTypes: 'Feed,Story,Reels',
+    allowedAdTypes: ['Feed', 'Story', 'Reels'],
     isActive: true,
     displayOrder: 1,
   });
@@ -548,7 +560,11 @@ export default function AdvertisingAdminPage() {
   const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await advertisingAdminApi.savePlan(editingPlan);
+      const payload = {
+        ...editingPlan,
+        allowedAdTypes: parseAllowedAdTypes(editingPlan.allowedAdTypes),
+      };
+      await advertisingAdminApi.savePlan(payload);
       showFeedback('تم حفظ الباقة بنجاح');
       setPlanModalOpen(false);
       setRefreshKey((k) => k + 1);
@@ -595,6 +611,15 @@ export default function AdvertisingAdminPage() {
     if (campaignStatusFilter) {
       list = list.filter((c) => c.status === campaignStatusFilter);
     }
+    if (campaignTypeFilter) {
+      if (campaignTypeFilter === 'Feed') {
+        list = list.filter((c) => c.campaignType === 'Feed' || c.campaignType === 'FeedPost');
+      } else if (campaignTypeFilter === 'Video') {
+        list = list.filter((c) => c.campaignType === 'Video' || c.campaignType === 'InStream');
+      } else {
+        list = list.filter((c) => c.campaignType === campaignTypeFilter);
+      }
+    }
     if (campaignSearch.trim()) {
       const q = campaignSearch.toLowerCase();
       list = list.filter(
@@ -602,11 +627,12 @@ export default function AdvertisingAdminPage() {
           c.title?.toLowerCase().includes(q) ||
           c.advertiserName?.toLowerCase().includes(q) ||
           c.planName?.toLowerCase().includes(q) ||
+          c.campaignType?.toLowerCase().includes(q) ||
           c.id?.toLowerCase().includes(q)
       );
     }
     return list;
-  }, [campaigns, campaignStatusFilter, campaignSearch]);
+  }, [campaigns, campaignStatusFilter, campaignTypeFilter, campaignSearch]);
 
   const filteredPayments = useMemo(() => {
     let list = payments;
@@ -698,7 +724,7 @@ export default function AdvertisingAdminPage() {
                       price: 500,
                       currency: 'EGP',
                       durationDays: 7,
-                      allowedAdTypes: 'Feed,Story,Reels',
+                      allowedAdTypes: ['Feed', 'Story', 'Reels'],
                       isActive: true,
                       displayOrder: 1,
                     });
@@ -1174,6 +1200,30 @@ export default function AdvertisingAdminPage() {
                   العدد المعروض: {filteredCampaigns.length}
                 </span>
               </div>
+
+              {/* Placement / Type Filter Chips */}
+              <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-white/5">
+                <span className="text-xs font-bold text-slate-400 ml-1">موضع ونوع الإعلان:</span>
+                {[
+                  { id: '', label: 'كافة المواضع' },
+                  { id: 'Reels', label: '🎬 مقطع ريلز ممول (Reels Feed)' },
+                  { id: 'Video', label: '📺 إعلان مدمج داخل الفيديو (In-Stream MidRoll)' },
+                  { id: 'Feed', label: '📰 منشورات الخلاصة (Feed)' },
+                  { id: 'Story', label: '⚡ القصص والحالات (Story)' },
+                ].map((pill) => (
+                  <button
+                    key={pill.id}
+                    onClick={() => setCampaignTypeFilter(pill.id)}
+                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                      campaignTypeFilter === pill.id
+                        ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 shadow-md shadow-amber-500/20 font-black'
+                        : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* VIEW MODE: 3D LUXURY CARDS */}
@@ -1257,7 +1307,11 @@ export default function AdvertisingAdminPage() {
 
                             {/* Placement / Type */}
                             <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-black/60 backdrop-blur-md text-amber-300 border border-amber-500/20">
-                              {camp.campaignType || 'Feed'}
+                              {camp.campaignType === 'Feed' || camp.campaignType === 'FeedPost' ? 'خلاصة (Feed)' :
+                               camp.campaignType === 'Story' ? 'ستوري (Story)' :
+                               camp.campaignType === 'Reels' ? 'ريلز ممول (Reels)' :
+                               camp.campaignType === 'Video' ? 'فيديو مدمج (In-Stream)' :
+                               camp.campaignType || 'خلاصة'}
                             </span>
                           </div>
 
@@ -1354,7 +1408,7 @@ export default function AdvertisingAdminPage() {
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
 
-                            {camp.status === 'PendingReview' && (
+                            {(camp.status === 'PendingReview' || !camp.approvedAt) && camp.status !== 'Rejected' && camp.status !== 'Cancelled' && camp.status !== 'Completed' && (
                               <>
                                 <button
                                   onClick={() => handleApproveCampaign(camp.id)}
@@ -2036,7 +2090,7 @@ export default function AdvertisingAdminPage() {
                     price: 500,
                     currency: 'EGP',
                     durationDays: 7,
-                    allowedAdTypes: 'Feed,Story,Reels',
+                    allowedAdTypes: ['Feed', 'Story', 'Reels'],
                     isActive: true,
                     displayOrder: plans.length + 1,
                   });
@@ -2093,9 +2147,32 @@ export default function AdvertisingAdminPage() {
 
                     {/* Features list */}
                     <div className="space-y-2 text-xs border-t border-white/5 pt-3">
-                      <div className="flex items-center justify-between text-slate-300">
-                        <span className="text-slate-400">مواضع الظهور:</span>
-                        <span className="font-bold text-amber-300">{plan.allowedAdTypes}</span>
+                      <div className="flex items-start justify-between gap-2 text-xs">
+                        <span className="text-slate-400 shrink-0">مواضع الظهور:</span>
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {parseAllowedAdTypes(plan.allowedAdTypes).map((t) => (
+                            <span
+                              key={t}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                                t.toLowerCase() === 'reels'
+                                  ? 'bg-pink-500/10 text-pink-300 border-pink-500/30'
+                                  : t.toLowerCase() === 'video'
+                                  ? 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+                                  : t.toLowerCase() === 'story'
+                                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                                  : 'bg-blue-500/10 text-blue-300 border-blue-500/30'
+                              }`}
+                            >
+                              {t.toLowerCase() === 'reels'
+                                ? 'ريلز ممول'
+                                : t.toLowerCase() === 'video'
+                                ? 'فيديو مدمج In-Stream'
+                                : t.toLowerCase() === 'story'
+                                ? 'ستوري'
+                                : 'خلاصة'}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                       {plan.maxImpressions != null && (
                         <div className="flex items-center justify-between text-slate-300">
@@ -2112,7 +2189,10 @@ export default function AdvertisingAdminPage() {
                   <div className="flex items-center gap-2 pt-3 border-t border-white/10">
                     <button
                       onClick={() => {
-                        setEditingPlan(plan);
+                        setEditingPlan({
+                          ...plan,
+                          allowedAdTypes: parseAllowedAdTypes(plan.allowedAdTypes),
+                        });
                         setPlanModalOpen(true);
                       }}
                       className="flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors"
@@ -2384,9 +2464,10 @@ export default function AdvertisingAdminPage() {
                       <h3 className="text-base sm:text-lg font-black text-white">{selectedCampaign.title}</h3>
                       {/* Campaign Type Pill */}
                       <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
-                        {selectedCampaign.campaignType === 'Feed' ? 'إعلان خلاصة (Feed)' :
+                        {selectedCampaign.campaignType === 'Feed' || selectedCampaign.campaignType === 'FeedPost' ? 'إعلان منشور خلاصة (Feed Post)' :
                          selectedCampaign.campaignType === 'Story' ? 'إعلان ستوري (Story)' :
-                         selectedCampaign.campaignType === 'Reels' ? 'إعلان ريلز (Reels)' :
+                         selectedCampaign.campaignType === 'Reels' ? 'مقطع ريلز ممول (Sponsored Reel)' :
+                         selectedCampaign.campaignType === 'Video' ? 'إعلان مدمج داخل الفيديو (In-Stream MidRoll)' :
                          selectedCampaign.campaignType === 'Banner' ? 'بانر رئيسي (Banner)' :
                          selectedCampaign.campaignType}
                       </span>
@@ -3421,7 +3502,7 @@ export default function AdvertisingAdminPage() {
                     إغلاق
                   </button>
 
-                  {selectedCampaign.status === 'PendingReview' && (
+                  {(selectedCampaign.status === 'PendingReview' || !selectedCampaign.approvedAt) && selectedCampaign.status !== 'Rejected' && selectedCampaign.status !== 'Cancelled' && selectedCampaign.status !== 'Completed' && (
                     <>
                       <button
                         onClick={() => handleApproveCampaign(selectedCampaign.id)}
@@ -3765,11 +3846,65 @@ export default function AdvertisingAdminPage() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-300 mb-1">الأنواع المدعومة (مفصولة بفاصلة):</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-bold text-slate-300">مواضع الإعلان المدعومة في الباقة:</label>
+                    <span className="text-[10px] text-amber-400 font-mono font-bold">
+                      {parseAllowedAdTypes(editingPlan.allowedAdTypes).join(', ') || 'لم يتم تحديد مواضع'}
+                    </span>
+                  </div>
+
+                  {/* Interactive Placement Toggles */}
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    {[
+                      { key: 'Reels', label: '🎬 مقطع ريلز ممول', sub: 'يظهر في الفيديوهات الرأسية' },
+                      { key: 'Video', label: '📺 إعلان مدمج بالفيديو', sub: 'In-Stream قاطع للمشغل' },
+                      { key: 'Feed', label: '📰 منشورات الخلاصة', sub: 'منشور ممول بالرئيسية' },
+                      { key: 'Story', label: '⚡ قصص وحالات', sub: 'يظهر في شريط الستوري' },
+                    ].map((item) => {
+                      const cur = parseAllowedAdTypes(editingPlan.allowedAdTypes);
+                      const active = cur.some((s) => s.toLowerCase() === item.key.toLowerCase());
+                      return (
+                        <button
+                          type="button"
+                          key={item.key}
+                          onClick={() => {
+                            let next: string[];
+                            if (active) {
+                              next = cur.filter((x) => x.toLowerCase() !== item.key.toLowerCase());
+                            } else {
+                              next = [...cur, item.key];
+                            }
+                            setEditingPlan({ ...editingPlan, allowedAdTypes: next });
+                          }}
+                          className={`p-2.5 rounded-xl border text-right transition-all flex flex-col justify-between ${
+                            active
+                              ? 'bg-amber-500/20 border-amber-500/50 text-white shadow-sm shadow-amber-500/10'
+                              : 'bg-black/30 border-white/5 text-slate-400 hover:border-white/10'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-black text-[11px]">{item.label}</span>
+                            <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] font-black ${active ? 'bg-amber-400 text-slate-950 border-amber-400' : 'border-slate-600'}`}>
+                              {active ? '✓' : ''}
+                            </span>
+                          </div>
+                          <span className="text-[9px] text-slate-500 mt-1">{item.sub}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Manual input */}
                   <input
                     type="text"
-                    value={editingPlan.allowedAdTypes || 'Feed,Story,Reels'}
-                    onChange={(e) => setEditingPlan({ ...editingPlan, allowedAdTypes: e.target.value })}
+                    value={parseAllowedAdTypes(editingPlan.allowedAdTypes).join(',')}
+                    onChange={(e) =>
+                      setEditingPlan({
+                        ...editingPlan,
+                        allowedAdTypes: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
+                      })
+                    }
+                    placeholder="Feed,Story,Reels,Video"
                     className="w-full p-2.5 rounded-xl bg-black/50 border border-white/10 text-white text-xs font-mono"
                   />
                 </div>

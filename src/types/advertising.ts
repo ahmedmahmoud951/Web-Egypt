@@ -69,7 +69,7 @@ export interface AdvertisingPlan {
   maxBudget?: number;
   maxImpressions?: number;
   maxVideoDurationSeconds?: number;
-  allowedAdTypes: string;
+  allowedAdTypes: string[] | string;
   isActive: boolean;
   displayOrder: number;
   createdAt: string;

@@ -27,7 +27,11 @@ import {
   Cpu,
   User,
   Shield,
+  AlertTriangle,
+  Bell,
+  Smartphone,
 } from 'lucide-react';
+import { auditVerificationDocument } from '@/lib/verificationAuditHelper';
 
 const EGYPT_GOVERNORATES_MAP: Record<string, string> = {
   '01': 'القاهرة',
@@ -63,11 +67,15 @@ const EGYPT_GOVERNORATES_MAP: Record<string, string> = {
 function parseQuickNationalId(id?: string) {
   if (!id || !/^\d{14}$/.test(id.trim())) return null;
   const clean = id.trim();
+  const century = clean[0] === '3' ? 2000 : clean[0] === '2' ? 1900 : null;
+  const year = century ? century + parseInt(clean.slice(1, 3), 10) : null;
+  const age = year ? new Date().getFullYear() - year : null;
   const govCode = clean.slice(7, 9);
   const governorate = EGYPT_GOVERNORATES_MAP[govCode] || null;
   const genderDigit = parseInt(clean[12], 10);
   const gender = genderDigit % 2 === 1 ? 'ذكر' : 'أنثى';
-  return { governorate, gender };
+  const formatted = `${clean[0]} ${clean.slice(1, 3)} ${clean.slice(3, 5)} ${clean.slice(5, 7)} ${clean.slice(7, 9)} ${clean.slice(9)}`;
+  return { governorate, gender, age, formatted, clean };
 }
 
 interface VerificationRequestCardProps {
@@ -77,6 +85,7 @@ interface VerificationRequestCardProps {
   onReject: (request: VerificationRequestItem) => void;
   onReview: (requestId: string) => void;
   onDelete: (requestId: string) => void;
+  onRequestReupload?: (request: VerificationRequestItem) => void;
   normalizeStatus: (status: any, name?: string) => number;
   isActionable: boolean;
 }
@@ -88,12 +97,14 @@ export function VerificationRequestCard({
   onReject,
   onReview,
   onDelete,
+  onRequestReupload,
   normalizeStatus,
   isActionable,
 }: VerificationRequestCardProps) {
   const statusCode = normalizeStatus(request.status, request.statusName);
   const rawId = request.extractedNationalId;
   const parsed = parseQuickNationalId(rawId);
+  const docAudit = auditVerificationDocument(request);
 
   // Status Badge Helper
   const renderStatusBadge = () => {
@@ -159,16 +170,20 @@ export function VerificationRequestCard({
   const docs = request.documents || [];
 
   return (
-    <div className="group rounded-2xl sm:rounded-3xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/40 p-4 sm:p-5 space-y-3.5 sm:space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-amber-500/10 text-right flex flex-col justify-between">
-      <div className="space-y-3 sm:space-y-3.5">
+    <div className="group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-b from-slate-900 via-[#0e1626] to-slate-950 border border-slate-800 hover:border-amber-500/50 p-4 sm:p-5 space-y-3.5 sm:space-y-4 transition-all duration-300 hover:shadow-2xl hover:shadow-amber-500/10 text-right flex flex-col justify-between">
+      {/* Ambient hover glow */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-amber-500/10 transition-colors" />
+
+      <div className="space-y-3 sm:space-y-3.5 relative z-10">
         {/* TOP ROW: USER IDENTITY & STATUS */}
         <div className="flex items-start justify-between gap-2.5 sm:gap-3">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-cyan-500/20 border border-white/10 flex items-center justify-center font-black text-amber-400 text-sm shrink-0 shadow-md">
+            <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-slate-800 to-cyan-500/20 border border-white/10 flex items-center justify-center font-black text-amber-300 text-base shrink-0 shadow-md">
               {(request.userName || 'م').charAt(0)}
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-900" />
             </div>
             <div className="min-w-0 space-y-0.5">
-              <h4 className="font-black text-white text-xs sm:text-sm truncate group-hover:text-amber-400 transition-colors">
+              <h4 className="font-black text-white text-xs sm:text-sm truncate group-hover:text-amber-300 transition-colors">
                 {request.userName || 'مستخدم بدون اسم'}
               </h4>
               <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
@@ -177,7 +192,7 @@ export function VerificationRequestCard({
                   <div className="flex items-center gap-1.5 shrink-0">
                     <a
                       href={`tel:${request.userPhoneNumber}`}
-                      className="p-1 rounded-lg bg-slate-800/60 hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-colors"
+                      className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-cyan-400 transition-colors"
                       title="اتصال هاتفي"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -187,8 +202,8 @@ export function VerificationRequestCard({
                       href={`https://wa.me/20${request.userPhoneNumber.replace(/\D/g, '').replace(/^0/, '')}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="p-1 rounded-lg bg-slate-800/60 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition-colors"
-                      title="واتساب"
+                      className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition-colors"
+                      title="مراسلة عبر واتساب"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MessageCircle className="w-3 h-3" />
@@ -202,13 +217,20 @@ export function VerificationRequestCard({
           <div className="shrink-0">{renderStatusBadge()}</div>
         </div>
 
-        {/* NATIONAL ID STRIP (IF EXTRACTED) */}
+        {/* NATIONAL ID STRIP (STRICT LTR - GUARANTEED NOT INVERTED) */}
         {rawId ? (
-          <div className="p-2.5 sm:p-3 rounded-2xl bg-slate-950/80 border border-amber-500/20 space-y-1.5">
+          <div className="p-3 rounded-2xl bg-black/50 border border-amber-500/30 space-y-2 shadow-inner">
             <div className="flex items-center justify-between gap-1 text-[11px]">
-              <span className="font-mono font-black text-white tracking-wider flex items-center gap-1 min-w-0 truncate">
-                <span className="text-amber-400 shrink-0">🪪</span>
-                <span dir="ltr" className="truncate">{rawId}</span>
+              <span className="flex items-center gap-1.5 min-w-0 truncate">
+                <span className="text-xs">🦅</span>
+                <span className="text-[10px] text-amber-400/90 font-bold">الرقم القومي:</span>
+                <span
+                  dir="ltr"
+                  style={{ direction: 'ltr', unicodeBidi: 'isolate' }}
+                  className="font-mono font-black text-white tracking-wider text-xs sm:text-sm select-all"
+                >
+                  {parsed?.formatted || rawId}
+                </span>
               </span>
               {request.isAutoVerified && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
@@ -217,9 +239,12 @@ export function VerificationRequestCard({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] text-slate-400 font-medium">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] text-slate-400 font-medium pt-0.5 border-t border-white/5">
               {parsed?.governorate && (
                 <span className="text-amber-300 font-bold">📍 {parsed.governorate}</span>
+              )}
+              {parsed?.age && (
+                <span>• 🎂 {parsed.age} سنة</span>
               )}
               {parsed?.gender && (
                 <span>• {parsed.gender === 'ذكر' ? '👨 ذكر' : '👩 أنثى'}</span>
@@ -232,11 +257,67 @@ export function VerificationRequestCard({
             </div>
           </div>
         ) : (
-          <div className="p-2.5 rounded-2xl bg-slate-950/40 border border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-2">
+          <div className="p-2.5 rounded-2xl bg-black/30 border border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
             <span className="text-amber-400 shrink-0">📄</span>
-            <span className="truncate">بانتظار الفحص اليدوي للوثائق المرفقة</span>
+            <span className="truncate">بانتظار الفحص والمعاينة لصور البطاقة المرفقة</span>
           </div>
         )}
+
+        {/* DOCUMENT AUTHENTICITY & DUMMY DETECTOR BADGE */}
+        <div
+          className={`p-2.5 sm:p-3 rounded-2xl border flex flex-col gap-2 text-xs transition-all ${
+            docAudit.isDummy
+              ? 'bg-rose-950/40 border-rose-500/40 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.12)] ring-1 ring-rose-500/20'
+              : docAudit.isVerifiedId
+              ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.08)]'
+              : 'bg-slate-950/60 border-slate-800 text-slate-300'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {docAudit.isDummy ? (
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 animate-pulse" />
+              ) : docAudit.isVerifiedId ? (
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              ) : (
+                <FileText className="w-4 h-4 text-cyan-400 shrink-0" />
+              )}
+              <span className="font-black text-[11px] truncate">{docAudit.statusLabel}</span>
+            </div>
+
+            <span
+              className={`text-[10px] font-black px-2 py-0.5 rounded-full border shrink-0 ${
+                docAudit.isDummy
+                  ? 'bg-rose-500/25 text-rose-200 border-rose-500/50'
+                  : docAudit.isVerifiedId
+                  ? 'bg-emerald-500/25 text-emerald-200 border-emerald-500/50'
+                  : 'bg-slate-800 text-slate-400 border-slate-700'
+              }`}
+            >
+              {docAudit.isDummy ? 'تنبيه: تجريبية ⚠️' : docAudit.isVerifiedId ? 'رسمية ✓' : 'يدوي'}
+            </span>
+          </div>
+
+          {docAudit.isDummy && (
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-rose-500/20 text-[10px]">
+              <span className="text-rose-200 truncate font-semibold">الصورة المرفوعة ليست بطاقة هوية رسمية</span>
+              {onRequestReupload && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRequestReupload(request);
+                  }}
+                  className="px-2 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-black flex items-center gap-1 transition shadow-sm active:scale-95 shrink-0 cursor-pointer"
+                  title="إرسال إشعار للمستخدم لتغيير صورة البطاقة"
+                >
+                  <Bell className="w-3 h-3" />
+                  <span>إشعار بتغيير البطاقة 🔔</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* BADGE & PLAN INFO */}
         <div className="grid grid-cols-2 gap-2 text-xs">
@@ -272,11 +353,29 @@ export function VerificationRequestCard({
                   <div
                     key={d.id}
                     onClick={() => onInspect(request)}
-                    className="cursor-pointer group/doc relative w-16 h-12 rounded-xl bg-slate-950 border border-slate-800 overflow-hidden shrink-0 hover:border-cyan-500/50 transition-all active:scale-95"
+                    className={`cursor-pointer group/doc relative w-16 h-12 rounded-xl bg-slate-950 border overflow-hidden shrink-0 transition-all active:scale-95 ${
+                      docAudit.isDummy
+                        ? 'border-rose-500/50 hover:border-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.2)]'
+                        : docAudit.isVerifiedId
+                        ? 'border-emerald-500/50 hover:border-emerald-400'
+                        : 'border-slate-800 hover:border-cyan-500/50'
+                    }`}
                     title={label}
                   >
                     {url ? (
-                      <img src={url} alt={label} className="w-full h-full object-cover group-hover/doc:scale-110 transition-transform" />
+                      <>
+                        <img src={url} alt={label} className="w-full h-full object-cover group-hover/doc:scale-110 transition-transform" />
+                        {docAudit.isDummy && (
+                          <div className="absolute top-0.5 right-0.5 bg-rose-600/90 text-[8px] font-black text-white px-1 py-0.2 rounded shadow">
+                            تجريبية
+                          </div>
+                        )}
+                        {docAudit.isVerifiedId && (
+                          <div className="absolute top-0.5 right-0.5 bg-emerald-600/90 text-[8px] font-black text-white px-1 py-0.2 rounded shadow">
+                            رسمية
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-600">
                         <FileText className="w-4 h-4" />
@@ -303,18 +402,29 @@ export function VerificationRequestCard({
         <button
           type="button"
           onClick={() => onInspect(request)}
-          className="flex-1 py-2 px-2.5 sm:px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm min-h-[38px] active:scale-95"
+          className="flex-1 py-2 px-2.5 sm:px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm min-h-[38px] active:scale-95 cursor-pointer"
         >
           <Eye className="w-3.5 h-3.5 shrink-0" />
           <span>فحص ومعاينة</span>
         </button>
+
+        {onRequestReupload && (
+          <button
+            type="button"
+            onClick={() => onRequestReupload(request)}
+            className="p-2 rounded-xl text-amber-300 hover:text-amber-200 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 transition min-h-[38px] min-w-[38px] flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
+            title="إرسال إشعار للمستخدم لتغيير صورة البطاقة 🔔"
+          >
+            <Bell className="w-3.5 h-3.5" />
+          </button>
+        )}
 
         {isActionable && (
           <>
             <button
               type="button"
               onClick={() => onApprove(request)}
-              className="py-2 px-3 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md flex items-center gap-1 min-h-[38px] active:scale-95 shrink-0"
+              className="py-2 px-3 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md flex items-center gap-1 min-h-[38px] active:scale-95 shrink-0 cursor-pointer"
               title="اعتماد وتفعيل"
             >
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -324,8 +434,8 @@ export function VerificationRequestCard({
             <button
               type="button"
               onClick={() => onReject(request)}
-              className="py-2 px-2.5 sm:px-3 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-xs font-bold transition min-h-[38px] active:scale-95 shrink-0"
-              title="رفض"
+              className="py-2 px-2.5 sm:px-3 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-xs font-bold transition min-h-[38px] active:scale-95 shrink-0 cursor-pointer"
+              title="رفض الطلب"
             >
               <XCircle className="w-3.5 h-3.5 shrink-0" />
             </button>
@@ -335,7 +445,7 @@ export function VerificationRequestCard({
         <button
           type="button"
           onClick={() => onDelete(request.id)}
-          className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-800/40 transition min-h-[38px] min-w-[38px] flex items-center justify-center shrink-0 active:scale-95"
+          className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 border border-transparent hover:border-rose-800/40 transition min-h-[38px] min-w-[38px] flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
           title="حذف الطلب"
         >
           <Trash2 className="w-3.5 h-3.5" />

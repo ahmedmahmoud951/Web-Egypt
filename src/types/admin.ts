@@ -7,6 +7,9 @@ export interface AdminDashboardStats {
   hiddenEvents: number;
   blockedUsers?: number;
   pendingComplaints?: number;
+  pendingVerifications?: number;
+  pendingUserVerifications?: number;
+  pendingPageVerifications?: number;
 }
 
 export interface AdminUserListItem {
@@ -25,6 +28,9 @@ export interface AdminUserListItem {
   nationalId?: string | null;
   gender?: string | null;
   genderArabic?: string | null;
+  email?: string | null;
+  isEmailVerified?: boolean;
+  city?: string | null;
   hasGender?: boolean;
   hasNationalId?: boolean;
   needsProfileCompletion?: boolean;
@@ -39,6 +45,22 @@ export interface AdminUserDetail extends AdminUserListItem {
   bio?: string | null;
   avatarUrl?: string | null;
   avatarMediaId?: string | null;
+  coverUrl?: string | null;
+  coverMediaId?: string | null;
+
+  // Facebook-style Profile Details
+  workplace?: string | null;
+  education?: string | null;
+  city?: string | null;
+  hometown?: string | null;
+  relationshipStatus?: string | null;
+  website?: string | null;
+  facebookUrl?: string | null;
+  instagramUrl?: string | null;
+  twitterUrl?: string | null;
+  linkedinUrl?: string | null;
+  isEmailVerified?: boolean;
+
   isVerified: boolean;
   verificationType?: string | null;
   visibility: string;
@@ -73,6 +95,18 @@ export interface UpdateAdminUserRequest {
   username?: string | null;
   email?: string | null;
   bio?: string | null;
+  coverMediaId?: string | null;
+  workplace?: string | null;
+  education?: string | null;
+  city?: string | null;
+  hometown?: string | null;
+  relationshipStatus?: string | null;
+  website?: string | null;
+  facebookUrl?: string | null;
+  instagramUrl?: string | null;
+  twitterUrl?: string | null;
+  linkedinUrl?: string | null;
+  isEmailVerified?: boolean | null;
   role?: string | null;
   gender?: string | null;
   nationalId?: string | null;

@@ -15,8 +15,11 @@ import {
   CreatePlanPayload,
   UserLookupItem,
   ActiveVerificationItem,
+  PageVerificationRequestItem,
+  ReviewPageVerificationPayload,
 } from '@/api/verificationAdmin';
 import { resolveMediaUrl } from '@/lib/media';
+import { formatArabicDate } from '@/lib/utils';
 import {
   BadgeCheck,
   Clock,
@@ -59,9 +62,16 @@ import {
   Gem,
   LayoutGrid,
   List,
+  Building2,
 } from 'lucide-react';
 import { NationalIdInspectorModal } from '@/components/admin/verification/NationalIdInspectorModal';
 import { VerificationRequestCard } from '@/components/admin/verification/VerificationRequestCard';
+import { PageVerificationRequestCard } from '@/components/admin/verification/PageVerificationRequestCard';
+import { PageVerificationInspectorModal } from '@/components/admin/verification/PageVerificationInspectorModal';
+import {
+  ApprovePageVerificationModal,
+  RejectPageVerificationModal,
+} from '@/components/admin/verification/PageVerificationDecisionModals';
 import { VerificationNavBar, VerificationTabId } from '@/components/admin/verification/VerificationNavBar';
 import { VerificationTypeCard } from '@/components/admin/verification/VerificationTypeCard';
 import { VerificationPlanCard } from '@/components/admin/verification/VerificationPlanCard';
@@ -101,6 +111,14 @@ export default function AdminVerificationPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [page, setPage] = useState<number>(1);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+
+  // Sub-tabs for Requests: All | Users | Pages
+  const [requestTargetTab, setRequestTargetTab] = useState<'all' | 'users' | 'pages'>('all');
+
+  // Page Request Modals State
+  const [inspectingPageRequest, setInspectingPageRequest] = useState<PageVerificationRequestItem | null>(null);
+  const [approvingPageRequest, setApprovingPageRequest] = useState<PageVerificationRequestItem | null>(null);
+  const [rejectingPageRequest, setRejectingPageRequest] = useState<PageVerificationRequestItem | null>(null);
 
   // Selected Request for Modal Details
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -193,6 +211,14 @@ export default function AdminVerificationPage() {
     refetchOnWindowFocus: true,
   });
 
+  const { data: pageRequests = [], isLoading: pageRequestsLoading, refetch: refetchPageRequests } = useQuery({
+    queryKey: ['admin', 'pages', 'verification-requests'],
+    queryFn: ({ signal }) => verificationAdminApi.getPageRequests({ page: 1, pageSize: 50, signal }),
+    enabled: adminReady && activeTab === 'requests',
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  });
+
   const { data: typesData, isLoading: typesLoading, refetch: refetchTypes } = useQuery({
     queryKey: ['admin', 'verification', 'types'],
     queryFn: ({ signal }) => verificationAdminApi.getTypes(signal),
@@ -251,6 +277,51 @@ export default function AdminVerificationPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification'] });
     },
     onError: (err: any) => showToast(err?.response?.data?.message || 'فشل تحديث حالة الطلب', 'error'),
+  });
+
+  const requestReuploadMutation = useMutation({
+    mutationFn: (vars: { id: string; message?: string; reason?: string }) =>
+      verificationAdminApi.requestReupload(vars.id, { message: vars.message, reason: vars.reason }),
+    onSuccess: () => {
+      showToast('تم إرسال إشعار للمستخدم على هاتفه لإعادة رفع صورة البطاقة بنجاح 🔔');
+      queryClient.invalidateQueries({ queryKey: ['admin', 'verification'] });
+    },
+    onError: (err: any) => showToast(err?.response?.data?.message || 'فشل إرسال الإشعار للمستخدم', 'error'),
+  });
+
+  const handleRequestReupload = (req: VerificationRequestItem) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: `إرسال إشعار لتغيير صورة البطاقة (${req.userName})`,
+      message: `هل تود إرسال إشعار فوري وتنبيه Push Notification لموبايل المستخدم (${req.userName}) لإلزامه برفع صورة واضحة لوجه وظهر بطاقة الرقم القومي الأصلية؟`,
+      confirmText: 'نعم، إرسال الإشعار 🔔',
+      isDestructive: false,
+      requiresInput: true,
+      inputLabel: 'نص التوجيه / رسالة الإشعار للمستخدم:',
+      inputPlaceholder: 'يرجى إعادة رفع صورة واضحة لوجه وظهر بطاقة الرقم القومي الأصلية لاستكمال توثيق حسابك.',
+      onConfirm: (customMsg) => {
+        requestReuploadMutation.mutate({
+          id: req.id,
+          message: customMsg || 'يرجى إعادة رفع صورة واضحة لوجه وظهر بطاقة الرقم القومي الأصلية لاستكمال توثيق حسابك.',
+        });
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
+
+  const reviewPageMutation = useMutation({
+    mutationFn: (vars: { id: string; payload: ReviewPageVerificationPayload }) =>
+      verificationAdminApi.reviewPageRequest(vars.id, vars.payload),
+    onSuccess: (_, vars) => {
+      showToast(vars.payload.approved ? 'تم اعتماد وتوثيق الصفحة رسمياً بنجاح! 🎉' : 'تم رفض طلب توثيق الصفحة وحفظ السبب.');
+      setApprovingPageRequest(null);
+      setRejectingPageRequest(null);
+      setInspectingPageRequest(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'pages', 'verification-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'verification'] });
+    },
+    onError: (err: any) => showToast(err?.response?.data?.message || 'فشل تحديث طلب توثيق الصفحة', 'error'),
   });
 
   // User Lookup queries for suggestions
@@ -589,6 +660,45 @@ export default function AdminVerificationPage() {
     });
   };
 
+  const filteredPageRequests = React.useMemo(() => {
+    let list = pageRequests || [];
+
+    if (statusFilter === 1 || statusFilter === 2) {
+      list = list.filter((p) => p.status === 'Pending');
+    } else if (statusFilter === 3) {
+      list = list.filter((p) => p.status === 'Approved');
+    } else if (statusFilter === 4) {
+      list = list.filter((p) => p.status === 'Rejected');
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((p) => {
+        return (
+          (p.pageName && p.pageName.toLowerCase().includes(q)) ||
+          (p.pageSlug && p.pageSlug.toLowerCase().includes(q)) ||
+          (p.ownerName && p.ownerName.toLowerCase().includes(q)) ||
+          (p.applicantName && p.applicantName.toLowerCase().includes(q)) ||
+          (p.ownerPhoneNumber && p.ownerPhoneNumber.includes(q)) ||
+          (p.officialPhone && p.officialPhone.includes(q)) ||
+          (p.applicantNationalId && p.applicantNationalId.includes(q)) ||
+          (p.ownerNationalId && p.ownerNationalId.includes(q)) ||
+          (p.commercialRegister && p.commercialRegister.includes(q)) ||
+          (p.taxNumber && p.taxNumber.includes(q))
+        );
+      });
+    }
+
+    return list;
+  }, [pageRequests, statusFilter, searchQuery]);
+
+  const pagePendingCount = React.useMemo(
+    () => (pageRequests || []).filter((p) => p.status === 'Pending').length,
+    [pageRequests]
+  );
+  const userPendingCount = stats?.pendingRequests ?? 0;
+  const totalCombinedPending = userPendingCount + pagePendingCount;
+
   return (
     <AdminShell>
       <div className="space-y-4 sm:space-y-6 text-right max-w-7xl mx-auto pb-8 sm:pb-12 font-sans" dir="rtl">
@@ -634,6 +744,7 @@ export default function AdminVerificationPage() {
                   onClick={() => {
                     refetchStats();
                     refetchRequests();
+                    refetchPageRequests();
                     refetchTypes();
                     refetchPlans();
                   }}
@@ -662,7 +773,7 @@ export default function AdminVerificationPage() {
               {[
                 {
                   label: 'قيد الانتظار',
-                  value: stats?.pendingRequests ?? 0,
+                  value: totalCombinedPending,
                   icon: Hourglass,
                   tone: 'text-amber-300',
                   status: 1 as number | undefined,
@@ -754,319 +865,608 @@ export default function AdminVerificationPage() {
               setFocusActiveList(true);
             }
           }}
-          pendingCount={stats?.pendingRequests ?? 0}
+          pendingCount={totalCombinedPending}
           typesCount={typesData?.length ?? 0}
           plansCount={plansData?.length ?? 0}
           activeCount={stats?.activeVerifications ?? (activeVerifications?.totalCount ?? 0)}
         />
 
         {/* TAB 1: REQUESTS REVIEW CENTER */}
-        {activeTab === 'requests' && (
-          <div className="space-y-6">
-            {/* SUPERCHARGED FILTER & SEARCH DECK */}
-            <div className="p-4 sm:p-5 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-4 shadow-xl">
-              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-                {/* Search Input */}
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="بحث باسم المستخدم، رقم الهاتف، أو الرقم القومي (14 رقم)..."
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
+        {activeTab === 'requests' && (() => {
+          const showUsers = requestTargetTab === 'all' || requestTargetTab === 'users';
+          const showPages = requestTargetTab === 'all' || requestTargetTab === 'pages';
+          const isLoadingAll = requestsLoading || pageRequestsLoading;
+          const totalDisplayedCount =
+            (showPages ? filteredPageRequests.length : 0) +
+            (showUsers ? (requestsData?.items?.length ?? 0) : 0);
+
+          return (
+            <div className="space-y-6">
+              {/* SUPERCHARGED FILTER & SEARCH DECK */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-4 shadow-xl">
+                {/* SUB-TABS: All Requests | User Accounts 👤 | Pages & Brands 🏢 */}
+                <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-950/90 rounded-2xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRequestTargetTab('all');
                       setPage(1);
                     }}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl pr-10 pl-10 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
-                  />
-                  {searchQuery && (
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
+                      requestTargetTab === 'all'
+                        ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-lg shadow-amber-500/25 ring-2 ring-amber-400/40'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>جميع طلبات التوثيق</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-black/25 font-mono font-bold">
+                      {(requestsData?.totalCount ?? 0) + filteredPageRequests.length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRequestTargetTab('users');
+                      setPage(1);
+                    }}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
+                      requestTargetTab === 'users'
+                        ? 'bg-gradient-to-r from-sky-500 to-sky-600 text-white shadow-lg shadow-sky-500/25 ring-2 ring-sky-400/40'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <User className="w-4 h-4" />
+                    <span>توثيق حسابات المستخدمين 👤</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-sky-950/80 font-mono font-bold text-sky-200">
+                      {requestsData?.totalCount ?? 0}
+                    </span>
+                    {userPendingCount > 0 && (
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_#f43f5e]" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRequestTargetTab('pages');
+                      setPage(1);
+                    }}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
+                      requestTargetTab === 'pages'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-400/40'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>توثيق الصفحات العامة والرسمية 🏢</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-950/80 font-mono font-bold text-emerald-200">
+                      {filteredPageRequests.length}
+                    </span>
+                    {pagePendingCount > 0 && (
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_#f43f5e]" />
+                    )}
+                  </button>
+                </div>
+
+                {/* SEARCH, TYPE FILTER, AND VIEW SWITCHER ROW */}
+                <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                  {/* Search Input */}
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="بحث باسم المستخدم، الصفحة، رقم الهاتف، أو الرقم القومي (14 رقم)..."
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setPage(1);
+                      }}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl pr-10 pl-10 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors font-medium"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                        title="مسح البحث"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Type Filter Dropdown (shown for user or all requests) */}
+                  {requestTargetTab !== 'pages' && (
+                    <div className="w-full sm:w-64">
+                      <select
+                        value={typeFilter}
+                        onChange={(e) => {
+                          setTypeFilter(e.target.value);
+                          setPage(1);
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
+                      >
+                        <option value="">كافة شارات توثيق المستخدمين</option>
+                        {typesData?.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.badgeName})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* View Mode Switcher */}
+                  <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-2xl border border-slate-800 self-end lg:self-auto shrink-0">
                     <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                      title="مسح البحث"
+                      type="button"
+                      onClick={() => setViewMode('cards')}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                        viewMode === 'cards'
+                          ? 'bg-amber-500 text-slate-950 shadow-md'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
                     >
-                      <XCircle className="w-4 h-4" />
+                      <LayoutGrid className="w-4 h-4" />
+                      <span>كروت متوهجة</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('table')}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                        viewMode === 'table'
+                          ? 'bg-amber-500 text-slate-950 shadow-md'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <List className="w-4 h-4" />
+                      <span>جدول تفصيلي</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Status Quick Filter Chips */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-800/80">
+                  <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none snap-x touch-pan-x">
+                    <span className="text-xs font-bold text-slate-400 ml-1 shrink-0">الحالة:</span>
+                    {[
+                      { label: 'الكل', value: undefined, color: 'text-slate-200' },
+                      {
+                        label: 'قيد الانتظار',
+                        value: 1,
+                        count:
+                          requestTargetTab === 'pages'
+                            ? pagePendingCount
+                            : requestTargetTab === 'users'
+                            ? userPendingCount
+                            : totalCombinedPending,
+                        color: 'text-amber-400',
+                        badgeColor: 'bg-amber-500/20 text-amber-300',
+                      },
+                      {
+                        label: 'قيد المراجعة',
+                        value: 2,
+                        count: requestTargetTab === 'pages' ? 0 : stats?.underReviewRequests,
+                        color: 'text-sky-400',
+                        badgeColor: 'bg-sky-500/20 text-sky-300',
+                      },
+                      {
+                        label: 'معتمد وموثق',
+                        value: 3,
+                        color: 'text-emerald-400',
+                        badgeColor: 'bg-emerald-500/20 text-emerald-300',
+                      },
+                      {
+                        label: 'مرفوض',
+                        value: 4,
+                        count: stats?.rejectedRequests,
+                        color: 'text-rose-400',
+                        badgeColor: 'bg-rose-500/20 text-rose-300',
+                      },
+                    ].map((chip) => {
+                      const isSelected = statusFilter === chip.value;
+                      return (
+                        <button
+                          key={chip.label}
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter(chip.value);
+                            setPage(1);
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 snap-center min-h-[34px] active:scale-95 ${
+                            isSelected
+                              ? 'bg-amber-500/20 border border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                              : 'bg-slate-950/70 border border-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span className="truncate">{chip.label}</span>
+                          {typeof chip.count === 'number' && chip.count > 0 && (
+                            <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-black ${chip.badgeColor || 'bg-white/10'}`}>
+                              {chip.count}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {(statusFilter !== undefined || typeFilter !== '' || searchQuery !== '') && (
+                    <button
+                      onClick={() => {
+                        setStatusFilter(undefined);
+                        setTypeFilter('');
+                        setSearchQuery('');
+                        setPage(1);
+                      }}
+                      className="text-xs text-rose-400 hover:text-rose-300 hover:underline font-bold transition-colors shrink-0 self-start sm:self-auto"
+                    >
+                      إلغاء كافة الفلاتر ✕
                     </button>
                   )}
                 </div>
+              </div>
 
-                {/* Type Filter Dropdown */}
-                <div className="w-full sm:w-64">
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => {
-                      setTypeFilter(e.target.value);
-                      setPage(1);
-                    }}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="">كافة أنواع وشارات التوثيق</option>
-                    {typesData?.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.badgeName})
-                      </option>
-                    ))}
-                  </select>
+              {/* REQUESTS LISTING (CARDS OR TABLE) */}
+              {isLoadingAll ? (
+                <div className="p-16 rounded-3xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 font-bold space-y-3 shadow-xl">
+                  <RefreshCw className="w-8 h-8 animate-spin mx-auto text-amber-400" />
+                  <div className="text-sm text-white">جاري فحص وتحميل طلبات التوثيق والوثائق...</div>
                 </div>
-
-                {/* View Mode Switcher */}
-                <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-2xl border border-slate-800 self-end lg:self-auto shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('cards')}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                      viewMode === 'cards'
-                        ? 'bg-amber-500 text-slate-950 shadow-md'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                    <span>كروت ذكية</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('table')}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                      viewMode === 'table'
-                        ? 'bg-amber-500 text-slate-950 shadow-md'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <List className="w-4 h-4" />
-                    <span>جدول</span>
-                  </button>
+              ) : totalDisplayedCount === 0 ? (
+                <div className="p-16 rounded-3xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 font-bold space-y-2 shadow-xl">
+                  <Shield className="w-12 h-12 mx-auto text-slate-600 mb-2" />
+                  <div className="text-base text-white">لا توجد طلبات توثيق تطابق معايير البحث المحددة</div>
+                  <p className="text-xs text-slate-500">جرب تغيير حالة الطلب أو مسح نص البحث للاطلاع على باقي الطلبات.</p>
                 </div>
-              </div>
+              ) : viewMode === 'cards' ? (
+                /* HOLOGRAPHIC CARDS GRID VIEW */
+                <div className="space-y-6">
+                  {/* Page Requests Section Header if in 'all' view */}
+                  {showPages && filteredPageRequests.length > 0 && requestTargetTab === 'all' && (
+                    <div className="flex items-center gap-2 text-xs font-black text-emerald-400 px-1 pt-1">
+                      <Building2 className="w-4 h-4" />
+                      <span>طلبات توثيق الصفحات العامة والتجارية ({filteredPageRequests.length})</span>
+                    </div>
+                  )}
 
-              {/* Status Quick Filter Chips */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-800/80">
-                <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none snap-x touch-pan-x">
-                  <span className="text-xs font-bold text-slate-400 ml-1 shrink-0">الحالة:</span>
-                  {[
-                    { label: 'الكل', value: undefined, color: 'text-slate-200' },
-                    { label: 'قيد الانتظار', value: 1, count: stats?.pendingRequests, color: 'text-amber-400', badgeColor: 'bg-amber-500/20 text-amber-300' },
-                    { label: 'قيد المراجعة', value: 2, count: stats?.underReviewRequests, color: 'text-sky-400', badgeColor: 'bg-sky-500/20 text-sky-300' },
-                    { label: 'معتمد وموثق', value: 3, color: 'text-emerald-400', badgeColor: 'bg-emerald-500/20 text-emerald-300' },
-                    { label: 'مرفوض', value: 4, count: stats?.rejectedRequests, color: 'text-rose-400', badgeColor: 'bg-rose-500/20 text-rose-300' },
-                  ].map((chip) => {
-                    const isSelected = statusFilter === chip.value;
-                    return (
-                      <button
-                        key={chip.label}
-                        type="button"
-                        onClick={() => {
-                          setStatusFilter(chip.value);
-                          setPage(1);
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 snap-center min-h-[34px] active:scale-95 ${
-                          isSelected
-                            ? 'bg-amber-500/20 border border-amber-500 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
-                            : 'bg-slate-950/70 border border-slate-800 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <span className="truncate">{chip.label}</span>
-                        {typeof chip.count === 'number' && chip.count > 0 && (
-                          <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-mono font-black ${chip.badgeColor || 'bg-white/10'}`}>
-                            {chip.count}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {(statusFilter !== undefined || typeFilter !== '' || searchQuery !== '') && (
-                  <button
-                    onClick={() => {
-                      setStatusFilter(undefined);
-                      setTypeFilter('');
-                      setSearchQuery('');
-                      setPage(1);
-                    }}
-                    className="text-xs text-rose-400 hover:text-rose-300 hover:underline font-bold transition-colors shrink-0 self-start sm:self-auto"
-                  >
-                    إلغاء كافة الفلاتر ✕
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* REQUESTS LISTING (CARDS OR TABLE) */}
-            {requestsLoading ? (
-              <div className="p-16 rounded-3xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 font-bold space-y-3">
-                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-amber-400" />
-                <div>جاري فحص وتحميل طلبات التوثيق والوثائق...</div>
-              </div>
-            ) : requestsData?.items?.length === 0 ? (
-              <div className="p-16 rounded-3xl bg-slate-900/60 border border-slate-800 text-center text-slate-400 font-bold space-y-2">
-                <Shield className="w-12 h-12 mx-auto text-slate-600 mb-2" />
-                <div className="text-base text-white">لا توجد طلبات توثيق تطابق معايير البحث المحددة</div>
-                <p className="text-xs text-slate-500">جرب تغيير حالة الطلب أو مسح نص البحث للاطلاع على باقي الطلبات.</p>
-              </div>
-            ) : viewMode === 'cards' ? (
-              /* CARDS GRID VIEW */
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                {requestsData?.items?.map((r) => (
-                  <VerificationRequestCard
-                    key={r.id}
-                    request={r}
-                    onInspect={(req) => setSelectedRequestId(req.id)}
-                    onApprove={(req) => {
-                      setApproveModalRequest(req);
-                      setApprovedDuration(req.requestedDurationDays || 30);
-                      setIsFreeApprove(false);
-                      setAdminNotes('');
-                    }}
-                    onReject={(req) => {
-                      setRejectModalRequest(req);
-                      setRejectReason('');
-                    }}
-                    onReview={(id) => reviewMutation.mutate(id)}
-                    onDelete={(id) => handleDeleteRequest(id, r.userName || r.userPhoneNumber)}
-                    normalizeStatus={normalizeStatus}
-                    isActionable={isActionableStatus(r.status, r.statusName)}
-                  />
-                ))}
-              </div>
-            ) : (
-              /* GLOWING TABLE VIEW */
-              <div className="rounded-3xl bg-slate-900/90 border border-slate-800 overflow-hidden shadow-2xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-right text-xs">
-                    <thead className="bg-slate-950/80 text-slate-400 font-bold border-b border-slate-800">
-                      <tr>
-                        <th className="p-4">المستخدم</th>
-                        <th className="p-4">الرقم القومي / المحافظة</th>
-                        <th className="p-4">نوع وشارة التوثيق</th>
-                        <th className="p-4">الخطة / السعر</th>
-                        <th className="p-4">الوثائق المرفقة</th>
-                        <th className="p-4">الحالة</th>
-                        <th className="p-4 text-center">الإجراءات</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60">
-                      {requestsData?.items?.map((r) => (
-                        <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
-                          <td className="p-4">
-                            <div className="font-bold text-white text-xs">{r.userName || 'مستخدم بدون اسم'}</div>
-                            <div className="font-mono text-cyan-400 text-[11px] mt-0.5">{r.userPhoneNumber}</div>
-                          </td>
-                          <td className="p-4 font-mono">
-                            {r.extractedNationalId ? (
-                              <div className="space-y-0.5">
-                                <span className="font-bold text-amber-300 text-xs">🪪 {r.extractedNationalId}</span>
-                                {r.extractedGovernorate && (
-                                  <div className="text-[10px] text-slate-400">{r.extractedGovernorate}</div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-slate-500">غير مستخرج</span>
-                            )}
-                          </td>
-                          <td className="p-4">
-                            <div className="font-bold text-white text-xs flex items-center gap-1">
-                              <BadgeCheck className="w-3.5 h-3.5 text-amber-400" />
-                              <span>{r.verificationTypeName}</span>
-                            </div>
-                            <div className="text-[10px] text-slate-400">شارة: {r.badgeName}</div>
-                          </td>
-                          <td className="p-4 font-mono">
-                            <div className="font-bold text-emerald-400">
-                              {r.planPrice ? `${r.planPrice} ج.م` : 'مجاني'}
-                            </div>
-                            <div className="text-[10px] text-slate-400">{r.requestedDurationDays} يوم</div>
-                          </td>
-                          <td className="p-4">
-                            <span className="px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-bold inline-flex items-center gap-1 text-[11px]">
-                              <FileText className="w-3 h-3" />
-                              <span>{r.documentsCount} مرفق</span>
-                            </span>
-                          </td>
-                          <td className="p-4">{getStatusBadge(r.status, r.statusName)}</td>
-                          <td className="p-4">
-                            <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedRequestId(r.id)}
-                                className="px-2.5 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition flex items-center gap-1"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                <span>فحص</span>
-                              </button>
-                              {isActionableStatus(r.status, r.statusName) && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setApproveModalRequest(r);
-                                      setApprovedDuration(r.requestedDurationDays || 30);
-                                      setIsFreeApprove(false);
-                                      setAdminNotes('');
-                                    }}
-                                    className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm"
-                                  >
-                                    اعتماد
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setRejectModalRequest(r);
-                                      setRejectReason('');
-                                    }}
-                                    className="px-2.5 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-xs font-bold transition"
-                                  >
-                                    رفض
-                                  </button>
-                                </>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteRequest(r.id, r.userName || r.userPhoneNumber)}
-                                className="p-1.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition"
-                                title="حذف"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                  {/* Page Verification Requests Cards */}
+                  {showPages && filteredPageRequests.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                      {filteredPageRequests.map((p) => (
+                        <PageVerificationRequestCard
+                          key={`page-${p.id}`}
+                          request={p}
+                          onInspect={(req) => setInspectingPageRequest(req)}
+                          onApprove={(req) => setApprovingPageRequest(req)}
+                          onReject={(req) => setRejectingPageRequest(req)}
+                          onPreviewImage={(url, title) => {
+                            setPreviewDocUrl(url);
+                            setPreviewDocTitle(title);
+                          }}
+                        />
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                    </div>
+                  )}
 
-            {/* PAGINATION TOOLBAR */}
-            {requestsData && requestsData.totalPages > 1 && (
-              <div className="p-4 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                <div className="text-slate-400">
-                  صفحة <span className="font-bold text-white">{requestsData.page}</span> من{' '}
-                  <span className="font-bold text-white">{requestsData.totalPages}</span> (إجمالي{' '}
-                  <span className="font-mono font-bold text-amber-400">{requestsData.totalCount}</span> طلب)
+                  {/* User Requests Section Header if in 'all' view */}
+                  {showUsers && (requestsData?.items?.length ?? 0) > 0 && requestTargetTab === 'all' && (
+                    <div className="flex items-center gap-2 text-xs font-black text-sky-400 px-1 pt-4 border-t border-slate-800/80">
+                      <User className="w-4 h-4" />
+                      <span>طلبات توثيق حسابات المستخدمين ({requestsData?.items?.length})</span>
+                    </div>
+                  )}
+
+                  {/* User Verification Requests Cards */}
+                  {showUsers && (requestsData?.items?.length ?? 0) > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                      {requestsData?.items?.map((r) => (
+                        <VerificationRequestCard
+                          key={`user-${r.id}`}
+                          request={r}
+                          onInspect={(req) => setSelectedRequestId(req.id)}
+                          onApprove={(req) => {
+                            setApproveModalRequest(req);
+                            setApprovedDuration(req.requestedDurationDays || 30);
+                            setIsFreeApprove(false);
+                            setAdminNotes('');
+                          }}
+                          onReject={(req) => {
+                            setRejectModalRequest(req);
+                            setRejectReason('');
+                          }}
+                          onReview={(id) => reviewMutation.mutate(id)}
+                          onDelete={(id) => handleDeleteRequest(id, r.userName || r.userPhoneNumber)}
+                          onRequestReupload={handleRequestReupload}
+                          normalizeStatus={normalizeStatus}
+                          isActionable={isActionableStatus(r.status, r.statusName)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled={!requestsData.hasPreviousPage}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 disabled:opacity-40 font-bold transition-colors flex items-center gap-1"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                    <span>السابق</span>
-                  </button>
-                  <button
-                    disabled={!requestsData.hasNextPage}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 disabled:opacity-40 font-bold transition-colors flex items-center gap-1"
-                  >
-                    <span>التالي</span>
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
+              ) : (
+                /* GLOWING TABLE VIEW */
+                <div className="space-y-6">
+                  {/* Page Requests Table */}
+                  {showPages && filteredPageRequests.length > 0 && (
+                    <div className="rounded-3xl bg-slate-900/90 border border-emerald-500/30 overflow-hidden shadow-2xl">
+                      <div className="p-4 bg-emerald-950/40 border-b border-emerald-500/20 flex items-center justify-between text-xs font-black text-emerald-300">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-emerald-400" />
+                          <span>توثيق الصفحات العامة والرسمية ({filteredPageRequests.length})</span>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-right text-xs">
+                          <thead className="bg-slate-950/80 text-slate-400 font-bold border-b border-slate-800">
+                            <tr>
+                              <th className="p-4">الصفحة</th>
+                              <th className="p-4">المالك / مقدم الطلب</th>
+                              <th className="p-4">الرقم القومي</th>
+                              <th className="p-4">السجل / الضريبة</th>
+                              <th className="p-4">تاريخ التقديم</th>
+                              <th className="p-4">الحالة</th>
+                              <th className="p-4 text-center">الإجراءات</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60">
+                            {filteredPageRequests.map((p) => {
+                              const effNid = p.applicantNationalId || p.ownerNationalId;
+                              return (
+                                <tr key={p.id} className="hover:bg-slate-800/30 transition-colors">
+                                  <td className="p-4">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-9 h-9 rounded-xl bg-slate-800 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
+                                        {p.pageAvatarUrl ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img
+                                            src={resolveMediaUrl(p.pageAvatarUrl)}
+                                            alt={p.pageName}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        ) : (
+                                          <Building2 className="w-4 h-4 text-emerald-400" />
+                                        )}
+                                      </div>
+                                      <div>
+                                        <div className="font-bold text-white text-xs">{p.pageName}</div>
+                                        {p.pageSlug && <div className="text-[10px] font-mono text-cyan-400">@{p.pageSlug}</div>}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="font-bold text-white text-xs">{p.ownerName || p.applicantName || 'غير مسجل'}</div>
+                                    {p.ownerPhoneNumber && (
+                                      <div className="font-mono text-cyan-400 text-[11px]" dir="ltr">
+                                        {p.ownerPhoneNumber}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="p-4 font-mono">
+                                    {effNid ? (
+                                      <div>
+                                        <span className="font-bold text-emerald-300 text-xs">🪪 {effNid}</span>
+                                        <span className="block text-[10px] text-emerald-400 font-sans font-bold">مسجل مسبقاً ✓</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-500 font-sans">بانتظار الفحص اليدوي</span>
+                                    )}
+                                  </td>
+                                  <td className="p-4 text-[11px]">
+                                    {p.commercialRegister && (
+                                      <div>سجل: <span className="font-mono text-amber-300 font-bold">{p.commercialRegister}</span></div>
+                                    )}
+                                    {p.taxNumber && (
+                                      <div>ضريبة: <span className="font-mono text-cyan-300 font-bold">{p.taxNumber}</span></div>
+                                    )}
+                                    {!p.commercialRegister && !p.taxNumber && <span className="text-slate-500">غير متوفر</span>}
+                                  </td>
+                                  <td className="p-4 text-slate-300 text-[11px]">
+                                    {formatArabicDate(p.createdAt)}
+                                  </td>
+                                  <td className="p-4">
+                                    {p.status === 'Pending' ? (
+                                      <span className="px-2.5 py-1 text-xs rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold">
+                                        قيد الانتظار
+                                      </span>
+                                    ) : p.status === 'Approved' ? (
+                                      <span className="px-2.5 py-1 text-xs rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-bold">
+                                        معتمد وموثق
+                                      </span>
+                                    ) : (
+                                      <span className="px-2.5 py-1 text-xs rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold">
+                                        مرفوض
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                      <button
+                                        type="button"
+                                        onClick={() => setInspectingPageRequest(p)}
+                                        className="px-2.5 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition flex items-center gap-1"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                        <span>معاينة</span>
+                                      </button>
+                                      {p.status === 'Pending' && (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => setApprovingPageRequest(p)}
+                                            className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm"
+                                          >
+                                            اعتماد ✅
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setRejectingPageRequest(p)}
+                                            className="px-2.5 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-xs font-bold transition"
+                                          >
+                                            رفض
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* User Requests Table */}
+                  {showUsers && (requestsData?.items?.length ?? 0) > 0 && (
+                    <div className="rounded-3xl bg-slate-900/90 border border-slate-800 overflow-hidden shadow-2xl">
+                      <div className="p-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between text-xs font-black text-sky-300">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-sky-400" />
+                          <span>توثيق حسابات المستخدمين ({requestsData?.items?.length})</span>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-right text-xs">
+                          <thead className="bg-slate-950/80 text-slate-400 font-bold border-b border-slate-800">
+                            <tr>
+                              <th className="p-4">المستخدم</th>
+                              <th className="p-4">الرقم القومي / المحافظة</th>
+                              <th className="p-4">نوع وشارة التوثيق</th>
+                              <th className="p-4">الخطة / السعر</th>
+                              <th className="p-4">الوثائق المرفقة</th>
+                              <th className="p-4">الحالة</th>
+                              <th className="p-4 text-center">الإجراءات</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60">
+                            {requestsData?.items?.map((r) => (
+                              <tr key={r.id} className="hover:bg-slate-800/30 transition-colors">
+                                <td className="p-4">
+                                  <div className="font-bold text-white text-xs">{r.userName || 'مستخدم بدون اسم'}</div>
+                                  <div className="font-mono text-cyan-400 text-[11px] mt-0.5">{r.userPhoneNumber}</div>
+                                </td>
+                                <td className="p-4 font-mono">
+                                  {r.extractedNationalId ? (
+                                    <div className="space-y-0.5">
+                                      <span className="font-bold text-amber-300 text-xs">🪪 {r.extractedNationalId}</span>
+                                      {r.extractedGovernorate && (
+                                        <div className="text-[10px] text-slate-400">{r.extractedGovernorate}</div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-500">غير مستخرج</span>
+                                  )}
+                                </td>
+                                <td className="p-4">
+                                  <div className="font-bold text-white text-xs flex items-center gap-1">
+                                    <BadgeCheck className="w-3.5 h-3.5 text-amber-400" />
+                                    <span>{r.verificationTypeName}</span>
+                                  </div>
+                                  <div className="text-[10px] text-slate-400">شارة: {r.badgeName}</div>
+                                </td>
+                                <td className="p-4 font-mono">
+                                  <div className="font-bold text-emerald-400">
+                                    {r.planPrice ? `${r.planPrice} ج.م` : 'مجاني'}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400">{r.requestedDurationDays} يوم</div>
+                                </td>
+                                <td className="p-4">
+                                  <span className="px-2.5 py-1 rounded-xl bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-bold inline-flex items-center gap-1 text-[11px]">
+                                    <FileText className="w-3 h-3" />
+                                    <span>{r.documentsCount} مرفق</span>
+                                  </span>
+                                </td>
+                                <td className="p-4">{getStatusBadge(r.status, r.statusName)}</td>
+                                <td className="p-4">
+                                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedRequestId(r.id)}
+                                      className="px-2.5 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition flex items-center gap-1"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                      <span>فحص</span>
+                                    </button>
+                                    {isActionableStatus(r.status, r.statusName) && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setApproveModalRequest(r);
+                                            setApprovedDuration(r.requestedDurationDays || 30);
+                                            setIsFreeApprove(false);
+                                            setAdminNotes('');
+                                          }}
+                                          className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-sm"
+                                        >
+                                          اعتماد
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setRejectModalRequest(r);
+                                            setRejectReason('');
+                                          }}
+                                          className="px-2.5 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 text-xs font-bold transition"
+                                        >
+                                          رفض
+                                        </button>
+                                      </>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteRequest(r.id, r.userName || r.userPhoneNumber)}
+                                      className="p-1.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-950/40 transition"
+                                      title="حذف"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+
+              {/* PAGINATION TOOLBAR FOR USERS */}
+              {showUsers && requestsData && requestsData.totalPages > 1 && (
+                <div className="p-4 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                  <div className="text-slate-400">
+                    صفحة <span className="font-bold text-white">{requestsData.page}</span> من{' '}
+                    <span className="font-bold text-white">{requestsData.totalPages}</span> (إجمالي{' '}
+                    <span className="font-mono font-bold text-amber-400">{requestsData.totalCount}</span> طلب)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={!requestsData.hasPreviousPage}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 disabled:opacity-40 font-bold transition-colors flex items-center gap-1"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                      <span>السابق</span>
+                    </button>
+                    <button
+                      disabled={!requestsData.hasNextPage}
+                      onClick={() => setPage((p) => p + 1)}
+                      className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 disabled:opacity-40 font-bold transition-colors flex items-center gap-1"
+                    >
+                      <span>التالي</span>
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* TAB 2: VERIFICATION TYPES */}
         {activeTab === 'types' && (
@@ -1407,6 +1807,9 @@ export default function AdminVerificationPage() {
             onDelete={(id) =>
               handleDeleteRequest(id, selectedRequestDetail.userName || selectedRequestDetail.userPhoneNumber)
             }
+            onRequestReupload={async (id, msg) => {
+              await requestReuploadMutation.mutateAsync({ id, message: msg });
+            }}
             isActionable={isActionableStatus(selectedRequestDetail.status, selectedRequestDetail.statusName)}
             isPending={normalizeStatus(selectedRequestDetail.status, selectedRequestDetail.statusName) === 1}
           />
@@ -1881,6 +2284,46 @@ export default function AdminVerificationPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* PAGE VERIFICATION INSPECTOR MODAL */}
+        {inspectingPageRequest && (
+          <PageVerificationInspectorModal
+            request={inspectingPageRequest}
+            onClose={() => setInspectingPageRequest(null)}
+            onApprove={(req) => setApprovingPageRequest(req)}
+            onReject={(req) => setRejectingPageRequest(req)}
+          />
+        )}
+
+        {/* APPROVE PAGE VERIFICATION MODAL */}
+        {approvingPageRequest && (
+          <ApprovePageVerificationModal
+            request={approvingPageRequest}
+            onClose={() => setApprovingPageRequest(null)}
+            onConfirm={(payload) =>
+              reviewPageMutation.mutate({
+                id: approvingPageRequest.id,
+                payload,
+              })
+            }
+            isSubmitting={reviewPageMutation.isPending}
+          />
+        )}
+
+        {/* REJECT PAGE VERIFICATION MODAL */}
+        {rejectingPageRequest && (
+          <RejectPageVerificationModal
+            request={rejectingPageRequest}
+            onClose={() => setRejectingPageRequest(null)}
+            onConfirm={(payload) =>
+              reviewPageMutation.mutate({
+                id: rejectingPageRequest.id,
+                payload,
+              })
+            }
+            isSubmitting={reviewPageMutation.isPending}
+          />
         )}
 
         {/* REUSABLE CONFIRMATION MODAL */}

@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { AdminShell } from '@/components/admin/AdminShell';
 import { financialAdminApi } from '@/api/financialAdmin';
 import { AdminWithdrawalListItemDto } from '@/types/financial';
+import { CreditCard, Scale, Landmark, Wallet, CircleDollarSign } from 'lucide-react';
 
 export default function AdminWithdrawalsPage() {
   const [withdrawals, setWithdrawals] = useState<AdminWithdrawalListItemDto[]>([]);
@@ -84,14 +87,65 @@ export default function AdminWithdrawalsPage() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="border-b border-zinc-800 pb-5">
-        <h1 className="text-2xl font-bold text-white tracking-tight">إدارة طلبات سحب الأرباح والأموال</h1>
-        <p className="text-sm text-zinc-400 mt-1">
-          مراجعة طلبات السحب للعملاء، الموافقة والتحويل البنكي أو المحافظ، أو الرفض مع استعادة الرصيد المقفول تلقائياً
-        </p>
-      </div>
+    <AdminShell>
+      <div className="p-6 max-w-7xl mx-auto space-y-6 pb-16" dir="rtl">
+        {/* Navigation Breadcrumbs & Financial Section Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-3.5 rounded-2xl border border-white/10 backdrop-blur-md">
+          <div className="flex items-center gap-2 text-xs text-slate-300">
+            <Link href="/admin" className="text-cyan-400 hover:underline flex items-center gap-1 font-bold">
+              لوحة القيادة
+            </Link>
+            <span className="text-slate-600">/</span>
+            <Link href="/admin/payments" className="text-cyan-400 hover:underline">
+              المالية
+            </Link>
+            <span className="text-slate-600">/</span>
+            <span className="text-white font-black">إدارة طلبات سحب الأرباح والأموال</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+            <Link
+              href="/admin/payments"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/5 transition flex items-center gap-1.5"
+            >
+              <CreditCard className="w-3.5 h-3.5 text-cyan-400" />
+              <span>سجل العمليات</span>
+            </Link>
+            <Link
+              href="/admin/payments/reconciliation"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/5 transition flex items-center gap-1.5"
+            >
+              <Scale className="w-3.5 h-3.5 text-amber-400" />
+              <span>المطابقة المالية</span>
+            </Link>
+            <Link
+              href="/admin/payment-providers"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/5 transition flex items-center gap-1.5"
+            >
+              <Landmark className="w-3.5 h-3.5 text-cyan-400" />
+              <span>بوابات الدفع والرسوم</span>
+            </Link>
+            <Link
+              href="/admin/wallets"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/5 transition flex items-center gap-1.5"
+            >
+              <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+              <span>المحافظ</span>
+            </Link>
+            <span className="px-3 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-[0_0_15px_rgba(244,63,94,0.3)] flex items-center gap-1.5">
+              <CircleDollarSign className="w-3.5 h-3.5 text-rose-300" />
+              <span>طلبات السحب</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Header */}
+        <div className="border-b border-zinc-800 pb-5">
+          <h1 className="text-2xl font-bold text-white tracking-tight">إدارة طلبات سحب الأرباح والأموال</h1>
+          <p className="text-sm text-zinc-400 mt-1">
+            مراجعة طلبات السحب للعملاء، الموافقة والتحويل البنكي أو المحافظ، أو الرفض مع استعادة الرصيد المقفول تلقائياً
+          </p>
+        </div>
 
       {/* Tabs / Filter Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-900/60 p-3 rounded-2xl border border-zinc-800">
@@ -323,6 +377,7 @@ export default function AdminWithdrawalsPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AdminShell>
   );
 }

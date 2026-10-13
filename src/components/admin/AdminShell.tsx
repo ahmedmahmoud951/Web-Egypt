@@ -3,7 +3,9 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { adminApi } from '@/api/admin';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { EgyptFlagMark } from '@/components/brand/EgyptFlagMark';
 import { LiveStatusBadge } from '@/components/admin/LiveStatusBadge';
@@ -29,25 +31,49 @@ import {
   ShieldAlert,
   ShoppingBag,
   Wallet,
+  Globe,
+  CreditCard,
+  Landmark,
+  CircleDollarSign,
+  Scale,
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/admin', label: 'لوحة القيادة', shortLabel: 'لوحة', icon: LayoutDashboard, exact: true },
+  { href: '/admin', label: 'لوحة القيادة الرئيسية', shortLabel: 'الرئيسية', icon: LayoutDashboard, exact: true },
+  
+  // القطاع المالي والمدفوعات
+  { href: '/admin/payments', label: 'سجل المدفوعات والعمليات', shortLabel: 'المدفوعات', icon: CreditCard },
+  { href: '/admin/payments/reconciliation', label: 'المطابقة المالية وبوابات الدفع', shortLabel: 'المطابقة', icon: Scale },
+  { href: '/admin/payment-providers', label: 'بوابات الدفع وهيكل الرسوم', shortLabel: 'بوابات ورسوم', icon: Landmark },
+  { href: '/admin/wallets', label: 'محافظ وأرصدة المستخدمين', shortLabel: 'المحافظ', icon: Wallet },
+  { href: '/admin/withdrawals', label: 'طلبات سحب الأرباح', shortLabel: 'السحوبات', icon: CircleDollarSign },
+
+  // التوثيق والأمان والرقابة
+  { href: '/admin/verification', label: 'إدارة وتوثيق الحسابات والصفحات', shortLabel: 'التوثيق', icon: BadgeCheck },
   { href: '/admin/moderation', label: 'الرقابة الذكية AI', shortLabel: 'رقابة AI', icon: ShieldAlert },
+  { href: '/admin/reports', label: 'مركز البلاغات والمخالفات', shortLabel: 'بلاغات', icon: Flag },
+  { href: '/admin/complaints', label: 'الشكاوى والنزاعات', shortLabel: 'شكاوى', icon: MessageSquareWarning },
+
+  // الصفحات والمتاجر والأعمال
+  { href: '/admin/pages', label: 'إدارة الصفحات (Pages)', shortLabel: 'الصفحات', icon: Globe },
+  { href: '/admin/shops', label: 'المتاجر والمعارض والطلبات', shortLabel: 'المتاجر', icon: ShoppingBag },
   { href: '/admin/marketplace', label: 'سوق مصر والخدمات', shortLabel: 'سوق مصر', icon: ShoppingBag },
   { href: '/admin/marketplace/packages', label: 'ترويج الماركات (Brand Boosts)', shortLabel: 'ترويج ماركات', icon: Sparkles },
+  
+  // المجتمع والطوارئ والمحادثات
   { href: '/admin/community', label: 'المجتمع والطوارئ والمفقودات', shortLabel: 'طوارئ', icon: Siren },
-  { href: '/admin/advertising', label: 'منصة الإعلانات', shortLabel: 'إعلانات', icon: Megaphone },
   { href: '/admin/chat', label: 'مراقبة المحادثات', shortLabel: 'محادثات', icon: MessageCircle },
-  { href: '/admin/verification', label: 'توثيق الحسابات', shortLabel: 'توثيق', icon: BadgeCheck },
-  { href: '/admin/events', label: 'المنشورات', shortLabel: 'منشورات', icon: Newspaper },
-  { href: '/admin/reels', label: 'إدارة الريلز', shortLabel: 'ريلز', icon: Film },
-  { href: '/admin/statuses', label: 'إدارة الحالات', shortLabel: 'حالات', icon: Sparkles },
-  { href: '/admin/reports', label: 'مركز البلاغات', shortLabel: 'بلاغات', icon: Flag },
-  { href: '/admin/users', label: 'المستخدمون', shortLabel: 'مستخدمون', icon: Users },
-  { href: '/admin/blocked', label: 'الحسابات الموقوفة', shortLabel: 'موقوفة', icon: Ban },
-  { href: '/admin/complaints', label: 'الشكاوى', shortLabel: 'شكاوى', icon: MessageSquareWarning },
-  { href: '/admin/locations', label: 'المواقع المعلقة', shortLabel: 'مواقع', icon: MapPin },
+
+  // الإعلام والفعاليات
+  { href: '/admin/events', label: 'المنشورات والأحداث', shortLabel: 'منشورات', icon: Newspaper },
+  { href: '/admin/advertising', label: 'منصة الإعلانات الممولة', shortLabel: 'إعلانات', icon: Megaphone },
+  { href: '/admin/reels', label: 'إدارة مقاطع الريلز', shortLabel: 'ريلز', icon: Film },
+  { href: '/admin/statuses', label: 'إدارة الحالات اليومية', shortLabel: 'حالات', icon: Sparkles },
+  { href: '/admin/locations', label: 'المواقع المعلقة والمقترحة', shortLabel: 'مواقع', icon: MapPin },
+
+  // المستخدمون
+  { href: '/admin/users', label: 'المستخدمون والحسابات', shortLabel: 'مستخدمون', icon: Users },
+  { href: '/admin/blocked', label: 'الحسابات الموقوفة والمحظورة', shortLabel: 'موقوفة', icon: Ban },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -82,6 +108,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isAuthenticated, isAdmin, router]);
 
+  const { data: stats } = useQuery({
+    queryKey: ['admin', 'dashboard', 'stats', 'shell'],
+    queryFn: () => adminApi.getDashboardStats(),
+    enabled: !isLoading && isAuthenticated && isAdmin,
+    refetchInterval: 25000,
+  });
+
   if (isLoading || !isAuthenticated || !isAdmin) {
     return (
       <div className="min-h-screen admin-canvas flex flex-col items-center justify-center gap-4 text-[var(--egypt-nile)] text-sm px-4">
@@ -92,6 +125,24 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const getBadgeCount = (href: string) => {
+    if (!stats) return 0;
+    switch (href) {
+      case '/admin/verification':
+        return (stats.pendingVerifications ?? ((stats.pendingUserVerifications ?? 0) + (stats.pendingPageVerifications ?? 0))) || 0;
+      case '/admin/pages':
+        return (stats.pendingPageVerifications ?? 0) || 0;
+      case '/admin/locations':
+        return (stats.pendingLocations ?? 0) || 0;
+      case '/admin/reports':
+        return (stats.reportedEvents ?? 0) || 0;
+      case '/admin/complaints':
+        return (stats.pendingComplaints ?? 0) || 0;
+      default:
+        return 0;
+    }
+  };
+
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
@@ -101,10 +152,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <div className="admin-flag-stripe absolute top-0 inset-x-0" />
 
         <div className="px-5 pt-7 pb-5 border-b border-white/10">
-          <div className="flex items-center gap-3">
+          <Link href="/admin" className="flex items-center gap-3 group transition hover:opacity-90">
             <BrandLogo size={52} priority />
             <div className="min-w-0">
-              <div className="font-black text-white text-[15px] tracking-tight leading-tight">
+              <div className="font-black text-white text-[15px] tracking-tight leading-tight group-hover:text-cyan-400 transition">
                 النهارده في مصر
               </div>
               <div className="text-[11px] text-[var(--egypt-gold)] font-bold mt-0.5 flex items-center gap-1.5">
@@ -112,19 +163,20 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 مركز التحكم
               </div>
             </div>
-          </div>
+          </Link>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href, item.exact);
+            const badgeCount = getBadgeCount(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 data-active={active ? 'true' : 'false'}
-                className="admin-nav-link"
+                className="admin-nav-link group/nav"
               >
                 <span
                   className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
@@ -136,6 +188,21 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   <Icon className="w-[18px] h-[18px]" strokeWidth={2.25} />
                 </span>
                 <span className="truncate">{item.label}</span>
+                {item.href === '/admin/verification' ? (
+                  <span
+                    className="mr-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-rose-600 to-amber-600 text-white shadow-[0_0_12px_rgba(244,63,94,0.6)] border border-rose-400/40 animate-pulse shrink-0"
+                    title="تنبيه: تم رصد 3 طلبات تحوي صوراً تجريبية غير مطابقة لبطاقة الرقم القومي تتطلب إعادة الرفع"
+                  >
+                    <span>⚠️ 3 تجريبية</span>
+                  </span>
+                ) : badgeCount > 0 ? (
+                  <span
+                    className="mr-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black bg-gradient-to-r from-rose-600 via-amber-500 to-rose-500 text-white shadow-[0_0_14px_rgba(244,63,94,0.7)] border border-white/20 animate-pulse shrink-0"
+                    title={`${badgeCount} طلب بانتظار الإجراء والمراجعة`}
+                  >
+                    {badgeCount > 99 ? '99+' : badgeCount}
+                  </span>
+                ) : null}
               </Link>
             );
           })}
@@ -198,6 +265,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </button>
             )}
 
+            {pathname !== '/admin' && (
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 active:scale-95 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition shadow-sm hover:shadow-[0_0_15px_rgba(6,182,212,0.3)] shrink-0"
+                title="العودة للوحة القيادة الرئيسية"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5 text-cyan-400" />
+                <span>لوحة القيادة</span>
+              </Link>
+            )}
+
             <div className="md:hidden flex items-center gap-2 min-w-0">
               <BrandLogo size={32} />
               <div className="min-w-0">
@@ -236,22 +314,28 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href, item.exact);
+              const badgeCount = getBadgeCount(item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`shrink-0 min-w-[4.35rem] max-w-[5.5rem] flex flex-col items-center gap-1 px-1.5 py-2 rounded-2xl text-[10px] font-extrabold leading-tight text-center transition ${
+                  className={`shrink-0 min-w-[4.35rem] max-w-[5.5rem] flex flex-col items-center gap-1 px-1.5 py-2 rounded-2xl text-[10px] font-extrabold leading-tight text-center transition relative ${
                     active
                       ? 'bg-[var(--egypt-nile)] text-white shadow-[0_8px_20px_-10px_rgba(31,107,122,0.7)]'
                       : 'bg-[#1A2433] text-[#A8B8C8] border border-[rgba(45,138,156,0.22)]'
                   }`}
                 >
                   <span
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center relative ${
                       active ? 'bg-white/15 text-[#F5E6B8]' : 'bg-[rgba(45,138,156,0.14)] text-[#5ec4d4]'
                     }`}
                   >
                     <Icon className="w-4 h-4" strokeWidth={2.35} />
+                    {badgeCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-[0_0_8px_rgba(244,63,94,0.9)] border border-slate-900 animate-pulse">
+                        {badgeCount > 9 ? '9+' : badgeCount}
+                      </span>
+                    )}
                   </span>
                   <span className="px-0.5 line-clamp-2">{item.shortLabel}</span>
                 </Link>
