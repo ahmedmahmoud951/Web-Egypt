@@ -51,11 +51,23 @@ export function ReportDetailModal({
 
   if (!isOpen || !report) return null;
 
+  const invalidateAllReportsAndStats = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports', 'pending-count'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats', 'shell'] }),
+    ]);
+    queryClient.refetchQueries({ queryKey: ['admin', 'reports', 'pending-count'], type: 'active' });
+    queryClient.refetchQueries({ queryKey: ['admin', 'dashboard', 'stats', 'shell'], type: 'active' });
+  };
+
   const handleResolve = async () => {
     try {
       await socialAdminApi.resolveReport(report.id, adminNotes);
       flash.success('تم حل البلاغ واعتماد الإجراء.');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      await invalidateAllReportsAndStats();
       onReportUpdated?.();
       onClose();
     } catch {
@@ -67,7 +79,7 @@ export function ReportDetailModal({
     try {
       await socialAdminApi.rejectReport(report.id, adminNotes);
       flash.success('تم رفض البلاغ وتجاهله.');
-      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      await invalidateAllReportsAndStats();
       onReportUpdated?.();
       onClose();
     } catch {
@@ -79,6 +91,7 @@ export function ReportDetailModal({
     try {
       await socialAdminApi.hideReportContent(report.id);
       flash.success('تم حجب المحتوى المخالف بنجاح.');
+      await invalidateAllReportsAndStats();
       onReportUpdated?.();
       onClose();
     } catch {
@@ -90,6 +103,7 @@ export function ReportDetailModal({
     try {
       await socialAdminApi.restoreReportContent(report.id);
       flash.success('تمت استعادة المحتوى وإتاحته.');
+      await invalidateAllReportsAndStats();
       onReportUpdated?.();
       onClose();
     } catch {
@@ -110,6 +124,7 @@ export function ReportDetailModal({
     try {
       await socialAdminApi.deleteReportContent(report.id);
       flash.success('تم حذف المحتوى المخالف نهائياً.');
+      await invalidateAllReportsAndStats();
       onReportUpdated?.();
       onClose();
     } catch {
@@ -127,6 +142,7 @@ export function ReportDetailModal({
       await socialAdminApi.warnUser(report.id, warningText.trim());
       flash.success('تم توجيه التحذير لصاحب المحتوى وتوثيق الإجراء.');
       setShowWarningInput(false);
+      await invalidateAllReportsAndStats();
       onReportUpdated?.();
       onClose();
     } catch {

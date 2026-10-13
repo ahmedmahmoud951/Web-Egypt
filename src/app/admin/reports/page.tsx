@@ -26,6 +26,7 @@ import {
   EyeOff,
   Trash2,
   CheckCircle2,
+  XCircle,
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
@@ -58,6 +59,11 @@ function AdminReportsContent() {
   const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
 
   // Queries
+  const { data: pendingCountData } = useQuery({
+    queryKey: ['admin', 'reports', 'pending-count'],
+    queryFn: () => socialAdminApi.getReports({ page: 1, pageSize: 1, status: 'Pending' }),
+  });
+
   const { data: pagedReports, isLoading, refetch } = useQuery({
     queryKey: ['admin', 'reports', { page, pageSize, contentType, status, reason, dateFrom, dateTo, search }],
     queryFn: () =>
@@ -73,15 +79,20 @@ function AdminReportsContent() {
       }),
   });
 
+  const refreshLive = React.useCallback(() => {
+    refetch();
+    queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'reports', 'pending-count'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats'] });
+    queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats', 'shell'] });
+    queryClient.refetchQueries({ queryKey: ['admin', 'reports'], type: 'active' });
+    queryClient.refetchQueries({ queryKey: ['admin', 'reports', 'pending-count'], type: 'active' });
+  }, [refetch, queryClient]);
+
   // Real-time synchronization
   useEffect(() => {
     signalRService.start();
-
-    const refreshLive = () => {
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
-      queryClient.refetchQueries({ queryKey: ['admin', 'reports'], type: 'active' });
-    };
 
     const unsubs = [
       signalRService.onNewReelReport((msg) => {
@@ -116,13 +127,49 @@ function AdminReportsContent() {
     return () => {
       unsubs.forEach((u) => u());
     };
-  }, [queryClient, flash, refetch]);
+  }, [flash, refreshLive]);
 
   // Actions
+  const resolveMutation = useMutation({
+    mutationFn: (id: string) => socialAdminApi.resolveReport(id, 'تم اعتماد الإجراء والحل السريع'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports', 'pending-count'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats', 'shell'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reports'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reports', 'pending-count'], type: 'active' });
+      flash.success('تم حل البلاغ واعتماد الإجراء.');
+    },
+    onError: () => flash.error('فشل حل البلاغ.'),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => socialAdminApi.rejectReport(id, 'تم رفض البلاغ وتجاهله'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports', 'pending-count'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats', 'shell'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reports'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reports', 'pending-count'], type: 'active' });
+      flash.success('تم رفض البلاغ وتجاهله.');
+    },
+    onError: () => flash.error('فشل رفض البلاغ.'),
+  });
+
   const hideMutation = useMutation({
     mutationFn: (id: string) => socialAdminApi.hideReportContent(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports', 'pending-count'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats', 'shell'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reports'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reports', 'pending-count'], type: 'active' });
       flash.success('تم حجب المحتوى المخالف بنجاح.');
     },
     onError: () => flash.error('فشل حجب المحتوى.'),
@@ -132,6 +179,12 @@ function AdminReportsContent() {
     mutationFn: (id: string) => socialAdminApi.deleteReportContent(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports', 'pending-count'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats', 'shell'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reports'], type: 'active' });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reports', 'pending-count'], type: 'active' });
       flash.success('تم حذف المحتوى المخالف نهائياً.');
     },
     onError: () => flash.error('فشل حذف المحتوى.'),
@@ -233,7 +286,11 @@ function AdminReportsContent() {
         {/* Quick Review Status Tabs (Pending / ActionTaken / Dismissed / All) */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           {[
-            { key: 'Pending', label: 'قيد الانتظار (جديدة لم تحل)', color: 'amber' },
+            {
+              key: 'Pending',
+              label: `قيد الانتظار (جديدة لم تحل)${pendingCountData?.totalCount !== undefined ? ` (${pendingCountData.totalCount})` : ''}`,
+              color: 'amber',
+            },
             { key: 'ActionTaken', label: 'تم اتخاذ إجراء (تم حلها)', color: 'emerald' },
             { key: 'Dismissed', label: 'مرفوضة / متجاهلة', color: 'rose' },
             { key: '', label: 'جميع الحالات', color: 'slate' },
@@ -406,8 +463,60 @@ function AdminReportsContent() {
                   ))
                 ) : pagedReports?.items?.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-500 font-bold">
-                      لا توجد بلاغات مسجلة مطابقة لمعايير البحث.
+                    <td colSpan={9} className="py-14 text-center">
+                      <div className="max-w-md mx-auto flex flex-col items-center justify-center text-center gap-3">
+                        {status === 'Pending' ? (
+                          <>
+                            <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.25)]">
+                              <CheckCircle2 className="w-7 h-7" />
+                            </div>
+                            <div className="text-base font-black text-[#F2F6FA]">
+                              لا توجد أي بلاغات معلقة بانتظار الإجراء!
+                            </div>
+                            <p className="text-xs text-[#8B9CB0] leading-relaxed">
+                              رائع! تم فحص ومراجعة كافة البلاغات السابقة بنجاح، ومركز البلاغات خالٍ من أي مخالفات معلقة. يمكنك استعراض سجل البلاغات السابقة في أي وقت.
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setStatus('')}
+                                className="text-xs border-[var(--egypt-gold)]/40 text-[var(--egypt-gold)] hover:bg-[var(--egypt-gold)]/10"
+                              >
+                                عرض كافة البلاغات والمخالفات السابقة
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
+                              <Filter className="w-6 h-6" />
+                            </div>
+                            <div className="text-sm font-bold text-[#F2F6FA]">
+                              لا توجد بلاغات مسجلة مطابقة لمعايير البحث الحالية.
+                            </div>
+                            <p className="text-xs text-[#8B9CB0]">
+                              جرب تغيير خيارات التصفية أو إلغاء تحديد كلمات البحث.
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setContentType('');
+                                setStatus('');
+                                setReason('');
+                                setDateFrom('');
+                                setDateTo('');
+                                setSearch('');
+                                setPage(1);
+                              }}
+                              className="text-xs text-[var(--egypt-gold)] hover:bg-white/5"
+                            >
+                              إعادة ضبط الفلاتر وعرض الكل
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -499,6 +608,28 @@ function AdminReportsContent() {
                       {/* Actions */}
                       <td className="py-3 px-4 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
+                          {rep.reviewStatus === 'Pending' && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 text-xs border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                                onClick={() => resolveMutation.mutate(rep.id)}
+                                title="حل البلاغ واعتماد الإجراء فورياً"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 text-xs border-rose-500/40 text-rose-400 hover:bg-rose-500/10"
+                                onClick={() => rejectMutation.mutate(rep.id)}
+                                title="رفض وتجاهل البلاغ فورياً"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                              </Button>
+                            </>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
@@ -575,7 +706,7 @@ function AdminReportsContent() {
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
         report={selectedReport}
-        onReportUpdated={() => refetch()}
+        onReportUpdated={() => refreshLive()}
       />
     </AdminShell>
   );

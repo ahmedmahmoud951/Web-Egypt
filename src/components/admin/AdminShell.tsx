@@ -3,9 +3,11 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { adminApi } from '@/api/admin';
+import { socialAdminApi } from '@/api/socialAdmin';
+import { signalRService } from '@/lib/signalr';
 import { BrandLogo } from '@/components/brand/BrandLogo';
 import { EgyptFlagMark } from '@/components/brand/EgyptFlagMark';
 import { LiveStatusBadge } from '@/components/admin/LiveStatusBadge';
@@ -108,11 +110,45 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isAuthenticated, isAdmin, router]);
 
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    signalRService.start();
+
+    const refreshStats = () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard', 'stats', 'shell'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reports', 'pending-count'] });
+      queryClient.refetchQueries({ queryKey: ['admin', 'reports', 'pending-count'], type: 'active' });
+    };
+
+    const unsubs = [
+      signalRService.onReportUpdated(() => refreshStats()),
+      signalRService.onNewReelReport(() => refreshStats()),
+      signalRService.onNewStatusReport(() => refreshStats()),
+      signalRService.onEventReported(() => refreshStats()),
+      signalRService.onVerificationEvent(() => refreshStats()),
+      signalRService.onLocationApproved(() => refreshStats()),
+    ];
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, [queryClient]);
+
   const { data: stats } = useQuery({
     queryKey: ['admin', 'dashboard', 'stats', 'shell'],
     queryFn: () => adminApi.getDashboardStats(),
     enabled: !isLoading && isAuthenticated && isAdmin,
-    refetchInterval: 25000,
+    refetchInterval: 15000,
+  });
+
+  const { data: pendingReportsData } = useQuery({
+    queryKey: ['admin', 'reports', 'pending-count'],
+    queryFn: () => socialAdminApi.getReports({ page: 1, pageSize: 1, status: 'Pending' }),
+    enabled: !isLoading && isAuthenticated && isAdmin,
+    refetchInterval: 15000,
   });
 
   if (isLoading || !isAuthenticated || !isAdmin) {
@@ -126,18 +162,25 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   const getBadgeCount = (href: string) => {
-    if (!stats) return 0;
     switch (href) {
       case '/admin/verification':
+        if (!stats) return 0;
         return (stats.pendingVerifications ?? ((stats.pendingUserVerifications ?? 0) + (stats.pendingPageVerifications ?? 0))) || 0;
       case '/admin/pages':
+        if (!stats) return 0;
         return (stats.pendingPageVerifications ?? 0) || 0;
       case '/admin/locations':
+        if (!stats) return 0;
         return (stats.pendingLocations ?? 0) || 0;
       case '/admin/reports':
-        return (stats.reportedEvents ?? 0) || 0;
+        if (pendingReportsData?.totalCount !== undefined) {
+          return pendingReportsData.totalCount;
+        }
+        if (!stats) return 0;
+        return (stats.pendingComplaints ?? stats.reportedEvents ?? 0) || 0;
       case '/admin/complaints':
-        return (stats.pendingComplaints ?? 0) || 0;
+        if (!stats) return 0;
+        return (stats.pendingComplaints ?? stats.reportedEvents ?? 0) || 0;
       default:
         return 0;
     }
