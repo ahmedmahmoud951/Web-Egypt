@@ -2961,6 +2961,82 @@ button.admin-btn-primary {
   box-shadow: 0 18px 30px -18px rgba(18, 140, 126, 0.4);
 }
 
+/* ========================================================
+   EPIC GLOWING STATUS & STORIES CARDS
+   ======================================================== */
+.status-card-epic {
+  position: relative;
+  border-radius: 1.5rem;
+  background: linear-gradient(165deg, rgba(16, 26, 38, 0.96) 0%, rgba(9, 15, 23, 0.98) 100%);
+  border: 1px solid rgba(37, 211, 102, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 14px 32px -12px rgba(0, 0, 0, 0.7),
+    0 0 25px rgba(18, 140, 126, 0.12);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.status-card-epic:hover {
+  transform: translateY(-6px) scale(1.008);
+  box-shadow:
+    0 0 0 1px rgba(37, 211, 102, 0.45) inset,
+    0 24px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 35px rgba(37, 211, 102, 0.25);
+  border-color: rgba(37, 211, 102, 0.6);
+}
+
+.status-card-epic[data-status="Active"] {
+  border-color: rgba(37, 211, 102, 0.35);
+}
+.status-card-epic[data-status="Active"]:hover {
+  border-color: rgba(37, 211, 102, 0.75);
+  box-shadow:
+    0 0 0 1px rgba(37, 211, 102, 0.45) inset,
+    0 24px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(37, 211, 102, 0.35);
+}
+
+.status-card-epic[data-status="Expired"] {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.status-card-epic[data-status="Expired"]:hover {
+  border-color: rgba(245, 158, 11, 0.7);
+  box-shadow:
+    0 0 0 1px rgba(245, 158, 11, 0.4) inset,
+    0 24px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 35px rgba(245, 158, 11, 0.25);
+}
+
+.status-card-epic[data-status="Hidden"] {
+  border-color: rgba(217, 119, 6, 0.35);
+}
+.status-card-epic[data-status="Hidden"]:hover {
+  border-color: rgba(217, 119, 6, 0.75);
+  box-shadow:
+    0 0 0 1px rgba(217, 119, 6, 0.45) inset,
+    0 24px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 38px rgba(217, 119, 6, 0.3);
+}
+
+.status-card-epic[data-status="Deleted"] {
+  border-color: rgba(244, 63, 94, 0.35);
+}
+.status-card-epic[data-status="Deleted"]:hover {
+  border-color: rgba(244, 63, 94, 0.75);
+  box-shadow:
+    0 0 0 1px rgba(244, 63, 94, 0.45) inset,
+    0 24px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(244, 63, 94, 0.35);
+}
+
+.status-card-epic[data-reported="true"] {
+  border-color: rgba(239, 68, 68, 0.75) !important;
+  animation: pulse-border-danger 2.5s infinite ease-in-out;
+}
+
 .social-empty {
   text-align: center;
   padding: 3rem 1rem;

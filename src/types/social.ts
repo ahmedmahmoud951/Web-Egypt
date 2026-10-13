@@ -93,6 +93,7 @@ export interface StatusDto {
   expiresAt: string;
   isViewedByCurrentUser: boolean;
   isOwner: boolean;
+  music?: ReelMusicDto | null;
 }
 
 export interface AdminStatusDetailDto extends StatusDto {
@@ -123,6 +124,7 @@ export interface AdminStatusFilter {
   dateTo?: string;
   isReported?: boolean;
   search?: string;
+  sortBy?: 'newest' | 'views' | 'reactions' | 'reports' | 'expiringSoon';
 }
 
 export interface UserStatusGroupDto {
