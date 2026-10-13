@@ -1,150 +1,162 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Eye, Loader2, Music2 } from 'lucide-react';
-import {
-  clearSignedMediaUrlCache,
-  ensureWebPlayableMedia,
-  logVideoElement,
-  MediaMeta,
-  usePlayableMediaSrc,
-  useVideoPosterFrame,
-  withMediaFragment,
-} from '@/hooks/usePlayableMediaSrc';
-import { extractMediaId, resolveMediaUrl } from '@/lib/media';
-import { devLog } from '@/lib/devLog';
+import React, { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, Eye, Film, Loader2, Music2, Play } from 'lucide-react';
+import { resolveMediaUrl } from '@/lib/media';
 
 interface ReelCardMediaProps {
   mediaUrl: string;
   posterUrl?: string | null;
+  durationSeconds?: number | null;
   onOpen: () => void;
 }
 
-function AudioOnlyPlaceholder({
-  meta,
-  normalizing,
-}: {
-  meta: MediaMeta | null;
-  normalizing?: boolean;
-}) {
-  return (
-    <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-[#1a2838] to-[#0a1018] px-3 text-center pointer-events-none">
-      {normalizing ? (
-        <Loader2 className="w-7 h-7 text-[#E6D19A] animate-spin" />
-      ) : (
-        <span className="w-14 h-14 rounded-full bg-[#C4A35A]/20 border border-[#C4A35A]/40 grid place-items-center">
-          <Music2 className="w-7 h-7 text-[#E6D19A]" />
-        </span>
-      )}
-      <span className="text-[11px] font-black text-white/90">
-        {normalizing ? 'جاري التحويل…' : 'فيديو HEVC (صوت فقط)'}
-      </span>
-      <span className="text-[10px] font-semibold text-white/50 leading-snug">
-        {normalizing ? 'تحويل HEVC إلى H.264' : 'المتصفح لا يدعم كودك HEVC'}
-      </span>
-      {meta?.contentType && !normalizing && (
-        <span className="text-[9px] font-mono text-white/35 truncate max-w-full px-2">
-          {meta.contentType}
-          {meta.width != null || meta.height != null
-            ? ` · ${meta.width ?? 0}×${meta.height ?? 0}`
-            : ''}
-        </span>
-      )}
-    </div>
-  );
-}
+export function ReelCardMedia({ mediaUrl, posterUrl, durationSeconds, onOpen }: ReelCardMediaProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isInView, setIsInView] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
-export function ReelCardMedia({ mediaUrl, posterUrl, onOpen }: ReelCardMediaProps) {
-  const { src, failed, markFailed, isResolving, meta } = usePlayableMediaSrc(mediaUrl);
-  const [forcedSrc, setForcedSrc] = useState<string | null>(null);
-  const [isNormalizing, setIsNormalizing] = useState(false);
-  const normalizeAttemptedRef = React.useRef<string | null>(null);
-  const effectiveSrc = forcedSrc || src;
-  const playable = effectiveSrc ? withMediaFragment(effectiveSrc, 0.15) : '';
-  const { videoRef, frameReady, noVideoTrack } = useVideoPosterFrame(playable, !failed && !!playable);
-  const poster = posterUrl ? resolveMediaUrl(posterUrl) : undefined;
+  // Lazy viewport intersection: only load video element when within 300px of viewport
+  // This frees up browser connection sockets so visible cards load in milliseconds!
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '300px' }
+    );
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Instant direct resolved URL for high-speed delivery
+  const resolvedMedia = resolveMediaUrl(mediaUrl);
+  const resolvedPoster = posterUrl ? resolveMediaUrl(posterUrl) : null;
+  // #t=0.1 prompts the browser to fetch only the first frame instantly
+  const mediaSrcWithFrame = resolvedMedia ? `${resolvedMedia}#t=0.1` : '';
 
   useEffect(() => {
-    normalizeAttemptedRef.current = null;
-    setForcedSrc(null);
-    setIsNormalizing(false);
+    setIsLoaded(false);
+    setHasError(false);
+    setIsPlaying(false);
   }, [mediaUrl]);
 
-  useEffect(() => {
-    if (failed) {
-      logVideoElement('reel-card', 'marked-failed', videoRef.current, {
-        mediaUrl: mediaUrl.slice(0, 80),
+  const handleMouseEnter = () => {
+    if (videoRef.current && !hasError) {
+      videoRef.current.muted = true;
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {
+        // Autoplay may be restricted in some browser settings
       });
     }
-  }, [failed, mediaUrl, videoRef]);
+  };
 
-  useEffect(() => {
-    const mediaId = extractMediaId(mediaUrl) || meta?.mediaId;
-    if (!noVideoTrack || isNormalizing || forcedSrc || !mediaId || normalizeAttemptedRef.current === mediaId) {
-      return;
-    }
-
-    normalizeAttemptedRef.current = mediaId;
-    setIsNormalizing(true);
-    void ensureWebPlayableMedia(mediaId).then((result) => {
-      setIsNormalizing(false);
-      if (!result?.url) {
-        devLog.warn('reel-card', 'Web normalize failed — keeping audio-only placeholder', { mediaId });
-        return;
+  const handleMouseLeave = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+      try {
+        videoRef.current.currentTime = 0.1;
+      } catch {
+        // ignore seek error
       }
-      clearSignedMediaUrlCache(mediaId);
-      setForcedSrc(result.url);
-      devLog.ok('reel-card', 'Switched to web-playable url', {
-        mediaId,
-        normalizedNow: result.normalizedNow,
-      });
-    });
-  }, [noVideoTrack, isNormalizing, forcedSrc, mediaUrl, meta?.mediaId]);
-
-  useEffect(() => {
-    if (noVideoTrack) {
-      devLog.warn('reel-card', 'Showing audio-only placeholder', {
-        mediaUrl: mediaUrl.slice(0, 80),
-        meta,
-      });
+      setIsPlaying(false);
     }
-  }, [noVideoTrack, mediaUrl, meta]);
+  };
+
+  const formatDuration = (secs?: number | null) => {
+    if (!secs || secs <= 0) return null;
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   return (
-    <div className="reel-card-media" onClick={onOpen}>
-      {failed || !playable ? (
-        <div className="absolute inset-0 grid place-items-center bg-[#0a1018] text-white/60 gap-2 px-3 text-center z-[1]">
-          <AlertTriangle className="w-6 h-6 text-amber-400" />
-          <span className="text-[11px] font-bold">تعذر تحميل الفيديو</span>
-        </div>
-      ) : (
-        <>
-          <video
-            key={playable}
-            ref={videoRef}
-            src={playable}
-            poster={poster}
-            muted
-            playsInline
-            preload="auto"
-            className="reel-card-video"
-            data-frame-ready={frameReady ? 'true' : 'false'}
-            data-resolving={isResolving ? 'true' : 'false'}
-            data-no-video={noVideoTrack ? 'true' : 'false'}
-            onError={() => {
-              logVideoElement('reel-card', 'onError', videoRef.current);
-              markFailed();
-            }}
-          />
-          {(noVideoTrack || isNormalizing) && (
-            <AudioOnlyPlaceholder meta={meta} normalizing={isNormalizing} />
-          )}
-        </>
+    <div
+      ref={containerRef}
+      className="reel-card-media group relative overflow-hidden"
+      onClick={onOpen}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* 1. Instant Poster Image if available */}
+      {resolvedPoster && !hasError && (
+        <img
+          src={resolvedPoster}
+          alt="Reel preview"
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-[1] pointer-events-none ${
+            isPlaying ? 'opacity-0' : 'opacity-100'
+          }`}
+          loading="lazy"
+        />
       )}
-      <div className="reel-card-scrim" />
-      <span className="reel-card-play">
-        <span className="w-12 h-12 rounded-full bg-white/20 backdrop-blur border border-white/40 grid place-items-center">
-          <Eye className="w-5 h-5" />
+
+      {/* 2. Fast HTML5 Video with metadata preloading - loaded only when in/near view */}
+      {isInView && mediaSrcWithFrame && !hasError ? (
+        <video
+          ref={videoRef}
+          src={mediaSrcWithFrame}
+          muted
+          playsInline
+          loop
+          preload="metadata"
+          className={`reel-card-video transition-all duration-500 group-hover:scale-105 ${
+            isLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+          onLoadedData={() => setIsLoaded(true)}
+          onLoadedMetadata={() => setIsLoaded(true)}
+          onCanPlay={() => setIsLoaded(true)}
+          onError={() => setHasError(true)}
+        />
+      ) : null}
+
+      {/* 3. Skeleton Shimmer while loading */}
+      {!isLoaded && !resolvedPoster && !hasError && (
+        <div className="absolute inset-0 z-[2] grid place-items-center bg-gradient-to-b from-[#121c2a] to-[#0a1018] animate-pulse pointer-events-none">
+          <div className="flex flex-col items-center gap-2 text-white/40">
+            <Film className="w-8 h-8 text-[#C4A35A]/60 animate-bounce" />
+            <span className="text-[10px] font-bold text-[#E6D19A]/70">جاري عرض المقطع…</span>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Error Fallback */}
+      {hasError && (
+        <div className="absolute inset-0 grid place-items-center bg-[#0a1018] text-white/60 gap-2 px-3 text-center z-[3]">
+          <AlertTriangle className="w-6 h-6 text-amber-400" />
+          <span className="text-[11px] font-bold">تعذر عرض المعاينة</span>
+        </div>
+      )}
+
+      {/* 5. Cinematic Gradient Scrim */}
+      <div className="reel-card-scrim z-[4]" />
+
+      {/* 6. Hover Live Preview Badge */}
+      {isPlaying && (
+        <div className="absolute top-3 right-3 z-[6] flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/90 backdrop-blur-md text-[10px] font-black text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse">
+          <span className="w-1.5 h-1.5 rounded-full bg-white" />
+          بث حي
+        </div>
+      )}
+
+      {/* 7. Duration Badge if available */}
+      {durationSeconds && durationSeconds > 0 && (
+        <div className="absolute top-3 left-3 z-[5] px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-white/90">
+          {formatDuration(durationSeconds)}
+        </div>
+      )}
+
+      {/* 8. Glowing Center Play / View Button on Hover */}
+      <span className="reel-card-play z-[5] transition-transform duration-300 group-hover:scale-110">
+        <span className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#0F1B2D]/80 to-[#1F6B7A]/80 backdrop-blur-md border border-[#C4A35A]/50 grid place-items-center shadow-[0_0_24px_rgba(196,163,90,0.4)] group-hover:border-[#C4A35A] group-hover:shadow-[0_0_32px_rgba(196,163,90,0.7)] transition-all">
+          <Play className="w-5 h-5 text-[#F5E6B8] fill-[#F5E6B8]/40 ml-0.5" />
         </span>
       </span>
     </div>

@@ -1,5 +1,17 @@
 export type ReelStatus = 'Draft' | 'Published' | 'Hidden' | 'Deleted';
 
+export interface ReelMusicDto {
+  trackId?: string;
+  provider?: string;
+  providerTrackId?: string;
+  title: string;
+  artistName: string;
+  artworkUrl?: string | null;
+  totalDurationSeconds?: number;
+  durationSeconds?: number;
+  streamUrl?: string | null;
+}
+
 export interface ReelDto {
   id: string;
   userId: string;
@@ -25,6 +37,12 @@ export interface ReelDto {
   isOwner: boolean;
   createdAt: string;
   publishedAt?: string | null;
+  durationSeconds?: number | null;
+  music?: ReelMusicDto | null;
+  musicTitle?: string | null;
+  musicArtist?: string | null;
+  tags?: string | string[] | null;
+  seriesOrMovieTitle?: string | null;
 }
 
 export interface AdminReelStats {
@@ -51,6 +69,7 @@ export interface AdminReelFilter {
   dateTo?: string;
   isReported?: boolean;
   search?: string;
+  sortBy?: 'newest' | 'views' | 'reactions' | 'comments' | 'reports';
 }
 
 export type StatusItemStatus = 'Active' | 'Expired' | 'Hidden' | 'Deleted';

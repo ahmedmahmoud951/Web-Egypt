@@ -2686,6 +2686,195 @@ button.admin-btn-primary {
   box-shadow: 0 0 16px rgba(196, 163, 90, 0.35);
 }
 
+/* ========================================================
+   EPIC GLOWING REELS DESIGN SYSTEM
+   ======================================================== */
+.reel-card-epic {
+  position: relative;
+  border-radius: 1.5rem;
+  background: linear-gradient(165deg, rgba(16, 25, 39, 0.96) 0%, rgba(9, 14, 23, 0.98) 100%);
+  border: 1px solid rgba(45, 138, 156, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 12px 30px -10px rgba(0, 0, 0, 0.7),
+    0 0 25px rgba(31, 107, 122, 0.12);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.reel-card-epic:hover {
+  transform: translateY(-6px) scale(1.008);
+  box-shadow:
+    0 0 0 1px rgba(196, 163, 90, 0.5) inset,
+    0 24px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 35px rgba(196, 163, 90, 0.28);
+  border-color: rgba(196, 163, 90, 0.6);
+}
+
+/* Status-specific glowing ambient aura */
+.reel-card-epic[data-status="Published"] {
+  border-color: rgba(16, 185, 129, 0.32);
+}
+.reel-card-epic[data-status="Published"]:hover {
+  border-color: rgba(16, 185, 129, 0.7);
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.45) inset,
+    0 24px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(16, 185, 129, 0.35);
+}
+
+.reel-card-epic[data-status="Hidden"] {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.reel-card-epic[data-status="Hidden"]:hover {
+  border-color: rgba(245, 158, 11, 0.75);
+  box-shadow:
+    0 0 0 1px rgba(245, 158, 11, 0.45) inset,
+    0 24px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 38px rgba(245, 158, 11, 0.35);
+}
+
+.reel-card-epic[data-status="Draft"] {
+  border-color: rgba(148, 163, 184, 0.25);
+}
+.reel-card-epic[data-status="Draft"]:hover {
+  border-color: rgba(148, 163, 184, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(148, 163, 184, 0.35) inset,
+    0 24px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 32px rgba(148, 163, 184, 0.25);
+}
+
+.reel-card-epic[data-status="Deleted"] {
+  border-color: rgba(244, 63, 94, 0.35);
+}
+.reel-card-epic[data-status="Deleted"]:hover {
+  border-color: rgba(244, 63, 94, 0.75);
+  box-shadow:
+    0 0 0 1px rgba(244, 63, 94, 0.45) inset,
+    0 24px 50px -12px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(244, 63, 94, 0.35);
+}
+
+.reel-card-epic[data-reported="true"] {
+  border-color: rgba(239, 68, 68, 0.7) !important;
+  animation: pulse-border-danger 2.5s infinite ease-in-out;
+}
+
+@keyframes pulse-border-danger {
+  0%, 100% {
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4) inset, 0 0 25px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.7) inset, 0 0 45px rgba(239, 68, 68, 0.55);
+  }
+}
+
+/* Equalizer Bars Animation */
+.equalizer-bar {
+  display: inline-block;
+  width: 2.5px;
+  background: #38bdf8;
+  border-radius: 2px;
+  animation: eq-bounce 1.2s ease-in-out infinite alternate;
+}
+.equalizer-bar:nth-child(1) { height: 6px; animation-delay: 0.1s; }
+.equalizer-bar:nth-child(2) { height: 14px; animation-delay: 0.3s; }
+.equalizer-bar:nth-child(3) { height: 9px; animation-delay: 0.2s; }
+.equalizer-bar:nth-child(4) { height: 16px; animation-delay: 0.4s; }
+
+@keyframes eq-bounce {
+  0% { transform: scaleY(0.4); }
+  100% { transform: scaleY(1.3); }
+}
+
+/* KPI Epic Cards */
+.kpi-card-epic {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  background: linear-gradient(155deg, rgba(17, 26, 40, 0.85) 0%, rgba(9, 14, 22, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1rem 1.15rem;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(12px);
+}
+.kpi-card-epic:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.kpi-card-epic.glow-cyan {
+  border-color: rgba(56, 189, 248, 0.28);
+  box-shadow: 0 0 22px rgba(56, 189, 248, 0.12);
+}
+.kpi-card-epic.glow-cyan:hover {
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 35px rgba(56, 189, 248, 0.25);
+}
+.kpi-card-epic.glow-emerald {
+  border-color: rgba(16, 185, 129, 0.28);
+  box-shadow: 0 0 22px rgba(16, 185, 129, 0.12);
+}
+.kpi-card-epic.glow-emerald:hover {
+  border-color: rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 35px rgba(16, 185, 129, 0.25);
+}
+.kpi-card-epic.glow-gold {
+  border-color: rgba(196, 163, 90, 0.32);
+  box-shadow: 0 0 22px rgba(196, 163, 90, 0.14);
+}
+.kpi-card-epic.glow-gold:hover {
+  border-color: rgba(196, 163, 90, 0.7);
+  box-shadow: 0 0 38px rgba(196, 163, 90, 0.3);
+}
+.kpi-card-epic.glow-pink {
+  border-color: rgba(244, 114, 182, 0.28);
+  box-shadow: 0 0 22px rgba(244, 114, 182, 0.12);
+}
+.kpi-card-epic.glow-pink:hover {
+  border-color: rgba(244, 114, 182, 0.6);
+  box-shadow: 0 0 35px rgba(244, 114, 182, 0.25);
+}
+.kpi-card-epic.glow-amber {
+  border-color: rgba(245, 158, 11, 0.28);
+  box-shadow: 0 0 22px rgba(245, 158, 11, 0.12);
+}
+.kpi-card-epic.glow-amber:hover {
+  border-color: rgba(245, 158, 11, 0.6);
+  box-shadow: 0 0 35px rgba(245, 158, 11, 0.25);
+}
+.kpi-card-epic.glow-ruby {
+  border-color: rgba(239, 68, 68, 0.32);
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.16);
+}
+.kpi-card-epic.glow-ruby:hover {
+  border-color: rgba(239, 68, 68, 0.75);
+  box-shadow: 0 0 40px rgba(239, 68, 68, 0.35);
+}
+
+/* Pulsing radar dot */
+.radar-pulse {
+  position: relative;
+  display: inline-flex;
+}
+.radar-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: inherit;
+  opacity: 0.6;
+  animation: radar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes radar-ping {
+  75%, 100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
 .stories-rail {
   display: flex;
   gap: 0.75rem;
