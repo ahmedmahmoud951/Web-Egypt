@@ -1,36 +1,193 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Today In Egypt - Web Platform (النهارده في مصر 🇪🇬)
+### البوابة الرقمية التفاعلية للويب ولوحة التحكم الإدارية (Next.js 16, React 19, TypeScript & Tailwind CSS)
 
-## Getting Started
+> **الإصدار الحالي:** 3.0.0 (المنصة التفاعلية المتطورة، إدارة الريلز، الحالات، والمركز الموحد للبلاغات)  
+> **حالة النشر والبيئات الحية:**  
+> - **رابط موقع الويب المباشر:** `https://webtodayegypt.runasp.net`  
+> - **رابط الباك إند الحي المرتبط:** `https://todayegypt.runasp.net`  
+> - **الاتصال اللحظي للويب:** SignalR WebSockets عبر `/hubs/events` و `/hubs/chat`  
+> - **مستودع الكود المصدري:** [github.com/ahmedmahmoud951/Web-Egypt](https://github.com/ahmedmahmoud951/Web-Egypt.git)
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 📑 فهرس المحتويات (Table of Contents)
+
+1. [نظرة عامة على واجهة الويب (Overview & Experience)](#1-نظرة-عامة-على-واجهة-الويب)
+2. [المعمارية التقنية ومكدس الويب (Architecture & Tech Stack)](#2-المعمارية-التقنية-ومكدس-الويب)
+3. [هيكل المجلدات ومسارات النظام (Folder Structure & App Router)](#3-هيكل-المجلدات-ومسارات-النظام)
+4. [لوحة تحكم الإدارة العليا (Admin Shell & Moderation Suite)](#4-لوحة-تحكم-الإدارة-العليا)
+5. [المكونات الذكية وتجربة المستخدم الميدانية (UI/UX Components)](#5-المكونات-الذكية-وتجربة-المستخدم-الميدانية)
+6. [إدارة الحالة والاتصال اللحظي (State Management & Real-Time Engine)](#6-إدارة-الحالة-والاتصال-اللحظي)
+7. [التخزين السحابي ورفع الوسائط المباشر (Cloud Upload Flow)](#7-التخزين-السحابي-ورفع-الوسائط-المباشر)
+8. [دليل التشغيل المحلي والتهيئة والنشر (Setup & Deployment)](#8-دليل-التشغيل-المحلي-والتهيئة-والنشر)
+
+---
+
+## 1. نظرة عامة على واجهة الويب
+
+تطبيق الويب **"النهارده في مصر"** مبني بأحدث معايير الويب التفاعلي (React 19 و Next.js 16) لتقديم تجربة تضاهي كبرى منصات التواصل الاجتماعي العالمية (فيسبوك، إنستغرام، تيك توك) بنكهة وهوية مصرية خالصة تدعم اللغة العربية والاتجاه من اليمين لليسار (RTL) بشكل أصيل.
+
+### ✨ أبرز مميزات الواجهة:
+- **الموجز الميداني الذكي (Live Feed):** استعراض الأخبار والأحداث الميدانية اللحظية مع تصفية بالمحافظة والتصنيف وزر "أنا شاهد عيان".
+- **منصة الريلز والفيديو القصير (Reels & Short Video):** عارض ريلز متطور مع تشغيل الفيديو السريع، كتم/تشغيل الصوت، التفاعل، والتعليقات.
+- **شريط الحالات والقصص اليومية (24h Stories Rail):** شريط تفاعلي مستوحى من واتساب وإنستغرام لمشاهدة ونشر القصص اليومية.
+- **بوابة الإدارة المركزية (Central Admin Portal):** لوحة تحكم متكاملة تدعم الرقابة اللحظية على البلاغات والمخالفات، إدارة التوثيق، والمستخدمين، مع شارات تنبيه ذكية ترتبط بالوقت الحقيقي.
+
+---
+
+## 2. المعمارية التقنية ومكدس الويب
+
+| التقنية / المكتبة | الإصدار | الوظيفة البرمجية في المنظومة |
+| :--- | :--- | :--- |
+| **Next.js** | `16.3.5` | إطار العمل الرئيسي بنظام App Router والتوليد الثابت والخادم |
+| **React** | `19.2.8` | بناء الواجهات البرمجية وتجربة المستخدم التفاعلية |
+| **TypeScript** | `5.x` | التحقق من الأنواع وضمان استقرار الكود البرمجي |
+| **Tailwind CSS** | `v4` | نظام التنسيق الحديث وتصميم الهوية اللونية المصرية الفاخرة |
+| **TanStack React Query** | `v5` | إدارة كاش البيانات اللحظي، التحديثات التفاؤلية، وتفريغ الذاكرة |
+| **SignalR Client** | `@microsoft/signalr` | الاتصال اللحظي بـ WebSockets لاستقبال البلاغات والأحداث |
+| **Axios** | `1.x` | عميل الـ HTTP المحمي للاتصال بـ REST API مع الـ Interceptors |
+| **Lucide React** | `Latest` | حزمة الأيقونات العصرية والمتناسقة مع الواجهات |
+
+---
+
+## 3. هيكل المجلدات ومسارات النظام
+
+```
+src/
+├── app/                                 # مسارات Next.js App Router
+│   ├── layout.tsx                       # الإطار الرئيسي للموقع، موفرو الحالة والخطوط
+│   ├── page.tsx                         # الصفحة الرئيسية وموجز الأحداث
+│   ├── globals.css                      # المتغيرات اللونية والهوية الزجاجية ودعم RTL
+│   ├── events/
+│   │   ├── new/page.tsx                 # صفحة نشر حدث جديد ورفع الوسائط
+│   │   └── [id]/page.tsx                # تفاصيل الحدث والخريطة والتعليقات
+│   ├── locations/page.tsx               # مستكشف المحافظات والمراكز
+│   ├── profile/page.tsx                 # الملف الشخصي وإدارة المنشورات
+│   ├── login/page.tsx                   # شاشة الدخول
+│   ├── register/page.tsx                # شاشة التسجيل
+│   ├── verify-otp/page.tsx              # شاشة تأكيد رمز OTP الواتساب
+│   └── admin/                           # بوابة الإدارة العليا
+│       ├── layout.tsx                   # تخطيط لوحة التحكم والشريط الجانبي
+│       ├── page.tsx                     # لوحة القيادة والمؤشرات الحية
+│       ├── reports/page.tsx             # المركز الموحد للبلاغات والمخالفات
+│       ├── verification/page.tsx        # إدارة وتوثيق الحسابات والبطاقات
+│       ├── reels/page.tsx               # إدارة مقاطع الريلز
+│       ├── statuses/page.tsx            # إدارة الحالات اليومية والقصص
+│       ├── users/page.tsx               # إدارة المستخدمين والحظر
+│       ├── events/page.tsx              # إدارة ومراجعة المنشورات
+│       ├── pages/page.tsx               # إدارة الصفحات العامة
+│       ├── shops/page.tsx               # إدارة المتاجر والمعارض
+│       ├── marketplace/page.tsx         # سوق مصر والخدمات
+│       ├── payments/page.tsx            # سجل المدفوعات والعمليات
+│       ├── advertising/page.tsx         # منصة الإعلانات الممولة
+│       ├── staff/page.tsx               # طاقم الأدمن والصلاحيات
+│       └── chat/page.tsx                # مراقبة المحادثات
+│
+├── components/                          # المكونات القابلة لإعادة الاستخدام
+│   ├── admin/                           # مكونات لوحة التحكم (AdminShell, Navigation...)
+│   ├── brand/                           # لوجو المنصة، علم مصر، والهوية البصرية
+│   ├── events/                          # كروت الأحداث، القوائم، عارض الوسائط
+│   ├── social/                          # نوافذ فحص البلاغات، الريلز، والحالات
+│   └── ui/                              # الأزرار، التنبيهات (Flash), الحقول، والشارات
+│
+├── hooks/                               # خطافات React المخصصة
+│   ├── useAuth.ts                       # تتبع حالة المصادقة وحماية المسارات
+│   ├── useSignalR.ts                    # الاشتراك في الـ WebSockets
+│   └── useMediaUpload.ts                # خطاف رفع الوسائط لـ Backblaze B2
+│
+├── api/                                 # دوال الاتصال المباشر بالباك إند
+│   ├── client.ts                        # تهيئة Axios مع التوكنات والـ Interceptors
+│   ├── admin.ts                         # دوال الإدارة واللوحة الرئيسية
+│   ├── socialAdmin.ts                   # دوال الريلز والحالات والبلاغات المركزية
+│   └── events.ts                        # دوال الأحداث والتعليقات
+│
+└── types/                               # تعريفات TypeScript الشاملة لكافة الـ DTOs
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 4. لوحة تحكم الإدارة العليا (Admin Shell & Moderation Suite)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+تتميز لوحة تحكم الإدارة في الويب بالمواصفات التالية:
+1. **الشارات الحية المتزامنة (Smart Live Badges):**
+   - ترتبط شارة **"مركز البلاغات والمخالفات"** و **"التوثيق"** بالعدد الفعلي للبلاغات المعلقة الحية (`status: Pending`).
+   - عند حل أو اتخاذ إجراء أو رفض البلاغ، يختفي الإشعار فوراً وبشكل تلقائي في أجزاء من الثانية.
+2. **شاشة الحالة الفارغة الاحتفالية والمطمئنة:**
+   - عند عدم وجود بلاغات معلقة، تظهر بطاقة خضراء واضحة:
+     > `🎉 لا توجد أي بلاغات معلقة بانتظار الإجراء! تم فحص ومراجعة كافة البلاغات السابقة بنجاح.`
+     مع زر فوري للانتقال إلى الأرشيف الكامل للبلاغات المحسومة.
+3. **أزرار الحل السريع بنقرة واحدة (One-Click Actions):**
+   - تمكين المشرف من حل أو رفض البلاغ مباشرة من أسطر الجدول دون الحاجة لفتح نافذة التفاصيل.
+4. **تكامل نافذة الفحص الشاملة (`ReportDetailModal`):**
+   - معاينة الوسائط المخالفة بأمان، حجب المحتوى، استعادته، حذفه نهائياً، أو توجيه تحذير رسمي لصاحب الحساب مع مزامنة كاش البيانات فوراً.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 5. المكونات الذكية وتجربة المستخدم الميدانية
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **كارت الحدث الذكي (`EventCard`):**
+   - بيانات الناشر وشارة توثيقه الملونة، اسم المحافظة والمركز، التوقيت النسبي بالعربية، وشبكة الوسائط التفاعلية.
+   - زر **"أنا شاهد عيان"** الأخضر المتوهج مع دعم التحديث التفاؤلي الفوري (Optimistic Update).
+2. **عارض الوسائط المتقدم (`EventMediaLightbox`):**
+   - عارض ملء الشاشة للصور عالية الدقة والفيديوهات مع التحكم في الصوت ودعم التكبير والسحب (Zoom & Pan).
+3. **شريط الحالات التفاعلي (`WhatsApp-Style Stories Rail`):**
+   - استعراض قصص المستخدمين مع حلقة التوهج الملونة التي تميز الحالات الجديدة غير المشاهدة.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 6. إدارة الحالة والاتصال اللحظي
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **TanStack React Query v5:**
+  - تخزين مؤقت وإعادة جلب ذكية مع استراتيجيات `staleTime: 60_000`.
+  - مزامنة فورية لحالات البلاغات والإشعارات عبر دوال الـ `invalidateQueries` و `refetchQueries`.
+- **SignalR WebSockets:**
+  - تشغيل خدمة الاتصال اللحظي في خلفية التطبيق والاستماع لأحداث:
+    - `onReportUpdated`: تحديث فوري لحالة البلاغات وشارة القائمة الجانبية.
+    - `onNewReelReport` و `onNewStatusReport`: تنبيه الإدارة اللحظي بالبلاغات الجديدة.
+    - `onEventReported` و `onEventHidden`: إخفاء المنشورات المخالفة فورياً من متصفحات كافة الزوار.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 7. التخزين السحابي ورفع الوسائط المباشر
+
+يستخدم تطبيق الويب بروتوكول الرفع ثلاثي المراحل إلى سحابة **Backblaze B2** المتوافقة مع S3:
+1. طلب الرابط المؤقت من الخادم (`POST /api/media/upload-url`).
+2. إرسال بايتات الملف مباشرة من المتصفح إلى السحابة عبر `HTTP PUT` مع متابعة نسبة شريط التقدم.
+3. تأكيد اكتمال الرفع لدى السيرفر (`POST /api/media/{id}/complete`) لتفعيل رابط العرض.
+
+---
+
+## 8. دليل التشغيل المحلي والتهيئة والنشر
+
+### 8.1 المتطلبات:
+- **Node.js 18.18+** أو **Node.js 20+** مثبت على الجهاز.
+- مدير الحزم `npm`.
+
+### 8.2 التشغيل المحلي:
+1. الانتقال لمجلد الويب وتثبيت الحزم:
+   ```bash
+   cd src/TodayInEgypt.Web
+   npm install
+   ```
+2. تهيئة ملف المتغيرات البيئية `.env.local`:
+   ```env
+   NEXT_PUBLIC_API_URL=https://todayegypt.runasp.net
+   NEXT_PUBLIC_API_DIRECT=1
+   ```
+3. تشغيل سيرفر التطوير المحلي:
+   ```bash
+   npm run dev
+   ```
+   *سيعمل الموقع محلياً على: `http://localhost:3000`.*
+
+### 8.3 فحص الكود وتوليد حزمة الإنتاج:
+```bash
+npm run build
+```
+
+---
+
+## 📜 الترخيص والملكية الفكرية
+
+جميع الحقوق محفوظة © 2026 لمنظومة **"النهارده في مصر 🇪🇬" (Today In Egypt)**.
+مطور المنظومة والمشرف العام: **أحمد محمود (Ahmed Mahmoud)**.
