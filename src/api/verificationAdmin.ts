@@ -68,6 +68,7 @@ export interface VerificationRequestDocumentItem {
   documentTypeName: string;
   /** API field — relative path like /api/media/{id}/file */
   documentUrl?: string;
+  fileUrl?: string;
   fileName?: string;
   notes?: string;
   createdAt: string;
@@ -97,6 +98,8 @@ export function verificationDocumentTypeLabel(
       return 'سجل تجاري';
     case 7:
       return 'بطاقة ضريبية';
+    case 8:
+      return 'صورة شخصية / سيلفي';
     case 99:
       return 'مستند آخر';
     default:

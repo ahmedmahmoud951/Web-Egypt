@@ -284,7 +284,7 @@ export default function AdminVerificationPage() {
       setApproveModalRequest(null);
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification'] });
     },
-    onError: (err: any) => showToast(err?.response?.data?.message || 'فشل اعتماد الطلب', 'error'),
+    onError: (err: any) => showToast(err?.message || err?.response?.data?.message || 'فشل اعتماد الطلب', 'error'),
   });
 
   const rejectMutation = useMutation({
@@ -296,7 +296,7 @@ export default function AdminVerificationPage() {
       setRejectReason('');
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification'] });
     },
-    onError: (err: any) => showToast(err?.response?.data?.message || 'فشل رفض الطلب', 'error'),
+    onError: (err: any) => showToast(err?.message || err?.response?.data?.message || 'فشل رفض الطلب', 'error'),
   });
 
   const reviewMutation = useMutation({
@@ -305,7 +305,7 @@ export default function AdminVerificationPage() {
       showToast('تم نقل الطلب إلى حالة "قيد المراجعة" بنجاح.');
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification'] });
     },
-    onError: (err: any) => showToast(err?.response?.data?.message || 'فشل تحديث حالة الطلب', 'error'),
+    onError: (err: any) => showToast(err?.message || err?.response?.data?.message || 'فشل تحديث حالة الطلب', 'error'),
   });
 
   const requestReuploadMutation = useMutation({
@@ -317,7 +317,7 @@ export default function AdminVerificationPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification', 'request', vars.id] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'verification', 'dashboard'] });
     },
-    onError: (err: any) => showToast(err?.response?.data?.message || 'فشل إرسال الإشعار للمستخدم', 'error'),
+    onError: (err: any) => showToast(err?.message || err?.response?.data?.message || 'فشل إرسال الإشعار للمستخدم', 'error'),
   });
 
   const handleRequestReupload = (req: VerificationRequestItem) => {
@@ -1199,6 +1199,10 @@ export default function AdminVerificationPage() {
                           request={r}
                           onInspect={(req) => setSelectedRequestId(req.id)}
                           onPreviewAvatar={(req) => setZoomAvatarUser(req)}
+                          onPreviewImage={(url, title) => {
+                            setPreviewDocUrl(url);
+                            setPreviewDocTitle(title);
+                          }}
                           onApprove={(req) => {
                             setApproveModalRequest(req);
                             setApprovedDuration(req.requestedDurationDays || 30);

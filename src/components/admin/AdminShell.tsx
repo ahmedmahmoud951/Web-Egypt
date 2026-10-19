@@ -141,14 +141,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     queryKey: ['admin', 'dashboard', 'stats', 'shell'],
     queryFn: () => adminApi.getDashboardStats(),
     enabled: !isLoading && isAuthenticated && isAdmin,
-    refetchInterval: 15000,
+    refetchInterval: 60000,
+    staleTime: 30000,
   });
 
   const { data: pendingReportsData } = useQuery({
     queryKey: ['admin', 'reports', 'pending-count'],
     queryFn: () => socialAdminApi.getReports({ page: 1, pageSize: 1, status: 'Pending' }),
     enabled: !isLoading && isAuthenticated && isAdmin,
-    refetchInterval: 15000,
+    refetchInterval: 60000,
+    staleTime: 30000,
   });
 
   if (isLoading || !isAuthenticated || !isAdmin) {
@@ -231,21 +233,14 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   <Icon className="w-[18px] h-[18px]" strokeWidth={2.25} />
                 </span>
                 <span className="truncate">{item.label}</span>
-                {item.href === '/admin/verification' ? (
-                  <span
-                    className="mr-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-rose-600 to-amber-600 text-white shadow-[0_0_12px_rgba(244,63,94,0.6)] border border-rose-400/40 animate-pulse shrink-0"
-                    title="تنبيه: تم رصد 3 طلبات تحوي صوراً تجريبية غير مطابقة لبطاقة الرقم القومي تتطلب إعادة الرفع"
-                  >
-                    <span>⚠️ 3 تجريبية</span>
-                  </span>
-                ) : badgeCount > 0 ? (
+                {badgeCount > 0 && (
                   <span
                     className="mr-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black bg-gradient-to-r from-rose-600 via-amber-500 to-rose-500 text-white shadow-[0_0_14px_rgba(244,63,94,0.7)] border border-white/20 animate-pulse shrink-0"
                     title={`${badgeCount} طلب بانتظار الإجراء والمراجعة`}
                   >
                     {badgeCount > 99 ? '99+' : badgeCount}
                   </span>
-                ) : null}
+                )}
               </Link>
             );
           })}

@@ -118,6 +118,11 @@ export const adminApi = {
     await apiClient.delete(`/admin/users/${id}`);
   },
 
+  bulkDeleteUsers: async (userIds: string[]): Promise<{ requestedCount: number; deletedCount: number; deletedUserIds: string[]; warnings: string[]; message: string }> => {
+    const res = await apiClient.post<ApiResponse<{ requestedCount: number; deletedCount: number; deletedUserIds: string[]; warnings: string[]; message: string }>>('/admin/users/bulk-delete', { userIds });
+    return res.data.data!;
+  },
+
   getUserReports: async (userId: string, page = 1, pageSize = 20, signal?: AbortSignal): Promise<PagedResponse<AdminUserReport>> => {
     const res = await apiClient.get<ApiResponse<PagedResponse<AdminUserReport>>>(`/admin/users/${userId}/reports`, {
       params: { page, pageSize },

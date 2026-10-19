@@ -136,11 +136,44 @@ export function PageVerificationRequestCard({
 
   const rawPhone = request.ownerPhoneNumber || request.officialPhone;
   const cleanPhone = rawPhone ? rawPhone.replace(/\D/g, '').replace(/^0/, '') : '';
+  const isPageIdVerified = docAudit.isVerifiedId || Boolean(request.nationalIdFrontUrl && request.nationalIdBackUrl) || Boolean(request.hasOwnerNationalIdOnFile);
+  const isPageFrontOnly = !isPageIdVerified && Boolean(request.nationalIdFrontUrl && !request.nationalIdBackUrl);
 
   return (
-    <div className="group relative rounded-3xl bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950/95 border border-emerald-500/30 hover:border-emerald-400/70 p-4 sm:p-5 transition-all duration-300 hover:shadow-[0_0_35px_rgba(16,185,129,0.2)] text-right flex flex-col justify-between overflow-hidden">
+    <div
+      className={`group relative rounded-3xl p-4 sm:p-5 transition-all duration-300 text-right flex flex-col justify-between overflow-hidden ${
+        isPageIdVerified
+          ? 'bg-gradient-to-b from-[#06241b] via-[#091b24] to-slate-950 border-2 border-emerald-500/60 shadow-[0_0_35px_rgba(16,185,129,0.22)] ring-1 ring-emerald-500/40 hover:border-emerald-400 hover:shadow-emerald-500/30'
+          : isPageFrontOnly
+          ? 'bg-gradient-to-b from-[#131d27] via-[#0c1622] to-slate-950 border-2 border-amber-500/50 shadow-[0_0_25px_rgba(245,158,11,0.15)] ring-1 ring-amber-500/30 hover:border-amber-400 hover:shadow-amber-500/20'
+          : 'bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950/95 border border-emerald-500/30 hover:border-emerald-400/70 hover:shadow-[0_0_35px_rgba(16,185,129,0.2)]'
+      }`}
+    >
       {/* Top glowing ambient highlight */}
       <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-500 opacity-80" />
+
+      {/* DISTINCTIVE TOP VERIFIED ID BANNER FOR PAGE */}
+      {isPageIdVerified ? (
+        <div className="relative z-10 -mx-1 -mt-1 mb-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/25 via-teal-600/20 to-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-[11px] font-black flex items-center justify-between shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>🪪 بطاقة هوية منشئ الصفحة مربوطة ومطابقة رسمياً ✓</span>
+          </span>
+          <span className="px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-500/50 text-[10px]">
+            {request.nationalIdBackUrl ? 'وجه وظهر' : 'هوية مسجلة'}
+          </span>
+        </div>
+      ) : isPageFrontOnly ? (
+        <div className="relative z-10 -mx-1 -mt-1 mb-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-amber-600/20 to-orange-500/25 border border-amber-500/40 text-amber-300 text-[11px] font-black flex items-center justify-between shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+          <span className="flex items-center gap-1.5">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>⚠️ وجه بطاقة منشئ الصفحة مرفوع فقط — الظهر غير مرفوع</span>
+          </span>
+          <span className="px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-200 border border-amber-500/50 text-[10px]">
+            ناقص الظهر ⚠️
+          </span>
+        </div>
+      ) : null}
 
       <div className="space-y-4">
         {/* ROW 1: TAG + STATUS BADGE */}
@@ -356,17 +389,17 @@ export function PageVerificationRequestCard({
             <span
               className={`text-[10px] font-black px-2 py-0.5 rounded-full border shrink-0 ${
                 docAudit.isDummy
-                  ? 'bg-rose-500/20 text-rose-200 border-rose-500/40'
+                  ? 'bg-amber-500/20 text-amber-200 border-amber-500/40'
                   : docAudit.isVerifiedId
                   ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40'
                   : 'bg-slate-800 text-slate-400 border-slate-700'
               }`}
             >
-              {docAudit.isDummy ? 'تنبيه: تجريبية ⚠️' : docAudit.isVerifiedId ? 'موثوقة ✓' : 'يدوي'}
+              {docAudit.isDummy ? 'بانتظار الوثائق ⚠️' : docAudit.isVerifiedId ? 'موثوقة ✓' : 'يدوي'}
             </span>
           </div>
           {docAudit.isDummy && (
-            <p className="text-[11px] text-rose-200/80 pt-1.5 leading-relaxed">
+            <p className="text-[11px] text-amber-200/80 pt-1.5 leading-relaxed">
               {docAudit.reason}
             </p>
           )}
@@ -385,18 +418,18 @@ export function PageVerificationRequestCard({
             {/* National ID Front */}
             {request.nationalIdFrontUrl ? (
               <div
-                className="relative group/doc h-16 rounded-xl bg-slate-950 border border-slate-800 hover:border-cyan-400 overflow-hidden cursor-pointer flex flex-col items-center justify-center p-1"
-                onClick={() => onPreviewImage?.(resolveMediaUrl(request.nationalIdFrontUrl!), 'وجه البطاقة الشخصية')}
-                title="عرض وجه البطاقة"
+                className="relative group/doc h-16 rounded-xl bg-slate-950 border border-emerald-500/50 hover:border-emerald-400 overflow-hidden cursor-pointer flex flex-col items-center justify-center p-1 shadow-sm"
+                onClick={() => onPreviewImage?.(resolveMediaUrl(request.nationalIdFrontUrl!), 'وجه البطاقة الشخصية لمنشئ الصفحة')}
+                title="عرض وجه البطاقة لمنشئ الصفحة"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={resolveMediaUrl(request.nationalIdFrontUrl)}
                   alt="وجه البطاقة"
-                  className="w-full h-full object-cover rounded-lg"
+                  className="w-full h-full object-cover rounded-lg group-hover/doc:scale-105 transition-transform"
                 />
-                <span className="absolute bottom-0 inset-x-0 bg-black/75 text-[9px] text-cyan-300 font-bold text-center py-0.5">
-                  وجه البطاقة
+                <span className="absolute bottom-0 inset-x-0 bg-emerald-950/90 text-[9px] text-emerald-200 font-black text-center py-0.5">
+                  وجه البطاقة ✓
                 </span>
               </div>
             ) : null}
@@ -404,19 +437,27 @@ export function PageVerificationRequestCard({
             {/* National ID Back */}
             {request.nationalIdBackUrl ? (
               <div
-                className="relative group/doc h-16 rounded-xl bg-slate-950 border border-slate-800 hover:border-cyan-400 overflow-hidden cursor-pointer flex flex-col items-center justify-center p-1"
-                onClick={() => onPreviewImage?.(resolveMediaUrl(request.nationalIdBackUrl!), 'ظهر البطاقة الشخصية')}
-                title="عرض ظهر البطاقة"
+                className="relative group/doc h-16 rounded-xl bg-slate-950 border border-emerald-500/50 hover:border-emerald-400 overflow-hidden cursor-pointer flex flex-col items-center justify-center p-1 shadow-sm"
+                onClick={() => onPreviewImage?.(resolveMediaUrl(request.nationalIdBackUrl!), 'ظهر البطاقة الشخصية لمنشئ الصفحة')}
+                title="عرض ظهر البطاقة لمنشئ الصفحة"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={resolveMediaUrl(request.nationalIdBackUrl)}
                   alt="ظهر البطاقة"
-                  className="w-full h-full object-cover rounded-lg"
+                  className="w-full h-full object-cover rounded-lg group-hover/doc:scale-105 transition-transform"
                 />
-                <span className="absolute bottom-0 inset-x-0 bg-black/75 text-[9px] text-cyan-300 font-bold text-center py-0.5">
-                  ظهر البطاقة
+                <span className="absolute bottom-0 inset-x-0 bg-emerald-950/90 text-[9px] text-emerald-200 font-black text-center py-0.5">
+                  ظهر البطاقة ✓
                 </span>
+              </div>
+            ) : request.nationalIdFrontUrl ? (
+              <div
+                className="relative h-16 rounded-xl bg-amber-950/20 border-2 border-dashed border-amber-500/50 flex flex-col items-center justify-center p-1 text-center"
+                title="ظهر البطاقة لمنشئ الصفحة غير مرفوع"
+              >
+                <AlertTriangle className="w-4 h-4 text-amber-400 mb-0.5" />
+                <span className="text-[9px] font-bold text-amber-300">ظهر البطاقة غير مرفوع ⚠️</span>
               </div>
             ) : null}
 

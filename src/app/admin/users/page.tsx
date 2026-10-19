@@ -35,6 +35,7 @@ import {
   AlertTriangle,
   LayoutGrid,
   Table as TableIcon,
+  CheckSquare,
   Filter,
   X,
   Lock,
@@ -413,6 +414,8 @@ interface UserCardProps {
   onDelete: (user: AdminUserListItem) => void;
   onZoomAvatar: (data: ZoomedAvatarData) => void;
   isSelf: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (userId: string) => void;
 }
 
 function UserCard({
@@ -424,6 +427,8 @@ function UserCard({
   onDelete,
   onZoomAvatar,
   isSelf,
+  isSelected = false,
+  onToggleSelect,
 }: UserCardProps) {
   const [copiedId, setCopiedId] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
@@ -482,7 +487,11 @@ function UserCard({
 
   return (
     <div
-      className={`relative group rounded-2xl p-5 border transition-all duration-300 flex flex-col justify-between overflow-hidden ${cardTheme.wrap}`}
+      className={`relative group rounded-2xl p-5 border transition-all duration-300 flex flex-col justify-between overflow-hidden ${cardTheme.wrap} ${
+        isSelected
+          ? 'ring-2 ring-cyan-400 border-cyan-400 bg-cyan-950/40 shadow-[0_0_35px_rgba(6,182,212,0.35)]'
+          : ''
+      }`}
     >
       {/* Background Radial Glow */}
       <div
@@ -490,15 +499,37 @@ function UserCard({
       />
 
       <div className="relative z-10 space-y-4">
-        {/* Top Bar: Status Badges & Quick Role */}
+        {/* Top Bar: Selection Checkbox & Status Badges */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {user.isSuperAdmin && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-gradient-to-r from-amber-500/30 to-amber-600/20 text-amber-300 border border-amber-400/50 shadow-[0_0_12px_rgba(245,158,11,0.35)]">
-                <Crown className="w-3.5 h-3.5 text-amber-400" />
-                سوبر أدمن
-              </span>
+          <div className="flex items-center gap-2">
+            {!isSelf && onToggleSelect && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSelect(user.id);
+                }}
+                className="cursor-pointer p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+                title={isSelected ? 'إلغاء التحديد' : 'تحديد المستخدم للحذف الجماعي'}
+              >
+                <div
+                  className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                    isSelected
+                      ? 'bg-cyan-500 border-cyan-400 text-slate-950 shadow-[0_0_10px_rgba(6,182,212,0.6)]'
+                      : 'bg-black/60 border-slate-700 hover:border-cyan-400 text-transparent'
+                  }`}
+                >
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                </div>
+              </div>
             )}
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {user.isSuperAdmin && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black bg-gradient-to-r from-amber-500/30 to-amber-600/20 text-amber-300 border border-amber-400/50 shadow-[0_0_12px_rgba(245,158,11,0.35)]">
+                  <Crown className="w-3.5 h-3.5 text-amber-400" />
+                  سوبر أدمن
+                </span>
+              )}
 
             {user.role === 'Admin' && !user.isSuperAdmin && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
@@ -520,6 +551,7 @@ function UserCard({
               </span>
             )}
           </div>
+        </div>
 
           <div>
             {user.isBlocked ? (
@@ -1235,6 +1267,11 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [zoomedAvatar, setZoomedAvatar] = useState<ZoomedAvatarData | null>(null);
 
+  // Optimistic UI & Multi-Select Bulk Actions
+  const [optimisticallyDeletedIds, setOptimisticallyDeletedIds] = useState<Set<string>>(new Set());
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   const debouncedQ = useDebouncedValue(q, 400);
   const adminReady = useAdminQueryEnabled();
   const flash = useFlash();
@@ -1267,10 +1304,10 @@ export default function AdminUsersPage() {
     retry: 0,
   });
 
-  // Filtered users by role in memory for client tab
+  // Filtered users by role in memory for client tab (excluding optimistically deleted)
   const displayedUsers = useMemo(() => {
     if (!data?.items) return [];
-    let items = [...data.items];
+    let items = data.items.filter((u) => !optimisticallyDeletedIds.has(u.id));
 
     if (roleFilter === 'admin') {
       items = items.filter((u) => u.role === 'Admin' || u.isSuperAdmin);
@@ -1281,19 +1318,45 @@ export default function AdminUsersPage() {
     }
 
     return items;
-  }, [data?.items, roleFilter]);
+  }, [data?.items, roleFilter, optimisticallyDeletedIds]);
+
+  // Selectable users (excluding the active logged-in user)
+  const selectableUsers = useMemo(() => {
+    return displayedUsers.filter((u) => u.id !== currentUser?.id);
+  }, [displayedUsers, currentUser?.id]);
+
+  const allSelected =
+    selectableUsers.length > 0 && selectableUsers.every((u) => selectedUserIds.includes(u.id));
+
+  const handleToggleSelect = (userId: string) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(selectableUsers.map((u) => u.id));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedUserIds([]);
+  };
 
   // Statistics summaries
   const stats = useMemo(() => {
     const total = data?.totalCount || data?.items?.length || 0;
-    const items = data?.items || [];
+    const items = (data?.items || []).filter((u) => !optimisticallyDeletedIds.has(u.id));
     const verified = items.filter((u) => u.isVerified).length;
     const blocked = items.filter((u) => u.isBlocked).length;
     const complete = items.filter((u) => auditUserCompleteness(u).score >= 80).length;
     const incomplete = items.filter((u) => auditUserCompleteness(u).score < 80).length;
 
     return { total, verified, blocked, complete, incomplete };
-  }, [data]);
+  }, [data, optimisticallyDeletedIds]);
 
   // Mutations
   const handleBlockConfirm = async (userId: string, reason: string) => {
@@ -1329,6 +1392,7 @@ export default function AdminUsersPage() {
     }
   };
 
+  // Instant Optimistic Single User Delete
   const handleDeleteUser = async (user: AdminUserListItem) => {
     if (user.id === currentUser?.id) {
       flash.error('لا يمكنك مسح حسابك الخاص.');
@@ -1337,22 +1401,89 @@ export default function AdminUsersPage() {
 
     const ok = await flash.confirm({
       title: `مسح المستخدم نهائياً؟`,
-      message: `هل أنت متأكد من حذف «${user.name}» نهائياً؟ سيتم مسح حسابه وجميع بياناته ومنشوراته وسجلاته بالكامل من قاعدة البيانات. لا يمكن التراجع!`,
-      confirmLabel: 'مسح نهائي',
+      message: `هل أنت متأكد من حذف «${user.name}» نهائياً؟ سيتم مسح حسابه وجميع بياناته ومنشوراته وسجلاته بالكامل من قاعدة البيانات فوراً. لا يمكن التراجع!`,
+      confirmLabel: 'مسح نهائي فوري',
       cancelLabel: 'إلغاء',
       tone: 'danger',
     });
 
     if (!ok) return;
 
+    // Fast Optimistic Removal: UI disappears instantly (0ms lag)
+    setOptimisticallyDeletedIds((prev) => new Set([...prev, user.id]));
+    setSelectedUserIds((prev) => prev.filter((id) => id !== user.id));
+
     try {
       await adminApi.deleteUser(user.id);
-      flash.success('تم مسح المستخدم بنجاح.');
+      flash.success(`تم مسح المستخدم «${user.name}» بنجاح.`);
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-      refetch();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'تعذر مسح المستخدم';
+      // 404 tolerance: if already deleted or missing, treat as success
+      const isNotFound =
+        (err as any)?.status === 404 ||
+        (err as any)?.response?.status === 404 ||
+        (err as any)?.errorCode === 'NOT_FOUND' ||
+        (err instanceof Error && err.message.includes('غير موجود'));
+
+      if (isNotFound) {
+        flash.info(`المستخدم «${user.name}» تم حذفه مسبقاً.`);
+        queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      } else {
+        // Rollback optimistic removal on other network/server failures
+        setOptimisticallyDeletedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(user.id);
+          return next;
+        });
+        const msg = err instanceof Error ? err.message : 'تعذر مسح المستخدم';
+        flash.error(msg);
+      }
+    }
+  };
+
+  // Fast Bulk Delete
+  const handleBulkDelete = async () => {
+    if (selectedUserIds.length === 0) return;
+
+    const count = selectedUserIds.length;
+    const ok = await flash.confirm({
+      title: `مسح ${count} مستخدم نهائياً؟`,
+      message: `هل أنت متأكد من حذف ${count} مستخدم محدد نهائياً؟ سيتم مسح حساباتهم وجميع بياناتهم وسجلاتهم فوراً من قاعدة البيانات. لا يمكن التراجع عن هذا الإجراء!`,
+      confirmLabel: `نعم، مسح ${count} مستخدم دفعة واحدة`,
+      cancelLabel: 'إلغاء',
+      tone: 'danger',
+    });
+
+    if (!ok) return;
+
+    const toDelete = [...selectedUserIds];
+    setIsBulkDeleting(true);
+
+    // Optimistic removal: instantly hide all selected cards/rows
+    setOptimisticallyDeletedIds((prev) => new Set([...prev, ...toDelete]));
+    setSelectedUserIds([]);
+
+    try {
+      const res = await adminApi.bulkDeleteUsers(toDelete);
+      if (res.deletedCount > 0) {
+        flash.success(`تم مسح ${res.deletedCount} مستخدم بنجاح من قاعدة البيانات.`);
+      }
+      if (res.warnings && res.warnings.length > 0) {
+        flash.warn(res.warnings.join(' | '));
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    } catch (err: unknown) {
+      // Rollback optimistic removal on failure
+      setOptimisticallyDeletedIds((prev) => {
+        const next = new Set(prev);
+        toDelete.forEach((id) => next.delete(id));
+        return next;
+      });
+      setSelectedUserIds(toDelete);
+      const msg = err instanceof Error ? err.message : 'تعذر إتمام عملية المسح الجماعي';
       flash.error(msg);
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
 
@@ -1498,9 +1629,39 @@ export default function AdminUsersPage() {
               </select>
             </div>
 
-            {/* View Mode Toggle */}
-            <div className="md:col-span-3 flex items-center justify-end gap-2">
-              <span className="text-xs text-slate-400 font-bold ml-1 hidden lg:inline">طريقة العرض:</span>
+            {/* View Mode Toggle & Bulk Selection Tools */}
+            <div className="md:col-span-3 flex flex-wrap items-center justify-end gap-2">
+              {/* Select All Toggle Button */}
+              <button
+                type="button"
+                onClick={handleToggleSelectAll}
+                disabled={selectableUsers.length === 0}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  allSelected
+                    ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
+                    : 'bg-white/5 text-slate-300 border border-white/10 hover:text-white hover:bg-white/10'
+                } disabled:opacity-40`}
+                title={allSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل في هذه الصفحة'}
+              >
+                <CheckSquare className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{allSelected ? 'إلغاء التحديد' : 'تحديد الكل'}</span>
+              </button>
+
+              {/* Quick Bulk Delete Button (if selected) */}
+              {selectedUserIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={isBulkDeleting}
+                  className="px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 bg-red-500/25 text-red-200 border border-red-500/50 hover:bg-red-500/35 shadow-[0_0_15px_rgba(239,68,68,0.35)] animate-pulse disabled:opacity-50"
+                  title="مسح المستخدمين المحددين نهائياً"
+                >
+                  <Trash2 className={`w-3.5 h-3.5 ${isBulkDeleting ? 'animate-spin' : ''}`} />
+                  <span>مسح ({selectedUserIds.length})</span>
+                </button>
+              )}
+
+              <span className="text-xs text-slate-400 font-bold ml-1 hidden lg:inline">العرض:</span>
               <button
                 type="button"
                 onClick={() => setViewMode('cards')}
@@ -1511,7 +1672,7 @@ export default function AdminUsersPage() {
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
-                كروت متوهجة
+                كروت
               </button>
 
               <button
@@ -1561,6 +1722,8 @@ export default function AdminUsersPage() {
                 onDelete={handleDeleteUser}
                 onZoomAvatar={(zoomData) => setZoomedAvatar(zoomData)}
                 isSelf={user.id === currentUser?.id}
+                isSelected={selectedUserIds.includes(user.id)}
+                onToggleSelect={handleToggleSelect}
               />
             ))}
           </div>
@@ -1573,6 +1736,16 @@ export default function AdminUsersPage() {
               <table className="w-full text-sm">
                 <thead className="admin-thead text-xs">
                   <tr>
+                    <th className="w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={handleToggleSelectAll}
+                        disabled={selectableUsers.length === 0}
+                        className="w-4 h-4 rounded border-slate-700 bg-black/60 text-cyan-500 focus:ring-cyan-400 cursor-pointer"
+                        title={allSelected ? 'إلغاء تحديد الكل' : 'تحديد الكل في هذه الصفحة'}
+                      />
+                    </th>
                     <th className="text-right">المستخدم والبروفايل</th>
                     <th className="text-right">الموبايل والبريد</th>
                     <th className="text-right">الرقم القومي</th>
@@ -1586,8 +1759,26 @@ export default function AdminUsersPage() {
                   {displayedUsers.map((user) => {
                     const audit = auditUserCompleteness(user);
                     const resolvedAvatar = user.avatarUrl ? resolveMediaUrl(user.avatarUrl) : '';
+                    const isSelected = selectedUserIds.includes(user.id);
+                    const isSelf = user.id === currentUser?.id;
                     return (
-                      <tr key={user.id} className="admin-tr">
+                      <tr
+                        key={user.id}
+                        className={`admin-tr transition-colors ${
+                          isSelected ? 'bg-cyan-950/30 ring-1 ring-cyan-500/40' : ''
+                        }`}
+                      >
+                        <td className="text-center w-10">
+                          {!isSelf && (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelect(user.id)}
+                              className="w-4 h-4 rounded border-slate-700 bg-black/60 text-cyan-500 focus:ring-cyan-400 cursor-pointer"
+                              title="تحديد للحذف الجماعي"
+                            />
+                          )}
+                        </td>
                         <td className="admin-cell-title">
                           <div className="flex items-center gap-3">
                             <div
@@ -1753,11 +1944,23 @@ export default function AdminUsersPage() {
                               <button
                                 type="button"
                                 onClick={() => setBlockingUser(user)}
-                                disabled={user.id === currentUser?.id}
+                                disabled={isSelf}
                                 className="btn-glow btn-glow-danger px-2.5 h-8 text-xs inline-flex disabled:opacity-40"
                                 title="حظر الحساب"
                               >
                                 <Lock className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            {/* Direct Fast Delete */}
+                            {!isSelf && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(user)}
+                                className="btn-glow btn-glow-danger px-2.5 h-8 text-xs inline-flex hover:bg-red-500/30 text-red-300"
+                                title="مسح المستخدم نهائياً"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )}
                           </div>
@@ -1798,6 +2001,48 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      {/* Floating Sticky Bulk Delete Action Bar */}
+      {selectedUserIds.length > 0 && (
+        <div className="fixed bottom-6 inset-x-0 z-50 flex justify-center px-4 pointer-events-none animate-in fade-in slide-in-from-bottom-5 duration-200">
+          <div className="pointer-events-auto bg-[#0a111a]/95 backdrop-blur-xl border border-cyan-500/50 shadow-[0_0_35px_rgba(6,182,212,0.35)] rounded-2xl px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 text-white max-w-2xl w-full">
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+              <span className="text-sm font-bold">
+                تم تحديد <span className="font-mono text-cyan-300 font-black text-base">{selectedUserIds.length}</span> مستخدم
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleToggleSelectAll}
+                className="btn-glow btn-glow-ghost px-3 h-8 text-xs text-slate-300 hover:text-white"
+              >
+                {allSelected ? 'إلغاء تحديد الكل' : 'تحديد كل الصفحة'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="btn-glow btn-glow-ghost px-3 h-8 text-xs text-slate-400 hover:text-white"
+              >
+                إلغاء
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="btn-glow btn-glow-danger px-4 h-9 text-xs font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(239,68,68,0.45)] disabled:opacity-50"
+              >
+                <Trash2 className={`w-4 h-4 ${isBulkDeleting ? 'animate-spin' : ''}`} />
+                <span>مسح المحدد ({selectedUserIds.length}) دفعة واحدة</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Avatar Zoom Lightbox Modal */}
       <AvatarZoomModal

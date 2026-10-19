@@ -187,7 +187,7 @@ export function NationalIdInspectorModal({
 
   const docs = request.documents || [];
   const currentDoc = docs[selectedDocIndex];
-  const currentDocUrl = currentDoc ? resolveMediaUrl(currentDoc.documentUrl || currentDoc.mediaUrl || '') : null;
+  const currentDocUrl = currentDoc ? resolveMediaUrl(currentDoc.documentUrl || currentDoc.fileUrl || currentDoc.mediaUrl || '') : null;
 
   return (
     <div
@@ -531,13 +531,13 @@ export function NationalIdInspectorModal({
               <span
                 className={`px-3 py-1.5 rounded-full text-xs font-black inline-flex items-center gap-1.5 border shadow-sm ${
                   docAudit.isDummy
-                    ? 'bg-rose-500/25 text-rose-200 border-rose-500/50 animate-pulse'
+                    ? 'bg-amber-500/25 text-amber-200 border-amber-500/50'
                     : docAudit.isVerifiedId
                     ? 'bg-emerald-500/25 text-emerald-200 border-emerald-500/50'
                     : 'bg-slate-800 text-slate-300 border-slate-700'
                 }`}
               >
-                {docAudit.isDummy ? '⚠️ مستند تجريبي (غير صالح)' : docAudit.isVerifiedId ? '✅ بطاقة رسمية معتمدة' : '📄 بانتظار الفحص'}
+                {docAudit.isDummy ? '⚠️ لم يتم إرفاق بطاقة هوية' : docAudit.isVerifiedId ? '✅ بطاقة رسمية معتمدة' : '📄 بانتظار الفحص'}
               </span>
             </div>
           </div>
@@ -725,15 +725,20 @@ export function NationalIdInspectorModal({
                 <div className="rounded-2xl bg-slate-950 border border-slate-800 p-3 sm:p-4 space-y-2.5 sm:space-y-3">
                   <div className="relative aspect-[4/3] sm:aspect-[16/10] w-full bg-black/60 rounded-xl overflow-hidden flex items-center justify-center border border-white/5">
                     {/* Floating Authenticity Badge on Image */}
-                    {docAudit.isDummy ? (
-                      <div className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-xl bg-rose-600/90 backdrop-blur-md text-white text-[11px] font-black border border-white/20 shadow-2xl flex items-center gap-1.5 animate-pulse">
-                        <AlertTriangle className="w-3.5 h-3.5 text-white" />
-                        <span>⚠️ صورة تجريبية (ليست بطاقة هوية رسمية)</span>
-                      </div>
-                    ) : docAudit.isVerifiedId ? (
+                    {docAudit.isVerifiedId ? (
                       <div className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-xl bg-emerald-600/90 backdrop-blur-md text-white text-[11px] font-black border border-white/20 shadow-2xl flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                        <span>✅ بطاقة هوية رسمية سليمة ومطابقة</span>
+                        <span>✅ بطاقة هوية رسمية سليمة ومرفوعة</span>
+                      </div>
+                    ) : currentDocUrl ? (
+                      <div className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-xl bg-amber-600/90 backdrop-blur-md text-white text-[11px] font-black border border-white/20 shadow-2xl flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-white" />
+                        <span>📄 مستند مرفق قيد المعاينة والفحص</span>
+                      </div>
+                    ) : docAudit.isDummy ? (
+                      <div className="absolute top-3 right-3 z-20 px-3 py-1.5 rounded-xl bg-amber-600/90 backdrop-blur-md text-white text-[11px] font-black border border-white/20 shadow-2xl flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-white" />
+                        <span>⚠️ لا توجد وثيقة مرفقة</span>
                       </div>
                     ) : null}
 
