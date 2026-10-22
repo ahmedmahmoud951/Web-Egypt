@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { useAdminQueryEnabled } from '@/hooks/useAdminQueryEnabled';
@@ -11,11 +12,14 @@ import {
   CommunityCarpoolRideRealTimeMessage,
   CommunityLostAndFoundRealTimeMessage,
 } from '@/types/realtime';
+import { resolveMediaUrl, getMediaCandidateUrls } from '@/lib/media';
 import {
   CommunityAlertDto,
   CarpoolRideDto,
   CarpoolRequestDto,
   CarpoolTransactionDto,
+  CarpoolDriverRideHistoryDto,
+  CarpoolBookingSettlementDto,
   LostAndFoundItemDto,
   BroadcastCommunityItemRequest,
 } from '@/types/community';
@@ -53,7 +57,183 @@ import {
   ArrowRightLeft,
   Navigation,
   CheckCheck,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  RotateCcw,
+  Download,
+  Copy,
+  Check,
+  ExternalLink,
+  Eye,
+  FileText,
+  PhoneCall,
+  Shield,
+  AlertCircle,
+  UserCheck,
+  Maximize2,
+  Receipt,
 } from 'lucide-react';
+
+// ============================================================================
+// RESILIENT SMART MEDIA & AVATAR HELPERS
+// ============================================================================
+
+interface SafeMediaThumbnailProps {
+  src?: string | null;
+  alt: string;
+  title: string;
+  onClick?: () => void;
+  className?: string;
+  badgeText?: string;
+}
+
+function SafeMediaThumbnail({
+  src,
+  alt,
+  title,
+  onClick,
+  className,
+  badgeText,
+}: SafeMediaThumbnailProps) {
+  const candidates = useMemo(() => getMediaCandidateUrls(src), [src]);
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const [hasError, setHasError] = useState(!src);
+
+  useEffect(() => {
+    setCandidateIndex(0);
+    setHasError(!src);
+  }, [src]);
+
+  const activeSrc = candidates[candidateIndex] || resolveMediaUrl(src);
+
+  const handleError = () => {
+    if (candidateIndex + 1 < candidates.length) {
+      setCandidateIndex((prev) => prev + 1);
+    } else {
+      setHasError(true);
+    }
+  };
+
+  if (!src || hasError) {
+    return (
+      <div
+        className={`flex flex-col items-center justify-center p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 text-center ${
+          className || ''
+        }`}
+      >
+        <FileText className="w-5 h-5 mb-1 text-slate-600" />
+        <span className="text-[10px] text-slate-400 font-bold line-clamp-1">{title}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      className={`group relative rounded-xl bg-slate-900 border border-slate-800 overflow-hidden cursor-pointer hover:border-cyan-400 transition shadow-md hover:shadow-cyan-500/20 ${
+        className || ''
+      }`}
+    >
+      <img
+        src={activeSrc}
+        alt={alt}
+        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+        onError={handleError}
+        loading="lazy"
+      />
+      <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white text-[11px] font-bold transition duration-200 backdrop-blur-xs">
+        <Eye className="w-5 h-5 text-cyan-400 mb-1 animate-pulse" />
+        <span>معاينة مكبرة</span>
+      </div>
+      {badgeText && (
+        <span className="absolute bottom-1 right-1 left-1 bg-black/85 text-[10px] text-slate-200 font-bold text-center rounded py-0.5 px-1 truncate border border-slate-700/50">
+          {badgeText}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function SafeAvatar({
+  src,
+  name,
+  size = 36,
+  onClick,
+}: {
+  src?: string | null;
+  name: string;
+  size?: number;
+  onClick?: () => void;
+}) {
+  const candidates = useMemo(() => getMediaCandidateUrls(src), [src]);
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const [hasError, setHasError] = useState(!src);
+
+  useEffect(() => {
+    setCandidateIndex(0);
+    setHasError(!src);
+  }, [src]);
+
+  const activeSrc = candidates[candidateIndex] || resolveMediaUrl(src);
+
+  const handleError = () => {
+    if (candidateIndex + 1 < candidates.length) {
+      setCandidateIndex((prev) => prev + 1);
+    } else {
+      setHasError(true);
+    }
+  };
+
+  const initial = (name || 'م').trim().charAt(0);
+
+  if (!src || hasError) {
+    return (
+      <div
+        style={{ width: size, height: size }}
+        className="shrink-0 rounded-full bg-gradient-to-tr from-slate-700 to-slate-800 border border-slate-600 flex items-center justify-center text-xs font-black text-white shadow-xs"
+      >
+        {initial}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      style={{ width: size, height: size }}
+      className={`shrink-0 rounded-full overflow-hidden border border-slate-600 relative group ${
+        onClick ? 'cursor-pointer hover:border-cyan-400' : ''
+      }`}
+    >
+      <img
+        src={activeSrc}
+        alt={name}
+        className="w-full h-full object-cover"
+        onError={handleError}
+      />
+      {onClick && (
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+          <Eye className="w-3.5 h-3.5 text-cyan-300" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EgyptianLicensePlateBadge({ plateNumber }: { plateNumber?: string | null }) {
+  if (!plateNumber) return null;
+  return (
+    <div className="shrink-0 flex flex-col items-center justify-center px-3 py-1 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 border-2 border-slate-600 rounded-lg shadow-md font-mono text-center">
+      <div className="text-[9px] font-black text-blue-400 tracking-widest border-b border-slate-700 w-full pb-0.5">
+        EGY • مـصـر
+      </div>
+      <div className="text-xs md:text-sm font-black text-amber-300 tracking-wider pt-0.5">
+        {plateNumber}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminCommunityPage() {
   const adminReady = useAdminQueryEnabled();
@@ -63,6 +243,31 @@ export default function AdminCommunityPage() {
   const [carpoolSubTab, setCarpoolSubTab] = useState<'rides' | 'requests' | 'transactions'>('rides');
   const [statusFilter, setStatusFilter] = useState<string>('Active');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Interactive Lightbox Studio
+  const [lightboxData, setLightboxData] = useState<{
+    url: string;
+    title: string;
+    zoom: number;
+    rotation: number;
+  } | null>(null);
+
+  // Driver Rides & Passengers History Modal
+  const [driverRidesModal, setDriverRidesModal] = useState<{
+    userId: string;
+    driverName: string;
+  } | null>(null);
+
+  // Copy Feedback
+  const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedPhone(text);
+      setTimeout(() => setCopiedPhone(null), 2000);
+    }
+  };
 
   // Real-Time SignalR State
   const [connectionStatus, setConnectionStatus] = useState<SignalRConnectionStatus>('disconnected');
@@ -185,6 +390,17 @@ export default function AdminCommunityPage() {
     queryFn: ({ signal }) =>
       communityAdminApi.getLostAndFoundItems(1, 50, statusFilter === 'All' ? undefined : statusFilter, signal),
     enabled: adminReady && activeTab === 'lost',
+  });
+
+  const {
+    data: driverRidesData,
+    isLoading: driverRidesLoading,
+    refetch: refetchDriverRides,
+  } = useQuery({
+    queryKey: ['admin', 'driver-rides', driverRidesModal?.userId],
+    queryFn: ({ signal }) =>
+      communityAdminApi.getDriverRidesHistory(driverRidesModal!.userId, 1, 50, signal),
+    enabled: adminReady && !!driverRidesModal?.userId,
   });
 
   // SignalR Subscriptions
@@ -373,10 +589,40 @@ export default function AdminCommunityPage() {
         r.fromCityOrArea.toLowerCase().includes(q) ||
         r.toCityOrArea.toLowerCase().includes(q) ||
         r.driverName.toLowerCase().includes(q) ||
+        (r.driverPhoneNumber && r.driverPhoneNumber.includes(q)) ||
         r.carModel.toLowerCase().includes(q) ||
-        (r.carPlateNumber && r.carPlateNumber.toLowerCase().includes(q))
+        (r.carPlateNumber && r.carPlateNumber.toLowerCase().includes(q)) ||
+        (r.bookings &&
+          r.bookings.some(
+            (b) =>
+              b.passengerName?.toLowerCase().includes(q) ||
+              (b.passengerPhoneNumber && b.passengerPhoneNumber.includes(q))
+          ))
     );
   }, [carpoolData, searchQuery]);
+
+  const filteredTransactions = useMemo(() => {
+    if (!carpoolTransactionsData?.items) return [];
+    if (!searchQuery.trim()) return carpoolTransactionsData.items;
+    const q = searchQuery.toLowerCase();
+    return carpoolTransactionsData.items.filter(
+      (tx) =>
+        tx.fromCityOrArea.toLowerCase().includes(q) ||
+        tx.toCityOrArea.toLowerCase().includes(q) ||
+        tx.carModel.toLowerCase().includes(q) ||
+        (tx.carPlateNumber && tx.carPlateNumber.toLowerCase().includes(q)) ||
+        (tx.driverName && tx.driverName.toLowerCase().includes(q)) ||
+        (tx.driverPhoneNumber && tx.driverPhoneNumber.includes(q)) ||
+        (tx.counterpartName && tx.counterpartName.toLowerCase().includes(q)) ||
+        (tx.counterpartPhone && tx.counterpartPhone.includes(q)) ||
+        (tx.bookings &&
+          tx.bookings.some(
+            (b) =>
+              b.passengerName?.toLowerCase().includes(q) ||
+              (b.passengerPhoneNumber && b.passengerPhoneNumber.includes(q))
+          ))
+    );
+  }, [carpoolTransactionsData, searchQuery]);
 
   const filteredLostItems = useMemo(() => {
     if (!lostData?.items) return [];
@@ -632,7 +878,7 @@ export default function AdminCommunityPage() {
                 }`}
               >
                 <Car className="w-4 h-4 text-white" />
-                <span>🚙 عربية رايحة (مشاوير ومعاملات)</span>
+                <span>🚗 مشاوير — مشاركة الرحلات والسفر</span>
                 {carpoolData?.totalCount != null && (
                   <span className="text-xs bg-black/40 px-2 py-0.5 rounded-full font-mono font-bold text-white border border-white/20">
                     {carpoolData.totalCount}
@@ -742,6 +988,13 @@ export default function AdminCommunityPage() {
                 <DollarSign className="w-3.5 h-3.5" />
                 <span>سجل الرحلات والمعاملات المكتملة</span>
               </button>
+              <Link
+                href="/admin/drivers"
+                className="px-4 py-2 rounded-xl text-xs font-bold transition border border-amber-500/40 bg-amber-950/60 hover:bg-amber-950 text-amber-300 hover:text-white flex items-center gap-1.5 shadow-md shadow-amber-950/30 mr-auto"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span>اعتماد وفحص السائقين والسيارات 🛡️</span>
+              </Link>
             </div>
           )}
 
@@ -1024,14 +1277,122 @@ export default function AdminCommunityPage() {
                                 </span>
                               )}
                             </div>
+
+                            {/* Embedded Passenger Bookings Ledger */}
+                            <div className="p-4 bg-slate-950/90 rounded-2xl border border-slate-800 space-y-2.5">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-black text-slate-300 flex items-center gap-1.5">
+                                  <Users className="w-3.5 h-3.5 text-blue-400" />
+                                  ركاب هذا المشوار ({ride.bookings?.length || 0} راكب):
+                                </span>
+                                <span className="text-[11px] text-slate-400">
+                                  إجمالي المقاعد المحجوزة: {ride.totalSeats - ride.availableSeats} من {ride.totalSeats}
+                                </span>
+                              </div>
+
+                              {ride.bookings && ride.bookings.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                  {ride.bookings.map((booking) => (
+                                    <div
+                                      key={booking.id}
+                                      className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2.5 text-xs hover:border-slate-700 transition"
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <SafeAvatar
+                                          src={booking.passengerAvatarUrl}
+                                          name={booking.passengerName}
+                                          size={32}
+                                          onClick={
+                                            booking.passengerAvatarUrl
+                                              ? () =>
+                                                  setLightboxData({
+                                                    url: booking.passengerAvatarUrl!,
+                                                    title: `بروفايل الراكب: ${booking.passengerName}`,
+                                                    zoom: 1,
+                                                    rotation: 0,
+                                                  })
+                                              : undefined
+                                          }
+                                        />
+                                        <div className="min-w-0">
+                                          <div className="font-black text-white flex items-center gap-1 truncate">
+                                            <span className="truncate">{booking.passengerName}</span>
+                                            {booking.passengerHasNationalId && (
+                                              <span title="موثق بالرقم القومي">
+                                                <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
+                                              </span>
+                                            )}
+                                          </div>
+                                          {booking.passengerPhoneNumber ? (
+                                            <div className="flex items-center gap-1 mt-0.5">
+                                              <a
+                                                href={`tel:${booking.passengerPhoneNumber}`}
+                                                className="text-[11px] text-cyan-400 font-mono font-bold hover:underline"
+                                              >
+                                                📞 {booking.passengerPhoneNumber}
+                                              </a>
+                                              <button
+                                                type="button"
+                                                onClick={() => copyToClipboard(booking.passengerPhoneNumber!)}
+                                                className="text-slate-500 hover:text-slate-300 p-0.5"
+                                                title="نسخ رقم الهاتف"
+                                              >
+                                                {copiedPhone === booking.passengerPhoneNumber ? (
+                                                  <Check className="w-3 h-3 text-emerald-400" />
+                                                ) : (
+                                                  <Copy className="w-3 h-3" />
+                                                )}
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <span className="text-[10px] text-slate-500">بدون هاتف</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="text-left shrink-0 space-y-0.5">
+                                        <span className="inline-block px-2 py-0.5 rounded-md bg-blue-950 text-blue-300 border border-blue-500/40 text-[10px] font-black">
+                                          {booking.seatsCount} مقعد
+                                        </span>
+                                        <div className="text-[10px] text-emerald-400 font-bold">
+                                          {booking.seatsCount * ride.pricePerSeat} ج.م
+                                        </div>
+                                        {booking.pickupNote && (
+                                          <div className="text-[9px] text-slate-400 truncate max-w-[80px]" title={booking.pickupNote}>
+                                            {booking.pickupNote}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="p-3 bg-slate-900/60 rounded-xl text-center text-slate-400 text-xs border border-dashed border-slate-800">
+                                  لا توجد حجوزات ركاب حتى الآن — المقاعد متاحة للحجز ({ride.availableSeats} مقعد متاح)
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           {/* Driver Info & Card Actions */}
                           <div className="flex flex-wrap items-center justify-between pt-4 mt-4 border-t border-slate-800/80 gap-3">
                             <div className="flex items-center gap-2.5">
-                              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-700 to-slate-800 border border-slate-600 flex items-center justify-center text-sm font-black text-white">
-                                {ride.driverName.charAt(0)}
-                              </div>
+                              <SafeAvatar
+                                src={ride.driverAvatarUrl}
+                                name={ride.driverName}
+                                size={36}
+                                onClick={
+                                  ride.driverAvatarUrl
+                                    ? () =>
+                                        setLightboxData({
+                                          url: ride.driverAvatarUrl!,
+                                          title: `بروفايل السائق: ${ride.driverName}`,
+                                          zoom: 1,
+                                          rotation: 0,
+                                        })
+                                    : undefined
+                                }
+                              />
                               <div>
                                 <div className="text-xs font-black text-white flex items-center gap-1.5">
                                   <span>{ride.driverName}</span>
@@ -1045,13 +1406,52 @@ export default function AdminCommunityPage() {
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-[11px] text-slate-400 font-mono">
-                                  رقم المشوار: {ride.id.substring(0, 8)}...
+                                <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5 font-mono">
+                                  {ride.driverPhoneNumber ? (
+                                    <div className="flex items-center gap-1">
+                                      <a
+                                        href={`tel:${ride.driverPhoneNumber}`}
+                                        className="text-cyan-400 font-bold hover:underline"
+                                      >
+                                        📞 {ride.driverPhoneNumber}
+                                      </a>
+                                      <button
+                                        type="button"
+                                        onClick={() => copyToClipboard(ride.driverPhoneNumber!)}
+                                        className="text-slate-500 hover:text-slate-300 p-0.5"
+                                        title="نسخ رقم الهاتف"
+                                      >
+                                        {copiedPhone === ride.driverPhoneNumber ? (
+                                          <Check className="w-3 h-3 text-emerald-400" />
+                                        ) : (
+                                          <Copy className="w-3 h-3" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span>مشوار #{ride.id.substring(0, 8)}</span>
+                                  )}
                                 </div>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {/* Open Driver Rides History Button */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDriverRidesModal({
+                                    userId: ride.driverUserId,
+                                    driverName: ride.driverName,
+                                  })
+                                }
+                                className="px-3 py-1.5 bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-500/40 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm transition"
+                                title="عرض كافة رحلات السائق وكل الركاب الذين حجزوا معه"
+                              >
+                                <Car className="w-3.5 h-3.5 text-amber-400" />
+                                <span>سجل رحلات وركاب السائق 🚗</span>
+                              </button>
+
                               {/* Broadcast as Flash Urgent Ad Button */}
                               {!isExpired && (
                                 <button
@@ -1167,15 +1567,45 @@ export default function AdminCommunityPage() {
 
                           <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-800">
                             <div className="flex items-center gap-2">
+                              <SafeAvatar
+                                src={req.passengerAvatarUrl}
+                                name={req.passengerName}
+                                size={28}
+                                onClick={
+                                  req.passengerAvatarUrl
+                                    ? () =>
+                                        setLightboxData({
+                                          url: req.passengerAvatarUrl!,
+                                          title: `صورة الراكب: ${req.passengerName}`,
+                                          zoom: 1,
+                                          rotation: 0,
+                                        })
+                                    : undefined
+                                }
+                              />
                               <span className="font-bold text-white">{req.passengerName}</span>
                               {req.passengerHasNationalId && (
                                 <span title="موثق بالرقم القومي"><ShieldCheck className="w-4 h-4 text-emerald-400" /></span>
                               )}
                             </div>
                             {req.passengerPhoneNumber && (
-                              <a href={`tel:${req.passengerPhoneNumber}`} className="text-cyan-400 font-mono font-bold hover:underline">
-                                📞 {req.passengerPhoneNumber}
-                              </a>
+                              <div className="flex items-center gap-1.5">
+                                <a href={`tel:${req.passengerPhoneNumber}`} className="text-cyan-400 font-mono font-bold hover:underline">
+                                  📞 {req.passengerPhoneNumber}
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(req.passengerPhoneNumber!)}
+                                  className="text-slate-500 hover:text-slate-300 p-0.5"
+                                  title="نسخ رقم الهاتف"
+                                >
+                                  {copiedPhone === req.passengerPhoneNumber ? (
+                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1186,56 +1616,341 @@ export default function AdminCommunityPage() {
               </div>
             )}
 
-            {/* View 3: Ride Transactions (Uber Style) */}
+            {/* View 3: Comprehensive Ride & Passenger Ledger (سجل المعاملات والركاب الشامل) */}
             {carpoolSubTab === 'transactions' && (
               <div className="space-y-4">
                 {carpoolTransactionsLoading ? (
                   <div className="p-16 text-center text-slate-300 font-bold flex flex-col items-center justify-center gap-3 bg-[#0F172A] rounded-3xl border border-slate-800">
                     <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
-                    <span>جاري تحميل سجل المعاملات...</span>
+                    <span>جاري تحميل وفحص سجل المعاملات والرحلات المكتملة...</span>
                   </div>
-                ) : !carpoolTransactionsData?.items?.length ? (
+                ) : !filteredTransactions.length ? (
                   <div className="p-16 text-center bg-[#0F172A] rounded-3xl border border-slate-800 text-slate-300 space-y-3">
                     <DollarSign className="w-12 h-12 text-blue-400 mx-auto" />
-                    <h3 className="font-black text-white text-lg">لا توجد رحلات منتهية في سجل المعاملات بعد</h3>
+                    <h3 className="font-black text-white text-lg">
+                      {searchQuery.trim() ? 'لا توجد نتائج مطابقة لبحثك في سجل المعاملات' : 'لا توجد رحلات منتهية في سجل المعاملات بعد'}
+                    </h3>
+                    <p className="text-xs text-slate-400 max-w-md mx-auto">
+                      كافة المعاملات المالية والحجوزات المكتملة بين السائقين والركاب تظهر هنا فور انتهاء المشوار مع السجل المحاسبي الشامل.
+                    </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {carpoolTransactionsData.items.map((tx) => (
-                      <div
-                        key={tx.transactionId}
-                        className="p-6 rounded-3xl bg-[#0F172A] border-2 border-slate-800 hover:border-blue-500/50 shadow-xl space-y-4"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black px-3 py-1 rounded-xl bg-blue-950 text-blue-300 border border-blue-500/50">
-                              {tx.role === 'Driver' ? 'سائق' : 'راكب'}
-                            </span>
-                            <span className="text-xs text-slate-400">
-                              {new Date(tx.departureTime).toLocaleDateString('ar-EG')}
-                            </span>
-                          </div>
-                          <span className="text-base font-black text-emerald-400">
-                            {tx.totalAmount} {tx.currency}
-                          </span>
-                        </div>
+                  <div className="grid grid-cols-1 gap-6">
+                    {filteredTransactions.map((tx) => {
+                      const driverDisplayName = tx.driverName || (tx.role === 'Driver' ? 'السائق المعلن' : tx.counterpartName);
+                      const driverPhone = tx.driverPhoneNumber || (tx.role === 'Passenger' ? tx.counterpartPhone : null);
+                      const driverAvatar = tx.driverAvatarUrl || (tx.role === 'Passenger' ? tx.counterpartAvatarUrl : null);
 
-                        <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-400">المسار:</span>
-                            <span className="font-bold text-white">{tx.fromCityOrArea} ➔ {tx.toCityOrArea}</span>
+                      return (
+                        <div
+                          key={tx.transactionId}
+                          className="p-6 md:p-7 rounded-3xl bg-gradient-to-br from-[#0F172A] via-[#111A2E] to-[#0D1526] border-2 border-slate-800 hover:border-blue-500/50 shadow-2xl space-y-6 transition duration-300"
+                        >
+                          {/* Transaction Top Bar */}
+                          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <span className="px-3.5 py-1.5 rounded-xl bg-blue-950/90 text-blue-300 border border-blue-500/50 text-xs font-black shadow-inner flex items-center gap-1.5">
+                                <Receipt className="w-4 h-4 text-blue-400" />
+                                <span>معاملة مشوار #{tx.transactionId.substring(0, 8)}</span>
+                              </span>
+
+                              <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 font-bold flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5 text-amber-400" />
+                                <span>موعد الانطلاق: {new Date(tx.departureTime).toLocaleDateString('ar-EG')} - {new Date(tx.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                              </span>
+
+                              {tx.completedAt && (
+                                <span className="px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-xs text-emerald-300 font-bold flex items-center gap-1.5">
+                                  <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>تم الوصول: {new Date(tx.completedAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <span className="px-4 py-1.5 rounded-xl bg-emerald-950 text-emerald-300 border border-emerald-500/50 text-sm md:text-base font-black shadow-md shadow-emerald-950/40">
+                                💰 {tx.totalAmount} {tx.currency}
+                              </span>
+
+                              <span className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 text-xs font-black">
+                                {tx.status === 'Completed' ? '✅ مكتملة ومحاسبة' : tx.status}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-400">السيارة والنمرة:</span>
-                            <span className="font-bold text-amber-300">{tx.carModel} {tx.carPlateNumber ? `[${tx.carPlateNumber}]` : ''}</span>
+
+                          {/* Highway Route Visualizer & Car Plate Strip */}
+                          <div className="p-4 bg-slate-950/90 rounded-2xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="space-y-1.5 flex-1">
+                              <span className="text-[11px] font-bold text-slate-400 block">خط سير المشوار:</span>
+                              <div className="flex items-center gap-3 text-sm md:text-base font-black text-white">
+                                <span className="text-blue-300 truncate">{tx.fromCityOrArea}</span>
+                                <div className="flex items-center gap-1 text-slate-500 shrink-0">
+                                  <ArrowRightLeft className="w-4 h-4 text-emerald-400" />
+                                </div>
+                                <span className="text-emerald-300 truncate">{tx.toCityOrArea}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              <div className="text-right">
+                                <div className="text-xs font-black text-white">{tx.carModel}</div>
+                                {tx.carColor && <div className="text-[11px] text-slate-400">اللون: {tx.carColor}</div>}
+                              </div>
+
+                              <EgyptianLicensePlateBadge plateNumber={tx.carPlateNumber} />
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-400">الطرف الآخر:</span>
-                            <span className="font-bold text-cyan-300">{tx.counterpartName}</span>
+
+                          {/* Two-Column Deep Ledger: Driver Profile on Right, Client/Passengers on Left */}
+                          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                            {/* Column 1: Driver Profile Card (5 cols) */}
+                            <div className="lg:col-span-4 p-5 rounded-2xl bg-slate-950/95 border border-slate-800 space-y-4 flex flex-col justify-between">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                                    <Car className="w-4 h-4" />
+                                    سائق المشوار (بيانات السائق)
+                                  </span>
+
+                                  {tx.isDriverVerified && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                                      <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                                      سائق موثق
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  <SafeAvatar
+                                    src={driverAvatar}
+                                    name={driverDisplayName}
+                                    size={46}
+                                    onClick={
+                                      driverAvatar
+                                        ? () =>
+                                            setLightboxData({
+                                              url: driverAvatar,
+                                              title: `صورة بروفايل السائق: ${driverDisplayName}`,
+                                              zoom: 1,
+                                              rotation: 0,
+                                            })
+                                        : undefined
+                                    }
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-black text-white truncate">{driverDisplayName}</div>
+                                    {driverPhone ? (
+                                      <div className="flex items-center gap-1.5 mt-1">
+                                        <a
+                                          href={`tel:${driverPhone}`}
+                                          className="text-xs text-cyan-400 font-mono font-bold hover:underline"
+                                        >
+                                          📞 {driverPhone}
+                                        </a>
+                                        <button
+                                          type="button"
+                                          onClick={() => copyToClipboard(driverPhone)}
+                                          className="text-slate-500 hover:text-slate-300 p-0.5"
+                                          title="نسخ رقم هاتف السائق"
+                                        >
+                                          {copiedPhone === driverPhone ? (
+                                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                          ) : (
+                                            <Copy className="w-3.5 h-3.5" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[11px] text-slate-500">رقم الهاتف غير متاح</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {tx.driverUserId && (
+                                  <div className="text-[10px] text-slate-500 font-mono bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+                                    معرّف السائق: {tx.driverUserId}
+                                  </div>
+                                )}
+                              </div>
+
+                              {tx.driverUserId && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDriverRidesModal({
+                                      userId: tx.driverUserId!,
+                                      driverName: driverDisplayName,
+                                    })
+                                  }
+                                  className="w-full py-2 px-3 rounded-xl bg-amber-950/80 hover:bg-amber-900 border border-amber-500/40 text-xs font-black text-amber-300 flex items-center justify-center gap-2 transition shadow-sm"
+                                >
+                                  <Car className="w-3.5 h-3.5 text-amber-400" />
+                                  <span>سجل كافة رحلات وركاب السائق 🚗</span>
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Column 2: Client & Passengers Ledger (7 cols) */}
+                            <div className="lg:col-span-8 p-5 rounded-2xl bg-slate-950/95 border border-slate-800 space-y-3.5">
+                              <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                                <span className="text-xs font-black text-blue-400 flex items-center gap-1.5">
+                                  <Users className="w-4 h-4" />
+                                  بيانات العميل والركاب (الذين ركبوا مع السائق في هذا المشوار):
+                                </span>
+                                <span className="text-[11px] text-slate-400 font-bold">
+                                  سعر المقعد: {tx.pricePerSeat} {tx.currency} • المقاعد المحجوزة: {tx.seatsCount}
+                                </span>
+                              </div>
+
+                              {tx.bookings && tx.bookings.length > 0 ? (
+                                <div className="space-y-3">
+                                  {tx.bookings.map((booking, bIndex) => {
+                                    const bookingFare = (booking.seatsCount || 1) * tx.pricePerSeat;
+                                    return (
+                                      <div
+                                        key={booking.id || bIndex}
+                                        className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition"
+                                      >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                          <SafeAvatar
+                                            src={booking.passengerAvatarUrl}
+                                            name={booking.passengerName}
+                                            size={42}
+                                            onClick={
+                                              booking.passengerAvatarUrl
+                                                ? () =>
+                                                    setLightboxData({
+                                                      url: booking.passengerAvatarUrl!,
+                                                      title: `صورة بروفايل العميل: ${booking.passengerName}`,
+                                                      zoom: 1,
+                                                      rotation: 0,
+                                                    })
+                                                : undefined
+                                            }
+                                          />
+                                          <div className="min-w-0 space-y-0.5">
+                                            <div className="text-xs font-black text-white flex items-center gap-1.5">
+                                              <span>{booking.passengerName}</span>
+                                              {booking.passengerHasNationalId ? (
+                                                <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-500/40">
+                                                  <ShieldCheck className="w-3 h-3" />
+                                                  موثق بالرقم القومي
+                                                </span>
+                                              ) : (
+                                                <span className="text-[10px] text-slate-500">حساب عادي</span>
+                                              )}
+                                            </div>
+
+                                            {booking.passengerPhoneNumber && (
+                                              <div className="flex items-center gap-1.5">
+                                                <a
+                                                  href={`tel:${booking.passengerPhoneNumber}`}
+                                                  className="text-xs text-cyan-400 font-mono font-bold hover:underline"
+                                                >
+                                                  📞 {booking.passengerPhoneNumber}
+                                                </a>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => copyToClipboard(booking.passengerPhoneNumber!)}
+                                                  className="text-slate-500 hover:text-slate-300 p-0.5"
+                                                  title="نسخ رقم هاتف الراكب"
+                                                >
+                                                  {copiedPhone === booking.passengerPhoneNumber ? (
+                                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                                  ) : (
+                                                    <Copy className="w-3.5 h-3.5" />
+                                                  )}
+                                                </button>
+                                              </div>
+                                            )}
+
+                                            <div className="text-[10px] text-slate-400">
+                                              ركب في موعد: <strong className="text-slate-200">{new Date(tx.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</strong> مع السائق <strong className="text-amber-300">{driverDisplayName}</strong>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-800 space-y-1">
+                                          <span className="px-2.5 py-0.5 rounded-lg bg-blue-950 text-blue-300 border border-blue-500/40 text-xs font-black">
+                                            {booking.seatsCount} مقعد
+                                          </span>
+
+                                          <div className="text-sm font-black text-emerald-400">
+                                            بكام: {bookingFare} {tx.currency}
+                                          </div>
+
+                                          {booking.pickupNote && (
+                                            <div className="text-[10px] font-mono text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/30">
+                                              🔑 {booking.pickupNote}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                /* Fallback if single booking record represented by counterpart */
+                                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-3">
+                                    <SafeAvatar
+                                      src={tx.counterpartAvatarUrl}
+                                      name={tx.counterpartName}
+                                      size={40}
+                                      onClick={
+                                        tx.counterpartAvatarUrl
+                                          ? () =>
+                                              setLightboxData({
+                                                url: tx.counterpartAvatarUrl!,
+                                                title: `صورة العميل: ${tx.counterpartName}`,
+                                                zoom: 1,
+                                                rotation: 0,
+                                              })
+                                          : undefined
+                                      }
+                                    />
+                                    <div>
+                                      <div className="text-xs font-black text-white">{tx.counterpartName}</div>
+                                      {tx.counterpartPhone && (
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                          <a href={`tel:${tx.counterpartPhone}`} className="text-xs text-cyan-400 font-mono font-bold hover:underline">
+                                            📞 {tx.counterpartPhone}
+                                          </a>
+                                          <button
+                                            type="button"
+                                            onClick={() => copyToClipboard(tx.counterpartPhone!)}
+                                            className="text-slate-500 hover:text-slate-300 p-0.5"
+                                            title="نسخ رقم الهاتف"
+                                          >
+                                            {copiedPhone === tx.counterpartPhone ? (
+                                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                            ) : (
+                                              <Copy className="w-3.5 h-3.5" />
+                                            )}
+                                          </button>
+                                        </div>
+                                      )}
+                                      <div className="text-[10px] text-slate-400 mt-0.5">
+                                        ركب في موعد: {new Date(tx.departureTime).toLocaleString('ar-EG')} مع السائق {driverDisplayName}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-left shrink-0 space-y-1">
+                                    <span className="px-2.5 py-0.5 rounded-lg bg-blue-950 text-blue-300 border border-blue-500/40 text-xs font-black">
+                                      {tx.seatsCount} مقعد
+                                    </span>
+                                    <div className="text-sm font-black text-emerald-400">
+                                      بكام: {tx.totalAmount} {tx.currency}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1361,11 +2076,31 @@ export default function AdminCommunityPage() {
                     {/* Bottom Toolbar & Action Controls */}
                     <div className="flex flex-wrap items-center justify-between pt-4 mt-4 border-t border-slate-800/80 gap-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-white">
-                          <User className="w-4 h-4 text-slate-300" />
-                        </div>
+                        <SafeAvatar
+                          src={alert.userAvatarUrl}
+                          name={alert.userName}
+                          size={32}
+                          onClick={
+                            alert.userAvatarUrl
+                              ? () =>
+                                  setLightboxData({
+                                    url: alert.userAvatarUrl!,
+                                    title: `صورة صاحب الاستغاثة: ${alert.userName}`,
+                                    zoom: 1,
+                                    rotation: 0,
+                                  })
+                              : undefined
+                          }
+                        />
                         <div>
-                          <div className="text-xs font-bold text-white">{alert.userName}</div>
+                          <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span>{alert.userName}</span>
+                            {alert.isUserVerified && (
+                              <span title="مواطن موثق">
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[11px] text-slate-400">
                             {alert.responsesCount} عروض مساعدة
                           </div>
@@ -1512,6 +2247,51 @@ export default function AdminCommunityPage() {
                           {item.description}
                         </p>
                       </div>
+
+                      {/* Item Attached Photo / Document Preview */}
+                      {(item.mediaUrl || item.mediaFileId) && (
+                        <div className="flex items-center gap-3 p-3 bg-slate-950/90 rounded-2xl border border-slate-800">
+                          <SafeMediaThumbnail
+                            src={item.mediaUrl || item.mediaFileId}
+                            alt={item.title}
+                            title={item.title}
+                            onClick={() =>
+                              setLightboxData({
+                                url: item.mediaUrl || item.mediaFileId!,
+                                title: `مرفق مفقودات: ${item.title}`,
+                                zoom: 1,
+                                rotation: 0,
+                              })
+                            }
+                            className="w-20 h-20 shrink-0"
+                            badgeText="صورة المرفق 📷"
+                          />
+                          <div className="space-y-1 text-xs">
+                            <span className="font-black text-cyan-300 flex items-center gap-1">
+                              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                              مرفق صورة حية للوثيقة / المقتنيات
+                            </span>
+                            <p className="text-[11px] text-slate-400 leading-relaxed">
+                              انقر على الصورة لمعاينتها وتكبيرها في ستوديو الفحص عالي الدقة.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLightboxData({
+                                  url: item.mediaUrl || item.mediaFileId!,
+                                  title: `مرفق مفقودات: ${item.title}`,
+                                  zoom: 1,
+                                  rotation: 0,
+                                })
+                              }
+                              className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 underline pt-0.5"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              تكبير وفحص الصورة الآن
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Details Box with Address & Map */}
                       <div className="p-3.5 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-2 text-xs">
@@ -1947,6 +2727,38 @@ export default function AdminCommunityPage() {
                           <div className="font-black text-emerald-400 text-sm">{ride.pricePerSeat} جنيه مصري</div>
                         </div>
                       </div>
+
+                      {/* Passenger Bookings in Modal */}
+                      {ride.bookings && ride.bookings.length > 0 && (
+                        <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                          <span className="text-xs font-black text-blue-400 block">
+                            قائمة ركاب هذا المشوار ({ride.bookings.length} راكب):
+                          </span>
+                          <div className="space-y-2">
+                            {ride.bookings.map((b) => (
+                              <div
+                                key={b.id}
+                                className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3 text-xs"
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <SafeAvatar src={b.passengerAvatarUrl} name={b.passengerName} size={32} />
+                                  <div>
+                                    <div className="font-bold text-white">{b.passengerName}</div>
+                                    {b.passengerPhoneNumber && (
+                                      <a href={`tel:${b.passengerPhoneNumber}`} className="text-cyan-400 font-mono font-bold hover:underline">
+                                        📞 {b.passengerPhoneNumber}
+                                      </a>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-left font-black text-emerald-400">
+                                  {b.seatsCount} مقاعد ({b.seatsCount * ride.pricePerSeat} ج.م)
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -1965,6 +2777,52 @@ export default function AdminCommunityPage() {
                           {lost.description}
                         </p>
                       </div>
+
+                      {/* Attached Document Photo Preview in Modal */}
+                      {(lost.mediaUrl || lost.mediaFileId) && (
+                        <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
+                          <div className="flex items-center justify-between text-xs font-black text-cyan-400">
+                            <span>صورة المستند / المقتنى المرفقة مع البلاغ:</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setLightboxData({
+                                  url: lost.mediaUrl || lost.mediaFileId!,
+                                  title: `مستند: ${lost.title}`,
+                                  zoom: 1,
+                                  rotation: 0,
+                                })
+                              }
+                              className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:underline"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                              فتح في ستوديو الفحص
+                            </button>
+                          </div>
+                          <div className="max-h-64 rounded-xl overflow-hidden border border-slate-800 bg-black flex items-center justify-center p-2">
+                            <img
+                              src={resolveMediaUrl(lost.mediaUrl || lost.mediaFileId)}
+                              alt={lost.title}
+                              className="max-h-60 w-auto object-contain rounded-lg cursor-pointer hover:scale-102 transition"
+                              onClick={() =>
+                                setLightboxData({
+                                  url: lost.mediaUrl || lost.mediaFileId!,
+                                  title: `مستند: ${lost.title}`,
+                                  zoom: 1,
+                                  rotation: 0,
+                                })
+                              }
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                const candidates = getMediaCandidateUrls(lost.mediaUrl || lost.mediaFileId);
+                                if (candidates.length > 1 && target.src !== candidates[1]) {
+                                  target.src = candidates[1];
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       <div className="p-5 bg-slate-950 border border-indigo-500/40 rounded-2xl space-y-2.5 text-xs sm:text-sm">
                         {lost.fullNameOnItem && (
@@ -2014,6 +2872,356 @@ export default function AdminCommunityPage() {
                 >
                   إغلاق
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================================
+            11. DRIVER RIDES & PASSENGERS HISTORY MODAL
+           ========================================================================= */}
+        {driverRidesModal && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+            <div
+              className="bg-[#0F172A] rounded-3xl max-w-4xl w-full p-6 space-y-6 shadow-2xl border-2 border-amber-500/60 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 text-right"
+              dir="rtl"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-amber-950/80 border border-amber-500/40 text-amber-400">
+                    <Car className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white">
+                      سجل كافة رحلات وركاب السائق: {driverRidesModal.driverName}
+                    </h3>
+                    <span className="text-xs text-slate-400">
+                      استعراض شامل لجميع المشاوير المنفذة، الركاب، المبالغ المحصلة، وأرقام هواتفهم
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setDriverRidesModal(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              {driverRidesLoading ? (
+                <div className="p-16 text-center text-slate-300 font-bold flex flex-col items-center justify-center gap-3">
+                  <RefreshCw className="w-8 h-8 animate-spin text-amber-500" />
+                  <span>جاري جلب سجل رحلات السائق من قاعدة البيانات...</span>
+                </div>
+              ) : !driverRidesData?.items?.length ? (
+                <div className="p-12 text-center bg-slate-950/80 rounded-2xl border border-slate-800 text-slate-300 space-y-3">
+                  <Car className="w-12 h-12 text-slate-600 mx-auto" />
+                  <h4 className="font-black text-white text-base">لا توجد رحلات منتهية لهذا السائق حتى الآن</h4>
+                  <p className="text-xs text-slate-400">
+                    فور إتمام السائق لأي مشوار مع ركابه، ستظهر تفاصيل الرحلة بالكامل في هذا السجل.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                    <span>إجمالي المشاوير المنفذة: <strong className="text-amber-300">{driverRidesData.totalCount} مشوار</strong></span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {driverRidesData.items.map((ride) => (
+                      <div
+                        key={ride.rideId}
+                        className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4 hover:border-slate-700 transition"
+                      >
+                        {/* Trip Route & Date */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="text-sm font-black text-white flex items-center gap-2">
+                              <span className="text-blue-300">{ride.fromCityOrArea}</span>
+                              <ArrowRightLeft className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="text-emerald-300">{ride.toCityOrArea}</span>
+                            </div>
+
+                            <EgyptianLicensePlateBadge plateNumber={ride.carPlateNumber} />
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="px-3 py-1 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-mono">
+                              {new Date(ride.departureTime).toLocaleDateString('ar-EG')} - {new Date(ride.departureTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+
+                            <span className="px-3 py-1 rounded-xl bg-emerald-950 text-emerald-300 border border-emerald-500/40 font-black">
+                              💰 {ride.totalGrossRevenue} ج.م
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Ride Stats Bar */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800">
+                            <span className="text-slate-400 text-[10px] block">السيارة:</span>
+                            <span className="font-bold text-white">{ride.carModel}</span>
+                          </div>
+                          <div className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800">
+                            <span className="text-slate-400 text-[10px] block">سعر المقعد:</span>
+                            <span className="font-bold text-emerald-400">{ride.pricePerSeat} ج.م</span>
+                          </div>
+                          <div className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800">
+                            <span className="text-slate-400 text-[10px] block">المقاعد المحجوزة:</span>
+                            <span className="font-bold text-blue-300">{ride.bookedSeatsCount} من {ride.totalSeats}</span>
+                          </div>
+                          <div className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800">
+                            <span className="text-slate-400 text-[10px] block">صافي أرباح السائق:</span>
+                            <span className="font-bold text-amber-300">{ride.totalNetEarnings} ج.م</span>
+                          </div>
+                        </div>
+
+                        {/* Passengers List */}
+                        <div className="space-y-2">
+                          <span className="text-[11px] font-black text-slate-400 block">
+                            الركاب الذين شاركوا في هذا المشوار ({ride.passengers?.length || 0} راكب):
+                          </span>
+
+                          {ride.passengers && ride.passengers.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              {ride.passengers.map((passenger: CarpoolBookingSettlementDto) => (
+                                <div
+                                  key={passenger.bookingId}
+                                  className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3 text-xs"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <SafeAvatar
+                                      src={passenger.passengerAvatarUrl}
+                                      name={passenger.passengerName}
+                                      size={34}
+                                      onClick={
+                                        passenger.passengerAvatarUrl
+                                          ? () =>
+                                              setLightboxData({
+                                                url: passenger.passengerAvatarUrl!,
+                                                title: `راكب: ${passenger.passengerName}`,
+                                                zoom: 1,
+                                                rotation: 0,
+                                              })
+                                          : undefined
+                                      }
+                                    />
+                                    <div className="min-w-0">
+                                      <div className="font-black text-white truncate">{passenger.passengerName}</div>
+                                      {passenger.passengerPhone ? (
+                                        <div className="flex items-center gap-1 mt-0.5">
+                                          <a
+                                            href={`tel:${passenger.passengerPhone}`}
+                                            className="text-[11px] text-cyan-400 font-mono font-bold hover:underline"
+                                          >
+                                            📞 {passenger.passengerPhone}
+                                          </a>
+                                          <button
+                                            type="button"
+                                            onClick={() => copyToClipboard(passenger.passengerPhone!)}
+                                            className="text-slate-500 hover:text-slate-300 p-0.5"
+                                          >
+                                            {copiedPhone === passenger.passengerPhone ? (
+                                              <Check className="w-3 h-3 text-emerald-400" />
+                                            ) : (
+                                              <Copy className="w-3 h-3" />
+                                            )}
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-500">بدون هاتف</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="text-left shrink-0 space-y-0.5">
+                                    <span className="inline-block px-2 py-0.5 rounded-md bg-blue-950 text-blue-300 border border-blue-500/40 text-[10px] font-black">
+                                      {passenger.seatsCount} مقعد
+                                    </span>
+                                    <div className="text-emerald-400 font-black text-xs">
+                                      {passenger.totalAmount} ج.م
+                                    </div>
+                                    {passenger.pickupOtp && (
+                                      <div className="text-[9px] font-mono text-amber-300 bg-amber-950/70 px-1.5 py-0.5 rounded">
+                                        🔑 {passenger.pickupOtp}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="p-3 bg-slate-900/40 rounded-xl text-center text-slate-500 text-xs">
+                              لا يوجد ركاب مسجلين لهذا المشوار
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end pt-4 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setDriverRidesModal(null)}
+                  className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-black rounded-xl transition"
+                >
+                  إغلاق النافذة
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================================
+            12. INTERACTIVE LIGHTBOX STUDIO FOR IMAGES & DOCUMENTS
+           ========================================================================= */}
+        {lightboxData && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fadeIn"
+            onClick={() => setLightboxData(null)}
+          >
+            <div
+              className="relative max-w-5xl w-full bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Studio Header Toolbar */}
+              <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                    <Eye className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white">{lightboxData.title}</h3>
+                    <span className="text-[11px] text-slate-400">ستوديو المعاينة والفحص البصري للمستندات والصور</span>
+                  </div>
+                </div>
+
+                {/* Action Controls */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLightboxData((prev) =>
+                        prev ? { ...prev, zoom: Math.min(prev.zoom + 0.25, 3) } : null
+                      )
+                    }
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                    title="تكبير"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLightboxData((prev) =>
+                        prev ? { ...prev, zoom: Math.max(prev.zoom - 0.25, 0.5) } : null
+                      )
+                    }
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                    title="تصغير"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLightboxData((prev) =>
+                        prev ? { ...prev, zoom: 1, rotation: 0 } : null
+                      )
+                    }
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 transition"
+                    title="إعادة ضبط الحجم"
+                  >
+                    100%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLightboxData((prev) =>
+                        prev ? { ...prev, rotation: (prev.rotation + 90) % 360 } : null
+                      )
+                    }
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                    title="تدوير مع عقارب الساعة"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLightboxData((prev) =>
+                        prev ? { ...prev, rotation: (prev.rotation - 90 + 360) % 360 } : null
+                      )
+                    }
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                    title="تدوير عكس عقارب الساعة"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                  <a
+                    href={resolveMediaUrl(lightboxData.url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    download
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                    title="تحميل الصورة بجودتها الكاملة"
+                  >
+                    <Download className="w-4 h-4" />
+                  </a>
+                  <a
+                    href={resolveMediaUrl(lightboxData.url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 hover:text-white transition"
+                    title="فتح في تبويب مستقل"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setLightboxData(null)}
+                    className="p-2 rounded-xl bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition mr-2"
+                    title="إغلاق"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Image Stage */}
+              <div className="flex-1 bg-slate-950/80 overflow-auto flex items-center justify-center p-4 min-h-[350px] max-h-[70vh]">
+                <img
+                  src={resolveMediaUrl(lightboxData.url)}
+                  alt={lightboxData.title}
+                  style={{
+                    transform: `scale(${lightboxData.zoom}) rotate(${lightboxData.rotation}deg)`,
+                    transition: 'transform 0.2s ease-in-out',
+                  }}
+                  className="max-h-[65vh] max-w-full object-contain rounded-lg shadow-2xl"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    const candidates = getMediaCandidateUrls(lightboxData.url);
+                    if (candidates.length > 1 && target.src !== candidates[1]) {
+                      target.src = candidates[1];
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Status Bar */}
+              <div className="p-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+                <span>الزووم: {Math.round(lightboxData.zoom * 100)}% • التدوير: {lightboxData.rotation}°</span>
+                <span className="text-cyan-400 font-mono truncate max-w-md">
+                  {resolveMediaUrl(lightboxData.url)}
+                </span>
               </div>
             </div>
           </div>

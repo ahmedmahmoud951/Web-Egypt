@@ -38,6 +38,7 @@ import {
   Landmark,
   CircleDollarSign,
   Scale,
+  Car,
 } from 'lucide-react';
 
 const navItems = [
@@ -63,7 +64,8 @@ const navItems = [
   { href: '/admin/marketplace/packages', label: 'ترويج الماركات (Brand Boosts)', shortLabel: 'ترويج ماركات', icon: Sparkles },
   
   // المجتمع والطوارئ والمحادثات
-  { href: '/admin/community', label: 'المجتمع والطوارئ والمفقودات', shortLabel: 'طوارئ', icon: Siren },
+  { href: '/admin/community', label: 'المجتمع ومشاوير والمفقودات', shortLabel: 'مشاوير وطوارئ', icon: Siren },
+  { href: '/admin/drivers', label: 'اعتماد سائقي مشاوير 🚗', shortLabel: 'اعتماد سائقين', icon: Car },
   { href: '/admin/chat', label: 'مراقبة المحادثات', shortLabel: 'محادثات', icon: MessageCircle },
 
   // الإعلام والفعاليات

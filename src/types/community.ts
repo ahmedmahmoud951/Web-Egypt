@@ -68,6 +68,10 @@ export interface CarpoolRideDto {
   completedAt?: string | null;
   isOwner: boolean;
   myBookingStatus?: string | null;
+  boardedSeats?: number;
+  totalCollected?: number;
+  totalPlatformFee?: number;
+  netEarnings?: number;
   bookings?: CarpoolBookingDto[];
 }
 
@@ -135,7 +139,54 @@ export interface CarpoolTransactionDto {
   counterpartAvatarUrl?: string | null;
   bookingsCount: number;
   bookings?: CarpoolBookingDto[];
+  driverUserId?: string;
+  driverName?: string;
+  driverPhoneNumber?: string | null;
+  driverAvatarUrl?: string | null;
+  isDriverVerified?: boolean;
   createdAt: string;
+}
+
+export interface CarpoolBookingSettlementDto {
+  bookingId: string;
+  rideId: string;
+  passengerUserId: string;
+  passengerName: string;
+  passengerAvatarUrl?: string | null;
+  passengerPhone?: string | null;
+  seatsCount: number;
+  totalAmount: number;
+  platformFee: number;
+  driverEarnings: number;
+  pickupNote?: string | null;
+  pickupOtp?: string | null;
+  status: string;
+  settlementStatus?: string | null;
+  boardedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface CarpoolDriverRideHistoryDto {
+  rideId: string;
+  fromCityOrArea: string;
+  toCityOrArea: string;
+  departureTime: string;
+  pricePerSeat: number;
+  totalSeats: number;
+  availableSeats: number;
+  bookedSeatsCount: number;
+  carModel: string;
+  carColor?: string | null;
+  carPlateNumber?: string | null;
+  notes?: string | null;
+  status: string;
+  totalGrossRevenue: number;
+  totalPlatformFee: number;
+  totalNetEarnings: number;
+  createdAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  passengers: CarpoolBookingSettlementDto[];
 }
 
 export interface LostAndFoundItemDto {
@@ -199,4 +250,28 @@ export interface CommunitySweepResultDto {
   totalSwept: number;
   message: string;
 }
+
+export interface DriverRegistrationDto {
+  id: string;
+  userId: string;
+  driverName?: string | null;
+  driverPhoneNumber?: string | null;
+  driverAvatarUrl?: string | null;
+  nationalId: string;
+  drivingLicenseNumber: string;
+  drivingLicenseFrontUrl: string;
+  drivingLicenseBackUrl: string;
+  carPlateNumber: string;
+  carModel: string;
+  carColor: string;
+  carYear: string;
+  carPhotoUrl: string;
+  carLicenseUrl: string;
+  status: 'Pending' | 'Approved' | 'Rejected' | string;
+  rejectionReason?: string | null;
+  submittedAt: string;
+  reviewedAt?: string | null;
+  reviewedByAdminId?: string | null;
+}
+
 

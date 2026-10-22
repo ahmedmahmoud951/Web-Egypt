@@ -10,6 +10,8 @@ import {
   BroadcastCommunityItemResponse,
   BanCommunityItemRequest,
   CommunitySweepResultDto,
+  DriverRegistrationDto,
+  CarpoolDriverRideHistoryDto,
 } from '@/types/community';
 
 export const communityAdminApi = {
@@ -150,5 +152,47 @@ export const communityAdminApi = {
     );
     return res.data?.data!;
   },
+
+  // Driver Registrations (مشاوير — مراجعة واعتماد السائقين والسيارات)
+  getDriverRegistrations: async (
+    status?: string,
+    signal?: AbortSignal
+  ): Promise<DriverRegistrationDto[]> => {
+    const res = await apiClient.get<ApiResponse<DriverRegistrationDto[]>>(
+      '/admin/drivers',
+      {
+        params: {
+          status: status || 'All',
+        },
+        signal,
+      }
+    );
+    return res.data?.data!;
+  },
+
+  approveDriver: async (id: string): Promise<void> => {
+    await apiClient.post(`/admin/drivers/${id}/approve`);
+  },
+
+  rejectDriver: async (id: string, reason: string): Promise<void> => {
+    await apiClient.post(`/admin/drivers/${id}/reject`, { reason });
+  },
+
+  getDriverRidesHistory: async (
+    userId: string,
+    page = 1,
+    pageSize = 50,
+    signal?: AbortSignal
+  ): Promise<PagedResponse<CarpoolDriverRideHistoryDto>> => {
+    const res = await apiClient.get<ApiResponse<PagedResponse<CarpoolDriverRideHistoryDto>>>(
+      `/admin/drivers/${userId}/rides`,
+      {
+        params: { page, pageSize },
+        signal,
+      }
+    );
+    return res.data?.data!;
+  },
 };
+
 

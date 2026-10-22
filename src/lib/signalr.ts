@@ -30,6 +30,7 @@ import {
   CommunityCarpoolRideRealTimeMessage,
   CommunityLostAndFoundRealTimeMessage,
   ReportUpdatedRealTimeMessage,
+  DriverRegistrationRealTimeMessage,
 } from '@/types/realtime';
 
 export type SignalRConnectionStatus =
@@ -365,6 +366,19 @@ class SignalRService {
 
   public onCommunityLostAndFoundItemCreated(callback: (msg: CommunityLostAndFoundRealTimeMessage) => void): () => void {
     return this.registerHandler('CommunityLostAndFoundItemCreated', callback);
+  }
+
+  // Driver Registrations (مشاوير — اعتماد السائقين)
+  public onDriverRegistrationSubmitted(callback: (msg: DriverRegistrationRealTimeMessage) => void): () => void {
+    return this.registerHandler('DriverRegistrationSubmitted', callback);
+  }
+
+  public onDriverRegistrationApproved(callback: (msg: DriverRegistrationRealTimeMessage) => void): () => void {
+    return this.registerHandler('DriverRegistrationApproved', callback);
+  }
+
+  public onDriverRegistrationRejected(callback: (msg: DriverRegistrationRealTimeMessage) => void): () => void {
+    return this.registerHandler('DriverRegistrationRejected', callback);
   }
 
   // Reports Moderation Real-Time Events

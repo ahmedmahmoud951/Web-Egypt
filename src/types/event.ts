@@ -32,6 +32,10 @@ export interface EventSummaryDto {
   categoryId: number;
   categoryNameAr: string;
   categoryIcon?: string | null;
+  isLocationPublic?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  locationAccuracyMeters?: number | null;
 }
 
 export interface MediaItemDto {
@@ -59,6 +63,8 @@ export interface EventDto {
   updatedAt?: string | null;
   userId: string;
   userName?: string;
+  userPhoneNumber?: string | null;
+  userAvatarUrl?: string | null;
   user?: UserDto | null;
   locationId: number;
   locationNameAr?: string;
@@ -66,6 +72,8 @@ export interface EventDto {
   latitude?: number | null;
   longitude?: number | null;
   locationAccuracyMeters?: number | null;
+  isLocationPublic?: boolean;
+  mapsUrl?: string | null;
   location?: LocationDto | null;
   categoryId: number;
   categoryNameAr?: string;

@@ -141,12 +141,14 @@ export interface AdminEventDetail {
   userId: string;
   userName: string;
   userPhoneNumber: string;
+  userAvatarUrl?: string | null;
   locationId: number;
   locationNameAr: string;
   locationPathAr: string;
   latitude?: number | null;
   longitude?: number | null;
   locationAccuracyMeters?: number | null;
+  isLocationPublic?: boolean;
   mapsUrl?: string | null;
   categoryId: number;
   categoryNameAr: string;

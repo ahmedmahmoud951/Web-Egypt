@@ -242,3 +242,15 @@ export interface ReportUpdatedRealTimeMessage {
   notes?: string | null;
   updatedAt: string;
 }
+
+export interface DriverRegistrationRealTimeMessage {
+  registrationId: string;
+  userId: string;
+  driverName?: string | null;
+  carPlateNumber: string;
+  carModel: string;
+  status: string;
+  rejectionReason?: string | null;
+  submittedAt: string;
+}
+

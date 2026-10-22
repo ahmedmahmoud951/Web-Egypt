@@ -50,15 +50,6 @@ export default function AdminEventDetailPage() {
 
   const cached = useMemo(() => (id ? findCachedEvent(queryClient, id) : undefined), [id, queryClient]);
   const queriesEnabled = !!id && isAuthenticated && isAdmin && !authLoading;
-  const [loadAdminExtras, setLoadAdminExtras] = useState(false);
-
-  // Public payload only on open — admin get-by-id hangs on free hosting; load on demand.
-  const {
-    data: publicEvent,
-    isLoading: publicLoading,
-    isError: publicError,
-    refetch: refetchPublic,
-  } = useEvent(queriesEnabled ? id : '');
 
   const {
     data: adminEvent,
@@ -68,11 +59,18 @@ export default function AdminEventDetailPage() {
   } = useQuery({
     queryKey: ['admin', 'events', id],
     queryFn: ({ signal }) => adminApi.getEventById(id, signal),
-    enabled: queriesEnabled && loadAdminExtras,
-    retry: 0,
+    enabled: queriesEnabled,
+    retry: 1,
     staleTime: 60_000,
     throwOnError: false,
   });
+
+  const {
+    data: publicEvent,
+    isLoading: publicLoading,
+    isError: publicError,
+    refetch: refetchPublic,
+  } = useEvent(queriesEnabled && !adminEvent ? id : '');
 
   const event = (adminEvent ?? publicEvent ?? cached) as AdminEventDetail | EventDto | undefined;
   const mediaSource =
@@ -150,7 +148,7 @@ export default function AdminEventDetailPage() {
               type="button"
               onClick={() => {
                 refetchPublic();
-                if (loadAdminExtras) refetchAdmin();
+                refetchAdmin();
               }}
               className="btn-glow btn-glow-primary px-3 h-9 text-xs"
             >
@@ -191,40 +189,13 @@ export default function AdminEventDetailPage() {
       <div className="max-w-4xl mx-auto space-y-5 text-right">
         {adminFetching && (
           <FlashBanner tone="info" title="بيانات الإدارة">
-            جاري جلب هاتف الناشر / GPS...
-          </FlashBanner>
-        )}
-
-        {!adminEvent && !loadAdminExtras && (
-          <FlashBanner tone="info" title="عرض سريع" className="admin-row justify-between">
-            <span>تم تحميل المحتوى بدون طلب الأدمن الثقيل (يتسبب في timeout على الاستضافة).</span>
-            <button
-              type="button"
-              onClick={() => setLoadAdminExtras(true)}
-              className="btn-glow btn-glow-primary px-3 h-9 text-xs"
-            >
-              جلب هاتف / GPS
-            </button>
-          </FlashBanner>
-        )}
-
-        {loadAdminExtras && adminError && !adminEvent && (
-          <FlashBanner tone="warn" title="تعذر جلب بيانات الأدمن" className="admin-row justify-between">
-            <span>الخادم لم يستجب خلال المهلة — المحتوى والتعليقات ما زالت متاحة.</span>
-            <button
-              type="button"
-              onClick={() => refetchAdmin()}
-              className="btn-glow btn-glow-ghost px-3 h-9 text-xs"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              إعادة
-            </button>
+            جاري جلب هاتف الناشر / GPS المباشر...
           </FlashBanner>
         )}
 
         <div className="admin-row items-start justify-between">
           <div className="admin-col">
-            <h1 className="text-2xl font-black text-[#F2F6FA]">{event.title}</h1>
+            <h1 className="text-2xl font-black text-[#F2F6FA]">{event.title || 'منشور بدون عنوان'}</h1>
             <p className="text-sm text-[#8B9CB0] mt-1">الحالة: {status}</p>
           </div>
           <div className="admin-row gap-2 flex-wrap">
@@ -256,34 +227,63 @@ export default function AdminEventDetailPage() {
         </div>
 
         <div className="admin-card p-5 space-y-3">
-          <h2 className="font-black text-[#F2F6FA]">الناشر</h2>
-          <div className="text-sm space-y-1">
+          <h2 className="font-black text-[#F2F6FA]">بيانات الناشر</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
             <div>
               الاسم:{' '}
               <Link href={`/admin/users/${event.userId}`} className="text-[#1F6B7A] font-bold hover:underline">
                 {event.userName || 'مستخدم'}
               </Link>
             </div>
-            {'userPhoneNumber' in detail && detail.userPhoneNumber && (
-              <div dir="ltr" className="text-left font-mono text-[#8B9CB0]">
-                {detail.userPhoneNumber}
+            {'userPhoneNumber' in detail && detail.userPhoneNumber ? (
+              <div className="flex items-center gap-2">
+                <span dir="ltr" className="font-mono text-cyan-400 font-bold text-sm">
+                  {detail.userPhoneNumber}
+                </span>
+                <a
+                  href={`https://wa.me/2${detail.userPhoneNumber.replace(/^0+/, '')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2.5 py-1 rounded-lg bg-emerald-600/80 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1"
+                >
+                  واتساب
+                </a>
+                <a
+                  href={`tel:${detail.userPhoneNumber}`}
+                  className="px-2.5 py-1 rounded-lg bg-blue-600/80 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center gap-1"
+                >
+                  اتصال
+                </a>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
         <div className="admin-card p-5 space-y-3">
-          <h2 className="font-black text-[#F2F6FA] flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-[#1F6B7A]" />
-            موقع النشر بالظبط
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-black text-[#F2F6FA] flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-[#1F6B7A]" />
+              موقع النشر بالظبط وإحداثيات الـ GPS الحية
+            </h2>
+
+            {detail.isLocationPublic ? (
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                موقع علني بالبوست 🌍
+              </span>
+            ) : (
+              <span className="px-3 py-1 rounded-full text-xs font-black bg-purple-950 text-purple-300 border border-purple-500/40">
+                موقع خفي (للإدارة فقط لحماية الخصوصية) 🔒
+              </span>
+            )}
+          </div>
+
           <p className="text-sm text-[#F2F6FA] font-semibold">{locationLabel}</p>
           {detail.latitude != null && detail.longitude != null ? (
             <div className="space-y-3">
               <div className="text-xs text-[#8B9CB0] font-mono" dir="ltr">
                 {detail.latitude}, {detail.longitude}
                 {detail.locationAccuracyMeters != null &&
-                  ` (±${Math.round(detail.locationAccuracyMeters)}m)`}
+                  ` (دقة الالتقاط: ±${Math.round(detail.locationAccuracyMeters)}م)`}
               </div>
               {mapsEmbed && (
                 <iframe
